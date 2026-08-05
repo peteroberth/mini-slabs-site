@@ -1,16 +1,16 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>mini-slabs</title>
-    <script type="module" crossorigin src="/assets/index-DvL4W1wH.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-D90Nm3Qs.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  <script>
+<head>
+<meta charset="UTF-8" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>mini-slabs</title>
+<script type="module" crossorigin src="/assets/index-DvL4W1wH.js"></script>
+<link rel="stylesheet" crossorigin href="/assets/index-D90Nm3Qs.css">
+</head>
+<body>
+<div id="root"></div>
+<script>
 (function(){
 function onReady(fn){ if(document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
 
@@ -228,7 +228,7 @@ if(curImg && curImg.src) openZoom(curImg.src);
 }
 
 function isCoinInputTool(){ return /coin-input-tool/.test(window.location.pathname); }
-  function isAdminPage(){ return /^\/admin(\/|$)/.test(window.location.pathname); }
+function isAdminPage(){ return /^\/admin(\/|$)/.test(window.location.pathname); }
 
 function patchToolHeader(){
 var slot = document.getElementById('logoSlot');
@@ -535,6 +535,12 @@ var hasBuyback = bbNum !== null && isFinite(bbNum);
 
 if(!hasBuyback){
 card.insertBefore(summary, nameP);
+if(isSellback){
+var noBuyback = document.createElement('div');
+noBuyback.textContent = "Buyback pricing isn't set for this item yet — please contact us for a quote.";
+noBuyback.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.55);margin:2px 0 12px;';
+card.insertBefore(noBuyback, nameP);
+}
 return;
 }
 
@@ -638,275 +644,343 @@ placeholder.style.display = '';
 });
 }
 
-/* ---------- Admin: session helpers for privileged REST calls ---------- */
-  
-  function getAdminAccessToken(){
-    try{
-      for(var i = 0; i < localStorage.length; i++){
-        var k = localStorage.key(i);
-        if(!k || !/^sb-.*-auth-token$/.test(k)) continue;
-        var raw = localStorage.getItem(k);
-        if(!raw) continue;
-        var parsed = JSON.parse(raw);
-        var token = (parsed && parsed.access_token) || (parsed && parsed.currentSession && parsed.currentSession.access_token);
-        if(token) return token;
-      }
-    }catch(e){}
-    return null;
-  }
-  
-  function adminHeaders(){
-    return {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY),
-      'Content-Type': 'application/json'
-    };
-  }
-  
-  function adminRest(path, opts){
-    opts = opts || {};
-    var fetchOpts = { method: opts.method || 'GET', headers: adminHeaders() };
-    if(opts.body) fetchOpts.body = opts.body;
-    return fetch(SUPABASE_URL + '/rest/v1/' + path, fetchOpts);
-  }
-  
-  /* ---------- Admin: Payments panel (accepted-but-unpaid sell-backs + resale offers) ---------- */
-  
-  var paymentsPanelEl = null;
-  
-  function refreshPaymentsBadge(){
-    if(!isAdminPage()) return;
-    Promise.all([
-      adminRest('sellback_submissions?select=id&status=eq.approved').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
-      adminRest('resale_offers?select=id&status=eq.accepted').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
-      ]).then(function(results){
-      var count = (results[0] || []).length + (results[1] || []).length;
-      var badge = document.getElementById('ms-payments-badge');
-      if(!badge) return;
-      if(count > 0){
-        badge.textContent = String(count);
-        badge.style.display = 'inline-flex';
-      } else {
-        badge.style.display = 'none';
-      }
-    });
-  }
-  
-  function buildPaymentsPanel(){
-    if(paymentsPanelEl) return paymentsPanelEl;
-    var overlay = document.createElement('div');
-    overlay.id = 'ms-payments-modal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:999997;background:rgba(0,0,0,0.75);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;';
-    var box = document.createElement('div');
-    box.style.cssText = 'background:#12131c;color:#fff;max-width:720px;width:100%;border-radius:14px;padding:26px;position:relative;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
-    var closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.textContent = '✕';
-    closeBtn.title = 'Close';
-    closeBtn.style.cssText = 'position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;font-size:16px;cursor:pointer;line-height:1;';
-    closeBtn.addEventListener('click', function(){ close(); });
-    var heading = document.createElement('h2');
-    heading.textContent = 'Payments Due';
-    heading.style.cssText = 'font-size:20px;font-weight:800;margin:0 0 16px;padding-right:40px;';
-    var content = document.createElement('div');
-    content.id = 'ms-payments-content';
-    box.appendChild(closeBtn);
-    box.appendChild(heading);
-    box.appendChild(content);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click', function(e){ if(e.target === overlay) close(); });
-    document.addEventListener('keydown', function(e){ if(overlay.style.display !== 'none' && e.key === 'Escape') close(); });
-    
-    function renderRow(kind, item){
-      var row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;';
-      var left = document.createElement('div');
-      if(kind === 'sellback'){
-        left.innerHTML = '<div style="font-weight:700;">' + escapeHtml(item.name || item.email || 'Unknown') + '</div>' +
-          '<div style="font-size:12px;color:rgba(255,255,255,0.5);">Sell-Back · SKU ' + escapeHtml(item.sku || '') + ' · ' + (fmtMoney(item.offered_price) || '—') + '</div>';
-      } else {
-        var coinName = (item.claims && item.claims.coins && item.claims.coins.name) || (item.claims && item.claims.sku) || '';
-        left.innerHTML = '<div style="font-weight:700;">' + escapeHtml(item.buyer_name || item.buyer_email || 'Unknown') + '</div>' +
-          '<div style="font-size:12px;color:rgba(255,255,255,0.5);">Resale · ' + escapeHtml(coinName) + ' · ' + (fmtMoney(item.offer_amount) || '—') + '</div>';
-      }
-      var right = document.createElement('div');
-      right.style.cssText = 'display:flex;gap:8px;flex:0 0 auto;';
-      var paidBtn = document.createElement('button');
-      paidBtn.type = 'button';
-      paidBtn.textContent = 'Mark Paid';
-      paidBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:none;font-weight:700;font-size:13px;cursor:pointer;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;';
-      paidBtn.addEventListener('click', function(){
-        paidBtn.disabled = true;
-        var table = kind === 'sellback' ? 'sellback_submissions' : 'resale_offers';
-        adminRest(table + '?id=eq.' + item.id, { method: 'PATCH', body: JSON.stringify({ status: 'paid' }) }).then(function(r){
-          if(r.ok){ loadPayments(); refreshPaymentsBadge(); }
-          else { paidBtn.disabled = false; window.alert('Could not mark as paid.'); }
-        });
-      });
-      var delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.textContent = 'Delete';
-      delBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid rgba(255,120,120,0.4);background:transparent;color:#ff9a9a;font-size:13px;cursor:pointer;';
-      delBtn.addEventListener('click', function(){
-        if(!window.confirm('Delete this record permanently?')) return;
-        delBtn.disabled = true;
-        var table = kind === 'sellback' ? 'sellback_submissions' : 'resale_offers';
-        adminRest(table + '?id=eq.' + item.id, { method: 'DELETE' }).then(function(r){
-          if(r.ok){ loadPayments(); refreshPaymentsBadge(); }
-          else { delBtn.disabled = false; window.alert('Could not delete.'); }
-        });
-      });
-      right.appendChild(paidBtn);
-      right.appendChild(delBtn);
-      row.appendChild(left);
-      row.appendChild(right);
-      return row;
-    }
-    
-    function loadPayments(){
-      content.textContent = 'Loading…';
-      Promise.all([
-        adminRest('sellback_submissions?select=id,name,email,sku,offered_price,status&status=eq.approved&order=updated_at.desc').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
-        adminRest('resale_offers?select=id,offer_amount,buyer_name,buyer_email,status,claims(sku,coins(name))&status=eq.accepted&order=updated_at.desc').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
-        ]).then(function(results){
-        var sellbacks = results[0] || [];
-        var resales = results[1] || [];
-        content.innerHTML = '';
-        if(!sellbacks.length && !resales.length){
-          var empty = document.createElement('div');
-          empty.textContent = 'No payments due right now.';
-          empty.style.cssText = 'color:rgba(255,255,255,0.5);font-size:13px;padding:8px 0;';
-          content.appendChild(empty);
-          return;
-        }
-        sellbacks.forEach(function(item){ content.appendChild(renderRow('sellback', item)); });
-        resales.forEach(function(item){ content.appendChild(renderRow('resale', item)); });
-      });
-    }
-    
-    function open(){
-      overlay.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
-      loadPayments();
-    }
-    function close(){
-      overlay.style.display = 'none';
-      document.body.style.overflow = '';
-    }
-    paymentsPanelEl = { open: open, close: close };
-    return paymentsPanelEl;
-  }
-  function openPaymentsPanel(){ buildPaymentsPanel().open(); }
-  
-function patchAdminSidebar(){
-  if(!isAdminPage()) return;
-  if(document.getElementById('ms-payments-navitem')){ refreshPaymentsBadge(); return; }
-  var ordersLink = document.querySelector('a[href="/admin/orders"]');
-  var sourceLink = document.querySelector('a[href="/admin/submissions"]') || ordersLink;
-  if(!ordersLink || !sourceLink) return;
-  var nav = ordersLink.parentElement;
-  if(!nav) return;
-  
-  var item = sourceLink.cloneNode(true);
-  item.removeAttribute('href');
-  item.id = 'ms-payments-navitem';
-  item.style.cursor = 'pointer';
-  item.innerHTML = '';
-  item.style.display = 'flex';
-  item.style.alignItems = 'center';
-  item.style.justifyContent = 'space-between';
-  item.style.gap = '8px';
-  
-  var labelSpan = document.createElement('span');
-  labelSpan.textContent = 'Payments';
-  item.appendChild(labelSpan);
-  
-  var badge = document.createElement('span');
-  badge.id = 'ms-payments-badge';
-  badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;font-size:11px;font-weight:800;line-height:1;';
-  item.appendChild(badge);
-  
-  item.addEventListener('click', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    openPaymentsPanel();
-  });
-  
-  nav.insertBefore(item, ordersLink);
-  refreshPaymentsBadge();
+/* ---------- My Collection: SELLING BACK badge while a sell-back is pending review ---------- */
+
+function decodeJwtSub(token){
+try{
+var seg = token.split('.')[1];
+seg = seg.replace(/-/g, '+').replace(/_/g, '/');
+while(seg.length % 4) seg += '=';
+var json = decodeURIComponent(Array.prototype.map.call(atob(seg), function(c){
+return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+}).join(''));
+var payload = JSON.parse(json);
+return payload && payload.sub;
+}catch(e){ return null; }
 }
-  
-  /* ---------- Admin: Delete buttons on Sell-Back Requests / Resale Offers lists ---------- */
-  
-  function patchDeleteForList(anchorBtnText, table, buildQuery){
-    var cards = [];
-    document.querySelectorAll('.card').forEach(function(card){
-      var hasAnchor = Array.prototype.some.call(card.querySelectorAll('button'), function(b){ return (b.textContent || '').trim() === anchorBtnText; });
-      if(hasAnchor) cards.push(card);
-    });
-    if(!cards.length) return;
-    var q = buildQuery();
-    var allWired = cards.every(function(c){ return c.dataset.msDelWired === q; });
-    if(allWired) return;
-    
-    fetch(SUPABASE_URL + '/rest/v1/' + q, { headers: adminHeaders() }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
-      cards.forEach(function(card, idx){
-        card.dataset.msDelWired = q;
-        var existing = card.querySelector('.ms-del-btn');
-        if(existing) existing.remove();
-        var row = rows[idx];
-        if(!row || row.status === 'pending') return;
-        var delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'ms-del-btn';
-        delBtn.textContent = 'Delete';
-        delBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid rgba(255,120,120,0.4);background:transparent;color:#ff9a9a;font-size:13px;cursor:pointer;margin-left:8px;';
-        delBtn.addEventListener('click', function(e){
-          e.preventDefault();
-          if(!window.confirm('Delete this record permanently?')) return;
-          delBtn.disabled = true;
-          adminRest(table + '?id=eq.' + row.id, { method: 'DELETE' }).then(function(resp){
-            if(resp.ok){ card.remove(); refreshPaymentsBadge(); }
-            else { delBtn.disabled = false; window.alert('Could not delete.'); }
-          });
-        });
-        var anchorBtn = Array.prototype.find.call(card.querySelectorAll('button'), function(b){ return (b.textContent || '').trim() === anchorBtnText; });
-        var btnRow = anchorBtn ? anchorBtn.parentElement : card;
-        btnRow.appendChild(delBtn);
-      });
-    });
-  }
-  
-  function patchAdminListDeletes(){
-    if(window.location.pathname === '/admin/submissions'){
-      patchDeleteForList('Approve', 'sellback_submissions', function(){
-        var sel = document.querySelector('select');
-        var v = sel ? sel.value : 'all';
-        return 'sellback_submissions?select=id,status&order=created_at.desc' + (v && v !== 'all' ? '&status=eq.' + encodeURIComponent(v) : '');
-      });
-    } else if(window.location.pathname === '/admin/resale-offers'){
-      patchDeleteForList('Accept', 'resale_offers', function(){
-        return 'resale_offers?select=id,status&order=created_at.desc';
-      });
-    }
-  }
-  
-  /* ---------- Admin: fix stale "synced from Google Sheet" label on Overview ---------- */
-  
-  function patchAdminSyncLabel(){
-    if(window.location.pathname !== '/admin') return;
-    document.querySelectorAll('*').forEach(function(el){
-      if(el.children.length) return;
-      var t = el.textContent || '';
-      if(t.indexOf('synced from Google Sheet') !== -1 && !el.dataset.msSyncLabelFixed){
-        el.dataset.msSyncLabelFixed = '1';
-        el.textContent = t.replace('synced from Google Sheet', 'synced from the coin input database');
-      }
-    });
-  }
-  
-  function runAll(root){
+
+function patchMyCollection(){
+if(window.location.pathname !== '/account') return;
+var token = getAdminAccessToken();
+if(!token) return;
+var uid = decodeJwtSub(token);
+if(!uid) return;
+
+var cards = [];
+document.querySelectorAll('.card').forEach(function(c){
+if(c.dataset.msSellbackChecked) return;
+var t = c.textContent || '';
+if(t.indexOf('SKU') !== -1 && t.indexOf('Claimed') !== -1) cards.push(c);
+});
+if(!cards.length) return;
+
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token };
+Promise.all([
+fetch(SUPABASE_URL + '/rest/v1/claims?select=id,code,sku,claimed_at&user_id=eq.' + uid + '&order=claimed_at.desc', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+fetch(SUPABASE_URL + '/rest/v1/sellback_submissions?select=code,status&user_id=eq.' + uid, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+]).then(function(results){
+var claimsRows = results[0] || [];
+var subs = results[1] || [];
+var statusByCode = {};
+subs.forEach(function(s){
+if(s.status === 'pending' || s.status === 'approved') statusByCode[s.code] = s.status;
+});
+
+cards.forEach(function(card, idx){
+card.dataset.msSellbackChecked = '1';
+var row = claimsRows[idx];
+if(!row) return;
+var status = statusByCode[row.code];
+if(!status) return;
+
+var link = Array.prototype.filter.call(card.querySelectorAll('a'), function(a){
+return /Sell this back/.test(a.textContent || '');
+})[0];
+if(link) link.style.display = 'none';
+var resaleBox = card.querySelector('.border-t');
+if(resaleBox) resaleBox.style.display = 'none';
+
+var badge = document.createElement('div');
+badge.textContent = status === 'approved' ? 'SELLING BACK · APPROVED' : 'SELLING BACK · PENDING REVIEW';
+badge.style.cssText = 'display:inline-block;margin:0 0 12px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;';
+var anchor = link || resaleBox;
+if(anchor) card.insertBefore(badge, anchor);
+else card.appendChild(badge);
+});
+});
+}
+
+/* ---------- Admin: session helpers for privileged REST calls ---------- */
+
+function getAdminAccessToken(){
+try{
+for(var i = 0; i < localStorage.length; i++){
+var k = localStorage.key(i);
+if(!k || !/^sb-.*-auth-token$/.test(k)) continue;
+var raw = localStorage.getItem(k);
+if(!raw) continue;
+var parsed = JSON.parse(raw);
+var token = (parsed && parsed.access_token) || (parsed && parsed.currentSession && parsed.currentSession.access_token);
+if(token) return token;
+}
+}catch(e){}
+return null;
+}
+
+function adminHeaders(){
+return {
+'apikey': SUPABASE_ANON_KEY,
+'Authorization': 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY),
+'Content-Type': 'application/json'
+};
+}
+
+function adminRest(path, opts){
+opts = opts || {};
+var fetchOpts = { method: opts.method || 'GET', headers: adminHeaders() };
+if(opts.body) fetchOpts.body = opts.body;
+return fetch(SUPABASE_URL + '/rest/v1/' + path, fetchOpts);
+}
+
+/* ---------- Admin: Payments panel (accepted-but-unpaid sell-backs + resale offers) ---------- */
+
+var paymentsPanelEl = null;
+
+function refreshPaymentsBadge(){
+if(!isAdminPage()) return;
+Promise.all([
+adminRest('sellback_submissions?select=id&status=eq.approved').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+adminRest('resale_offers?select=id&status=eq.accepted').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+]).then(function(results){
+var count = (results[0] || []).length + (results[1] || []).length;
+var badge = document.getElementById('ms-payments-badge');
+if(!badge) return;
+if(count > 0){
+badge.textContent = String(count);
+badge.style.display = 'inline-flex';
+} else {
+badge.style.display = 'none';
+}
+});
+}
+
+function buildPaymentsPanel(){
+if(paymentsPanelEl) return paymentsPanelEl;
+var overlay = document.createElement('div');
+overlay.id = 'ms-payments-modal';
+overlay.style.cssText = 'position:fixed;inset:0;z-index:999997;background:rgba(0,0,0,0.75);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;';
+var box = document.createElement('div');
+box.style.cssText = 'background:#12131c;color:#fff;max-width:720px;width:100%;border-radius:14px;padding:26px;position:relative;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
+var closeBtn = document.createElement('button');
+closeBtn.type = 'button';
+closeBtn.textContent = '✕';
+closeBtn.title = 'Close';
+closeBtn.style.cssText = 'position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;font-size:16px;cursor:pointer;line-height:1;';
+closeBtn.addEventListener('click', function(){ close(); });
+var heading = document.createElement('h2');
+heading.textContent = 'Payments Due';
+heading.style.cssText = 'font-size:20px;font-weight:800;margin:0 0 16px;padding-right:40px;';
+var content = document.createElement('div');
+content.id = 'ms-payments-content';
+box.appendChild(closeBtn);
+box.appendChild(heading);
+box.appendChild(content);
+overlay.appendChild(box);
+document.body.appendChild(overlay);
+overlay.addEventListener('click', function(e){ if(e.target === overlay) close(); });
+document.addEventListener('keydown', function(e){ if(overlay.style.display !== 'none' && e.key === 'Escape') close(); });
+
+function renderRow(kind, item){
+var row = document.createElement('div');
+row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;';
+var left = document.createElement('div');
+if(kind === 'sellback'){
+left.innerHTML = '<div style="font-weight:700;">' + escapeHtml(item.name || item.email || 'Unknown') + '</div>' +
+'<div style="font-size:12px;color:rgba(255,255,255,0.5);">Sell-Back · SKU ' + escapeHtml(item.sku || '') + ' · ' + (fmtMoney(item.offered_price) || '—') + '</div>';
+} else {
+var coinName = (item.claims && item.claims.coins && item.claims.coins.name) || (item.claims && item.claims.sku) || '';
+left.innerHTML = '<div style="font-weight:700;">' + escapeHtml(item.buyer_name || item.buyer_email || 'Unknown') + '</div>' +
+'<div style="font-size:12px;color:rgba(255,255,255,0.5);">Resale · ' + escapeHtml(coinName) + ' · ' + (fmtMoney(item.offer_amount) || '—') + '</div>';
+}
+var right = document.createElement('div');
+right.style.cssText = 'display:flex;gap:8px;flex:0 0 auto;';
+var paidBtn = document.createElement('button');
+paidBtn.type = 'button';
+paidBtn.textContent = 'Mark Paid';
+paidBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:none;font-weight:700;font-size:13px;cursor:pointer;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;';
+paidBtn.addEventListener('click', function(){
+paidBtn.disabled = true;
+var table = kind === 'sellback' ? 'sellback_submissions' : 'resale_offers';
+adminRest(table + '?id=eq.' + item.id, { method: 'PATCH', body: JSON.stringify({ status: 'paid' }) }).then(function(r){
+if(r.ok){ loadPayments(); refreshPaymentsBadge(); }
+else { paidBtn.disabled = false; window.alert('Could not mark as paid.'); }
+});
+});
+var delBtn = document.createElement('button');
+delBtn.type = 'button';
+delBtn.textContent = 'Delete';
+delBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid rgba(255,120,120,0.4);background:transparent;color:#ff9a9a;font-size:13px;cursor:pointer;';
+delBtn.addEventListener('click', function(){
+if(!window.confirm('Delete this record permanently?')) return;
+delBtn.disabled = true;
+var table = kind === 'sellback' ? 'sellback_submissions' : 'resale_offers';
+adminRest(table + '?id=eq.' + item.id, { method: 'DELETE' }).then(function(r){
+if(r.ok){ loadPayments(); refreshPaymentsBadge(); }
+else { delBtn.disabled = false; window.alert('Could not delete.'); }
+});
+});
+right.appendChild(paidBtn);
+right.appendChild(delBtn);
+row.appendChild(left);
+row.appendChild(right);
+return row;
+}
+
+function loadPayments(){
+content.textContent = 'Loading…';
+Promise.all([
+adminRest('sellback_submissions?select=id,name,email,sku,offered_price,status&status=eq.approved&order=updated_at.desc').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+adminRest('resale_offers?select=id,offer_amount,buyer_name,buyer_email,status,claims(sku,coins(name))&status=eq.accepted&order=updated_at.desc').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+]).then(function(results){
+var sellbacks = results[0] || [];
+var resales = results[1] || [];
+content.innerHTML = '';
+if(!sellbacks.length && !resales.length){
+var empty = document.createElement('div');
+empty.textContent = 'No payments due right now.';
+empty.style.cssText = 'color:rgba(255,255,255,0.5);font-size:13px;padding:8px 0;';
+content.appendChild(empty);
+return;
+}
+sellbacks.forEach(function(item){ content.appendChild(renderRow('sellback', item)); });
+resales.forEach(function(item){ content.appendChild(renderRow('resale', item)); });
+});
+}
+
+function open(){
+overlay.style.display = 'flex';
+document.body.style.overflow = 'hidden';
+loadPayments();
+}
+function close(){
+overlay.style.display = 'none';
+document.body.style.overflow = '';
+}
+paymentsPanelEl = { open: open, close: close };
+return paymentsPanelEl;
+}
+function openPaymentsPanel(){ buildPaymentsPanel().open(); }
+
+function patchAdminSidebar(){
+if(!isAdminPage()) return;
+if(document.getElementById('ms-payments-navitem')){ refreshPaymentsBadge(); return; }
+var ordersLink = document.querySelector('a[href="/admin/orders"]');
+var sourceLink = document.querySelector('a[href="/admin/submissions"]') || ordersLink;
+if(!ordersLink || !sourceLink) return;
+var nav = ordersLink.parentElement;
+if(!nav) return;
+
+var item = sourceLink.cloneNode(true);
+item.removeAttribute('href');
+item.id = 'ms-payments-navitem';
+item.style.cursor = 'pointer';
+item.innerHTML = '';
+item.style.display = 'flex';
+item.style.alignItems = 'center';
+item.style.justifyContent = 'space-between';
+item.style.gap = '8px';
+
+var labelSpan = document.createElement('span');
+labelSpan.textContent = 'Payments';
+item.appendChild(labelSpan);
+
+var badge = document.createElement('span');
+badge.id = 'ms-payments-badge';
+badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;font-size:11px;font-weight:800;line-height:1;';
+item.appendChild(badge);
+
+item.addEventListener('click', function(e){
+e.preventDefault();
+e.stopPropagation();
+openPaymentsPanel();
+});
+
+nav.insertBefore(item, ordersLink);
+refreshPaymentsBadge();
+}
+
+/* ---------- Admin: Delete buttons on Sell-Back Requests / Resale Offers lists ---------- */
+
+function patchDeleteForList(anchorBtnText, table, buildQuery){
+var cards = [];
+document.querySelectorAll('.card').forEach(function(card){
+var hasAnchor = Array.prototype.some.call(card.querySelectorAll('button'), function(b){ return (b.textContent || '').trim() === anchorBtnText; });
+if(hasAnchor) cards.push(card);
+});
+if(!cards.length) return;
+var q = buildQuery();
+var allWired = cards.every(function(c){ return c.dataset.msDelWired === q; });
+if(allWired) return;
+
+fetch(SUPABASE_URL + '/rest/v1/' + q, { headers: adminHeaders() }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+cards.forEach(function(card, idx){
+card.dataset.msDelWired = q;
+var existing = card.querySelector('.ms-del-btn');
+if(existing) existing.remove();
+var row = rows[idx];
+if(!row || row.status === 'pending') return;
+var delBtn = document.createElement('button');
+delBtn.type = 'button';
+delBtn.className = 'ms-del-btn';
+delBtn.textContent = 'Delete';
+delBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid rgba(255,120,120,0.4);background:transparent;color:#ff9a9a;font-size:13px;cursor:pointer;margin-left:8px;';
+delBtn.addEventListener('click', function(e){
+e.preventDefault();
+if(!window.confirm('Delete this record permanently?')) return;
+delBtn.disabled = true;
+adminRest(table + '?id=eq.' + row.id, { method: 'DELETE' }).then(function(resp){
+if(resp.ok){ card.remove(); refreshPaymentsBadge(); }
+else { delBtn.disabled = false; window.alert('Could not delete.'); }
+});
+});
+var anchorBtn = Array.prototype.find.call(card.querySelectorAll('button'), function(b){ return (b.textContent || '').trim() === anchorBtnText; });
+var btnRow = anchorBtn ? anchorBtn.parentElement : card;
+btnRow.appendChild(delBtn);
+});
+});
+}
+
+function patchAdminListDeletes(){
+if(window.location.pathname === '/admin/submissions'){
+patchDeleteForList('Approve', 'sellback_submissions', function(){
+var sel = document.querySelector('select');
+var v = sel ? sel.value : 'all';
+return 'sellback_submissions?select=id,status&order=created_at.desc' + (v && v !== 'all' ? '&status=eq.' + encodeURIComponent(v) : '');
+});
+} else if(window.location.pathname === '/admin/resale-offers'){
+patchDeleteForList('Accept', 'resale_offers', function(){
+return 'resale_offers?select=id,status&order=created_at.desc';
+});
+}
+}
+
+/* ---------- Admin: fix stale "synced from Google Sheet" label on Overview ---------- */
+
+function patchAdminSyncLabel(){
+if(window.location.pathname !== '/admin') return;
+document.querySelectorAll('*').forEach(function(el){
+if(el.children.length) return;
+var t = el.textContent || '';
+if(t.indexOf('synced from Google Sheet') !== -1 && !el.dataset.msSyncLabelFixed){
+el.dataset.msSyncLabelFixed = '1';
+el.textContent = t.replace('synced from Google Sheet', 'synced from the coin input database');
+}
+});
+}
+
+function runAll(root){
 patchCoinDbLight();
 scanFlips(root);
 patchBadges(root);
@@ -915,11 +989,12 @@ patchDetailZoom(root);
 trackLookupInputs(root);
 patchClaimSellback();
 patchResalePage();
-    if(isAdminPage()){
-      patchAdminSidebar();
-      patchAdminListDeletes();
-      patchAdminSyncLabel();
-    }
+patchMyCollection();
+if(isAdminPage()){
+patchAdminSidebar();
+patchAdminListDeletes();
+patchAdminSyncLabel();
+}
 if(isCoinInputTool()){
 patchToolHeader();
 patchToolLightboxBadges(root);
@@ -955,7 +1030,7 @@ runAll(document);
 if(tries > 20) clearInterval(iv);
 }, 500);
 
-  setInterval(function(){ refreshPaymentsBadge(); }, 20000);
+setInterval(function(){ refreshPaymentsBadge(); }, 20000);
 });
 })();
 
