@@ -1,0 +1,2111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MINI-SLABS — Coin Input Database</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+--navy:#1F3864;
+--navy-deep:#152744;
+--red:#9E1B32;
+--cream:#FBF6EC;
+--gold:#C9A227;
+--ink:#22293a;
+--line:#d8d2c4;
+--row-alt:#f4efe3;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+font-family:'Source Sans 3',Segoe UI,Arial,sans-serif;
+background:var(--cream);
+color:var(--ink);
+padding:0 0 60px;
+}
+
+/* ---------- Header ---------- */
+header{
+border-bottom:6px solid var(--gold);
+padding:20px 28px;
+display:flex;align-items:center;gap:26px;
+background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 3px, transparent 3px 8px), linear-gradient(180deg,var(--navy) 0%,var(--navy-deep) 100%);
+background-size:100% 6px,100% 100%;
+background-repeat:no-repeat,no-repeat;
+background-position:top,center;
+}
+#logoSlot{
+height:86px;width:132px;flex:0 0 132px;
+display:flex;align-items:center;justify-content:center;
+cursor:pointer;
+}
+#logoSlot img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.title-block h1{
+font-family:'Cinzel',Georgia,serif;font-weight:800;
+font-size:clamp(28px,4.5vw,44px);letter-spacing:.06em;color:#fff;
+}
+.title-block .sub{
+color:var(--gold);font-weight:600;letter-spacing:.28em;font-size:12px;text-transform:uppercase;margin-top:4px;
+}
+.header-actions{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.buyback-pct-group{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:6px;padding:6px 10px}
+.buyback-pct-group label{font-size:12px;font-weight:700;color:var(--gold);letter-spacing:.03em;white-space:nowrap}
+.buyback-pct-group input{width:60px;font:inherit;font-size:14px;padding:5px 6px;border:1px solid var(--line);border-radius:5px;background:var(--cream)}
+.btn{
+font:inherit;font-weight:600;font-size:14px;
+padding:9px 16px;border-radius:6px;cursor:pointer;border:1px solid transparent;
+}
+.btn-save{background:var(--gold);color:var(--navy-deep);border-color:var(--gold)}
+.btn-save:hover{background:#dfb83a}
+.btn-save.saved{background:#3f7d3f;border-color:#3f7d3f;color:#fff}
+.btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.4)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-danger{background:transparent;color:#f3b8c2;border-color:rgba(243,184,194,.4)}
+.btn-danger:hover{background:var(--red);color:#fff;border-color:var(--red)}
+
+main{max-width:1500px;margin:26px auto 0;padding:0 24px;display:grid;grid-template-columns:1fr 380px;gap:26px;align-items:start}
+@media(max-width:1050px){main{grid-template-columns:1fr}}
+
+/* ---------- Input table ---------- */
+.panel{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(31,56,100,.07)}
+.panel-head{
+background:var(--red);color:#fff;padding:11px 16px;
+font-weight:700;letter-spacing:.08em;font-size:13px;text-transform:uppercase;
+display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.panel-head .hint{font-weight:400;font-size:11px;letter-spacing:.02em;text-transform:none;opacity:.85}
+.searchbar{
+display:flex;align-items:center;gap:8px;background:#fff;border-bottom:1px solid var(--line);
+padding:10px 16px;
+}
+.searchbar input{
+flex:1;font:inherit;font-size:15px;padding:9px 12px;border:1px solid var(--line);
+border-radius:6px;background:var(--cream);color:var(--ink);
+}
+.searchbar input:focus{outline:2px solid var(--gold);outline-offset:-1px;background:#fffdf4}
+.searchbar .count{font-size:12px;color:#8a8270;white-space:nowrap}
+.searchbar button{
+border:1px solid var(--line);background:#fff;border-radius:6px;padding:8px 12px;
+font:inherit;font-size:13px;cursor:pointer;color:var(--ink);
+}
+.searchbar button:hover{border-color:var(--red);color:var(--red)}
+table{width:max-content;min-width:100%;border-collapse:collapse}
+.table-scroll{overflow:auto;max-height:70vh}
+thead th{
+background:var(--navy);color:#fff;font-size:13px;letter-spacing:.08em;text-transform:uppercase;
+padding:11px 10px;text-align:left;position:sticky;top:0;z-index:2;white-space:nowrap;
+}
+thead th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+thead th.sortable:hover{color:var(--gold)}
+thead th .arrow{font-size:10px;margin-left:5px;opacity:.45}
+thead th.sorted .arrow{opacity:1;color:var(--gold)}
+td.sku{
+font-variant-numeric:tabular-nums;font-size:14px;color:#6e6754;
+padding:11px 10px;letter-spacing:.04em;white-space:nowrap;
+}
+tbody td{border-bottom:1px solid var(--line);padding:0;vertical-align:middle}
+tbody tr:nth-child(even) td{background:var(--row-alt)}
+td textarea, td input, td select{
+width:100%;border:0;background:transparent;font:inherit;font-size:15px;
+padding:11px 10px;color:var(--ink);
+}
+td textarea{
+resize:none;overflow:hidden;display:block;line-height:1.35;min-height:42px;
+white-space:pre-wrap;word-wrap:break-word;
+}
+td textarea:focus, td input:focus, td select:focus{outline:2px solid var(--gold);outline-offset:-2px;background:#fffdf4}
+td.num input{text-align:right}
+td.price-cell{position:relative}
+td.price-cell .dollar{
+position:absolute;left:10px;top:50%;transform:translateY(-50%);
+color:#8a8270;font-size:15px;pointer-events:none;
+}
+td.price-cell input{padding-left:24px;text-align:right}
+td select{cursor:pointer}
+.lvl-chip{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+td.rownum{width:42px;text-align:center;color:#9a937f;font-size:13px;padding:11px 4px}
+td.del{width:40px;text-align:center}
+.del button{
+border:0;background:transparent;color:#b9b2a0;cursor:pointer;font-size:17px;line-height:1;padding:6px;
+}
+.del button:hover{color:var(--red)}
+td.qr{padding:8px 6px;text-align:center}
+.qr-btn{
+border:1px solid var(--line);background:#fff;color:var(--navy);
+font:inherit;font-weight:700;font-size:11px;letter-spacing:.03em;text-transform:uppercase;
+padding:7px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;width:100%;
+}
+.qr-btn:hover{border-color:var(--gold);background:var(--cream)}
+tr.is-new td{background:#fffaf0!important}
+col.c-sku{width:104px} col.c-year{width:72px} col.c-mint{width:60px} col.c-country{width:150px} col.c-denom{width:92px} col.c-desc{width:220px} col.c-grader{width:72px} col.c-grade{width:130px} col.c-color{width:62px} col.c-weight{width:74px} col.c-fweight{width:84px} col.c-metal{width:92px} col.c-size{width:70px} col.c-gasket{width:70px} col.c-price{width:100px} col.c-buyback{width:100px} col.c-level{width:110px} col.c-ga{width:112px} col.c-view{width:38px}
+
+/* ---------- Inventory toggle ---------- */
+td.ga{text-align:center;padding:6px}
+.inv-toggle{display:flex;gap:4px;width:100%}
+.inv-btn{
+flex:1;border:1px solid var(--line);background:#fff;color:#9a937f;
+font:inherit;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+padding:7px 4px;border-radius:6px;cursor:pointer;white-space:nowrap;
+transition:background .12s,color .12s,border-color .12s;
+}
+.inv-btn:hover{border-color:var(--gold);color:var(--navy)}
+.inv-btn.yes.active{background:#3f7d3f;border-color:#3f7d3f;color:#fff}
+.inv-btn.yes.active:hover{background:#356b35}
+.inv-btn.no.active{background:var(--red);border-color:var(--red);color:#fff}
+.inv-btn.no.active:hover{background:#7e1628}
+
+/* ---------- View / detail button ---------- */
+td.view{width:38px;text-align:center;padding:6px}
+.view-btn{border:0;background:transparent;color:#6e6754;cursor:pointer;font-size:16px;line-height:1;padding:6px}
+.view-btn:hover{color:var(--navy)}
+
+/* ---------- Detail modal ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(21,39,68,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal-overlay[hidden]{display:none}
+.modal-card{background:#fff;border-radius:12px;max-width:960px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.35);position:relative;display:flex;flex-direction:column}
+.modal-close{position:absolute;top:10px;right:12px;border:0;background:transparent;font-size:20px;cursor:pointer;color:#8a8270;line-height:1;padding:6px;z-index:2}
+.modal-close:hover{color:var(--red)}
+.modal-body{display:flex;gap:24px;padding:30px 28px 6px;flex-wrap:wrap}
+.modal-image-col{flex:0 0 320px;display:flex;flex-direction:column;gap:10px}
+.modal-photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.photo-slot{display:flex;flex-direction:column;gap:6px}
+.photo-slot-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--navy)}
+.modal-img-frame{width:100%;min-height:120px;max-height:280px;border:1px solid var(--line);border-radius:10px;background:var(--row-alt);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:zoom-in}
+.modal-img-frame img{width:auto;height:auto;max-width:100%;max-height:280px;object-fit:contain;display:block}
+.modal-img-frame img[hidden]{display:none}
+.photo-caption-input{width:100%;font:inherit;font-size:12px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--cream);color:var(--ink)}
+.photo-caption-input:focus{outline:2px solid var(--gold);outline-offset:-1px;background:#fffdf4}
+.lightbox-overlay{position:fixed;inset:0;background:rgba(10,14,24,.88);display:flex;align-items:center;justify-content:center;z-index:100;padding:30px;cursor:zoom-out}
+.lightbox-overlay[hidden]{display:none}
+.lightbox-overlay img{max-width:92vw;max-height:92vh;width:auto;height:auto;object-fit:contain;border-radius:6px;box-shadow:0 12px 60px rgba(0,0,0,.5)}
+.modal-img-placeholder{color:#9a937f;font-size:12px;text-align:center;padding:8px}
+.modal-img-actions{display:flex;flex-direction:column;gap:6px}
+.modal-img-actions .btn{padding:7px 10px;font-size:12px}
+.modal-img-actions .btn-ghost{background:var(--row-alt);color:var(--navy);border-color:var(--line)}
+.modal-img-actions .btn-ghost:hover{background:#fff;border-color:var(--gold);color:var(--navy-deep)}
+.modal-img-actions .btn-danger{background:var(--row-alt);color:var(--red);border-color:var(--line)}
+.modal-img-actions .btn-danger:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.modal-fields-col{flex:1 1 380px;min-width:280px}
+.modal-sku{font-weight:700;letter-spacing:.06em;color:var(--navy);font-size:15px;margin-bottom:14px}
+.modal-desc-wrap{margin-bottom:14px}
+.modal-desc-wrap label,.modal-field label,.modal-inv-row label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8a8270;margin-bottom:4px}
+.modal-desc-wrap textarea{width:100%;min-height:60px;font:inherit;font-size:15px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--cream);resize:vertical}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-field input,.modal-field select{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--cream)}
+.modal-field input:focus,.modal-field select:focus,.modal-desc-wrap textarea:focus{outline:2px solid var(--gold);outline-offset:-1px;background:#fffdf4}
+.modal-inv-row{margin-top:4px;margin-bottom:16px}
+.modal-inv-row .inv-toggle{display:flex;gap:8px;max-width:220px}
+.modal-footer{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:16px 28px;border-top:1px solid var(--line)}
+.modal-footer #modalStatus{margin-right:auto;font-size:13px;color:#3f7d3f;font-weight:600}
+@media(max-width:600px){.modal-body{flex-direction:column}.modal-image-col{flex:none;align-self:center}}
+tr.ga-row td{background:#fff6db!important}
+tr.ga-row.is-new td{background:#fffaf0!important}
+
+/* ---------- Summary ---------- */
+.summary .panel-head{background:var(--navy)}
+.sum-grid{padding:14px 16px 18px}
+.sum-row{
+display:grid;grid-template-columns:1fr 50px 92px 88px;gap:6px;align-items:center;
+padding:9px 6px;border-bottom:1px solid var(--line);font-size:14px;
+}
+.sum-row.head{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#8a8270;border-bottom:2px solid var(--navy);font-weight:700}
+.sum-row .lvl{font-weight:600;color:var(--navy);display:flex;align-items:center;min-width:0}
+.sum-row .lvl span.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum-row .val{text-align:right;font-variant-numeric:tabular-nums}
+.sum-row.total{
+background:var(--navy);color:#fff;border-radius:6px;border-bottom:0;margin-top:10px;
+font-weight:700;padding:11px 6px;
+}
+.sum-row.total .lvl{color:var(--gold)}
+.sum-row.unassigned{color:#8a8270;font-size:12px;border-bottom:0;font-style:italic}
+.bigstat{display:flex;gap:12px;padding:0 16px 16px}
+.bigstat .card{
+flex:1;background:var(--cream);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;
+}
+.bigstat .card .n{font-family:'Cinzel',Georgia,serif;font-weight:800;font-size:21px;color:var(--navy);word-break:break-word}
+.bigstat .card .l{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#8a8270;margin-top:2px}
+
+footer{max-width:1500px;margin:18px auto 0;padding:0 24px;font-size:11px;color:#9a937f}
+
+/* ---------- Print ---------- */
+@media print{
+body{background:#fff;padding:0}
+header{border-bottom-color:var(--navy)}
+.header-actions,.del,td.del,th.th-del,.qr,td.qr,th.th-qr,.view,td.view,th.th-view,.ga,td.ga,th.th-ga,.panel-head .hint,.searchbar,.modal-overlay{display:none!important}
+main{display:block;max-width:none;padding:0 10px}
+.panel{box-shadow:none;border-radius:0;margin-bottom:14px;break-inside:avoid}
+tr.is-new{display:none}
+td textarea,td input,td select{padding:5px 8px}
+}
+.storage-warning{color:#b91c1c !important;font-weight:700;}\n</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<header>
+<div id="logoSlot" title="Click to replace logo">
+<img id="logoImg" src="/assets/crown-mark-CyorOU8q.png" alt="MINI-SLABS logo">
+</div>
+<input type="file" id="logoFile" accept="image/*" hidden>
+<div class="title-block">
+<h1>MINI-SLABS</h1>
+<div class="sub">Coin Input Database</div>
+</div>
+<div class="header-actions">
+<button class="btn btn-save" id="btnSave">Save</button>
+<button class="btn btn-save" id="btnSyncSite">Sync to Site</button>
+<button class="btn btn-ghost" id="btnSiteLink">Site Link</button>
+<button class="btn btn-ghost" id="btnQrAll">Download All QR</button>
+<button class="btn btn-ghost" id="btnPrint">Print</button>
+<button class="btn btn-ghost" id="btnExport">Export CSV</button>
+<div class="buyback-pct-group">
+<label for="buybackPctInput">Buyback %</label>
+<input type="number" id="buybackPctInput" min="0" max="100" step="0.1">
+<button type="button" class="btn btn-ghost" id="btnApplyBuybackPct" title="Recalculate every row's buyback price as this percent of its price">Apply to All</button>
+</div>
+<button class="btn btn-danger" id="btnClear">Clear all</button>
+</div>
+</header>
+
+<main>
+<section class="panel">
+<div class="panel-head">
+Coin entries
+<span class="hint">Start typing in the last row — a new row appears automatically</span>
+</div>
+<div class="searchbar">
+<input type="search" id="searchBox" placeholder="Search any field: SKU, year, country, denomination, grade, metal…">
+<span class="count" id="searchCount"></span>
+<button type="button" id="btnClearSearch" hidden>Clear</button>
+</div>
+<div class="table-scroll">
+<table id="coinTable">
+<colgroup>
+<col style="width:42px"><col class="c-view"><col class="c-sku"><col class="c-year"><col class="c-mint"><col class="c-country"><col class="c-denom"><col class="c-desc"><col class="c-grader"><col class="c-grade"><col class="c-color"><col class="c-weight"><col class="c-fweight"><col class="c-metal"><col class="c-size"><col class="c-gasket"><col class="c-price"><col class="c-buyback"><col class="c-level"><col class="c-ga"><col style="width:64px"><col style="width:40px">
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th class="th-view"></th>
+<th class="sortable" data-sort="sku">SKU<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="year">Year<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="mint">Mint<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="country">Country<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="denomination">Denomination<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="description">Description<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="ogGrader">OG Grader<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="grade">Grade<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="color">Color<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="weight">Weight<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="fineWeight">Fine Weight<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="metal">Metal<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="size">Size<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="gasket">Gasket<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="price">Price ($)<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="buybackPrice">Buyback ($)<span class="arrow">↕</span></th>
+<th class="sortable" data-sort="level">Level<span class="arrow">↕</span></th>
+<th class="sortable th-ga" data-sort="ga">INVENTORY<span class="arrow">↕</span></th>
+<th class="th-qr">QR</th>
+<th class="th-del"></th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+<datalist id="metalList"><option value="Copper"><option value="Silver"><option value="Gold"><option value="CuNi"><option value="Bronze"><option value="Nickel"><option value="Platinum"></datalist>
+</section>
+
+<aside class="summary panel">
+<div class="panel-head">Level summary</div>
+<div class="sum-grid" id="sumGrid"></div>
+<div class="bigstat">
+<div class="card"><div class="n" id="statCount">0</div><div class="l">Total coins</div></div>
+<div class="card"><div class="n" id="statValue">$0</div><div class="l">Total value</div></div>
+<div class="card"><div class="n" id="statAvg">—</div><div class="l">Avg price</div></div>
+</div>
+</aside>
+</main>
+
+<div class="modal-overlay" id="detailModal" hidden>
+<div class="modal-card">
+<button type="button" class="modal-close" id="modalClose" title="Close">✕</button>
+<div class="modal-body">
+<div class="modal-image-col">
+<div class="modal-photo-grid" id="modalPhotoGrid"></div>
+</div>
+<div class="modal-fields-col">
+<div class="modal-sku" id="modalSku">SKU</div>
+<div class="modal-desc-wrap">
+<label>Description</label>
+<textarea id="modalDesc" placeholder="e.g. Indian Head Penny"></textarea>
+</div>
+<div class="modal-grid" id="modalFieldsGrid"></div>
+<div class="modal-inv-row">
+<label>Inventory</label>
+<div class="inv-toggle">
+<button type="button" class="inv-btn yes" id="modalInvYes">Yes</button>
+<button type="button" class="inv-btn no" id="modalInvNo">No</button>
+</div>
+</div>
+</div>
+</div>
+<div class="modal-footer">
+<span id="modalStatus"></span>
+<button type="button" class="btn btn-ghost" id="modalCancel">Cancel</button>
+<button type="button" class="btn btn-save" id="modalSave">Save</button>
+</div>
+</div>
+</div>
+
+<footer id="storageFooter">Entries save automatically in this browser; the Save button confirms it. Use Export CSV for a backup copy.</footer>
+
+<div class="lightbox-overlay" id="lightboxOverlay" hidden>
+<img id="lightboxImg" alt="">
+</div>
+
+<script>
+const LEVELS = [
+{name:"1", label:"Level 1", color:"#B4C7E7"},
+{name:"Elite", label:"Elite", color:"#C9A227"},
+{name:"Choice", label:"Choice", color:"#8497B0"},
+{name:"Classic", label:"Classic", color:"#9E1B32"},
+{name:"Select", label:"Select", color:"#1F3864"},
+{name:"RoundTable", label:"RoundTable", color:"#6B8E23"}
+];
+const LEVEL_MIGRATE = {"2":"Elite","3":"Choice","4":"Classic","5":"Select","6":"RoundTable"};
+const KEY = "miniSlabsDB_v2";
+const LOGO_KEY = "miniSlabsLogo_v1";
+const DELETES_KEY = "miniSlabsPendingDeletes_v1";
+const BUYBACK_PCT_KEY = "miniSlabsBuybackPct_v1";
+function getBuybackPct(){
+const v = parseFloat(store.get(BUYBACK_PCT_KEY));
+return isFinite(v) && v >= 0 ? v : 75;
+}
+function setBuybackPct(v){ store.set(BUYBACK_PCT_KEY, String(v)); }
+function computeBuybackFromPrice(priceVal, pct){
+const p = parseFloat(priceVal);
+if(!isFinite(p) || p < 0) return "";
+return (p * (pct / 100)).toFixed(2);
+}
+const tbody = document.getElementById("rows");
+
+/* ---- safe storage (falls back to in-memory if localStorage unavailable) ---- */
+const mem = {};
+const store = {
+ok: true,
+get(k){ try{ return localStorage.getItem(k); }catch(e){ this.ok=false; return mem[k] ?? null; } },
+set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ this.ok=false; mem[k]=v; } },
+del(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
+};
+
+const fmtMoney = n => "$" + n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+/* ---------- SKU ---------- */
+function usedSkus(){
+const s = new Set();
+tbody.querySelectorAll("td.sku").forEach(td=>{ if(td.textContent) s.add(td.textContent); });
+return s;
+}
+function newSku(){
+const used = usedSkus();
+let sku;
+do{ sku = String(Math.floor(10000000 + Math.random()*90000000)); }while(used.has(sku));
+return sku;
+}
+
+/* ---------- rows ---------- */
+function autosize(ta){
+ta.style.height = "auto";
+ta.style.height = ta.scrollHeight + "px";
+}
+
+function updateImgBadge(tr){
+const n = ["imgObverse","imgReverse","imgExtra1","imgExtra2"].filter(k=>tr.dataset[k]).length;
+const b = tr.querySelector(".img-badge");
+if(!b) return;
+b.textContent = n > 0 ? ("📷" + n) : "";
+b.title = n + " photo" + (n===1?"":"s") + " uploaded";
+}
+
+function makeRow(data){
+data = data || {sku:"",year:"",mint:"",country:"",denomination:"",description:"",ogGrader:"",grade:"",color:"",weight:"",fineWeight:"",metal:"",size:"",gasket:"",price:"",buybackPrice:"",level:"",ga:false,imgObverse:"",imgReverse:"",imgExtra1:"",imgExtra2:"",capObverse:"",capReverse:"",capExtra1:"",capExtra2:""};
+const tr = document.createElement("tr");
+tr.dataset.imgObverse = data.imgObverse || "";
+tr.dataset.imgReverse = data.imgReverse || "";
+tr.dataset.imgExtra1 = data.imgExtra1 || "";
+tr.dataset.imgExtra2 = data.imgExtra2 || "";
+tr.dataset.capObverse = data.capObverse || "";
+tr.dataset.capReverse = data.capReverse || "";
+tr.dataset.capExtra1 = data.capExtra1 || "";
+tr.dataset.capExtra2 = data.capExtra2 || "";
+
+const tdNum = document.createElement("td");
+tdNum.className = "rownum";
+tr.appendChild(tdNum);
+
+// VIEW / detail button — first column, so it's easy to find per row
+const tdView = document.createElement("td");
+tdView.className = "view";
+const viewBtn = document.createElement("button");
+viewBtn.type = "button"; viewBtn.className = "view-btn"; viewBtn.title = "View / edit details"; viewBtn.textContent = "🔍";
+viewBtn.addEventListener("click", ()=>{ if(!rowIsEmpty(rowData(tr))) openDetail(tr); });
+tdView.appendChild(viewBtn);
+const imgBadge = document.createElement("span");
+imgBadge.className = "img-badge";
+imgBadge.style.cssText = "display:inline-block;margin-left:3px;font-size:10px;line-height:1;color:#8fa6c9;font-weight:700;vertical-align:middle;";
+tdView.appendChild(imgBadge);
+tr.appendChild(tdView);
+updateImgBadge(tr);
+
+// SKU — read-only, assigned automatically
+const tdSku = document.createElement("td");
+tdSku.className = "sku";
+tdSku.textContent = data.sku || "";
+tr.appendChild(tdSku);
+
+// Simple single-line text fields
+const textFields = [
+["year","e.g. 1941"],
+["mint","mint mark"],
+["country","e.g. United States"],
+["denomination","e.g. 25C"]
+];
+textFields.forEach(([key,ph])=>{
+const td = document.createElement("td");
+const inp = document.createElement("input");
+inp.type = "text"; inp.placeholder = ph;
+inp.value = data[key] || ""; inp.dataset.key = key;
+inp.addEventListener("input", onEdit);
+td.appendChild(inp); tr.appendChild(td);
+});
+
+// DESCRIPTION — wrapping textarea
+const tdDesc = document.createElement("td");
+const ta = document.createElement("textarea");
+ta.rows = 1; ta.placeholder = "e.g. Indian Head Penny";
+ta.value = data.description || ""; ta.dataset.key = "description";
+ta.addEventListener("input", ()=>{ autosize(ta); onEdit(); });
+ta.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); ta.blur(); } });
+tdDesc.appendChild(ta); tr.appendChild(tdDesc);
+
+// More simple single-line text fields
+const textFields2 = [
+["ogGrader","e.g. NGC"],
+["grade","e.g. MS64"],
+["color","e.g. RB"],
+["weight","e.g. 3.11g"],
+["fineWeight","e.g. 0.0387oz"]
+];
+textFields2.forEach(([key,ph])=>{
+const td = document.createElement("td");
+const inp = document.createElement("input");
+inp.type = "text"; inp.placeholder = ph;
+inp.value = data[key] || ""; inp.dataset.key = key;
+inp.addEventListener("input", onEdit);
+td.appendChild(inp); tr.appendChild(td);
+});
+
+// METAL — text input with suggestions
+const tdMetal = document.createElement("td");
+const metalInp = document.createElement("input");
+metalInp.type = "text"; metalInp.placeholder = "e.g. Silver"; metalInp.setAttribute("list","metalList");
+metalInp.value = data.metal || ""; metalInp.dataset.key = "metal";
+metalInp.addEventListener("input", onEdit);
+tdMetal.appendChild(metalInp); tr.appendChild(tdMetal);
+
+// SIZE / GASKET
+[["size","mm"],["gasket","mm"]].forEach(([key,ph])=>{
+const td = document.createElement("td"); td.className = "num";
+const inp = document.createElement("input");
+inp.type = "number"; inp.step = "0.1"; inp.min = "0"; inp.placeholder = ph;
+inp.value = data[key]; inp.dataset.key = key;
+inp.addEventListener("input", onEdit);
+td.appendChild(inp); tr.appendChild(td);
+});
+
+// PRICE — $ prefix, 2-decimal formatting on blur
+const tdPrice = document.createElement("td");
+tdPrice.className = "price-cell";
+const dollar = document.createElement("span"); dollar.className = "dollar"; dollar.textContent = "$";
+const price = document.createElement("input");
+price.type = "number"; price.step = "0.01"; price.min = "0"; price.placeholder = "0.00";
+price.value = data.price; price.dataset.key = "price";
+price.addEventListener("input", ()=>{
+if(tr.dataset.buybackManual !== "1"){
+const bbInput = tr.querySelector('[data-key="buybackPrice"]');
+if(bbInput) bbInput.value = computeBuybackFromPrice(price.value, getBuybackPct());
+}
+onEdit();
+});
+price.addEventListener("blur", ()=>{
+if(price.value !== "" && !isNaN(parseFloat(price.value))){
+price.value = parseFloat(price.value).toFixed(2);
+}
+});
+tdPrice.appendChild(dollar); tdPrice.appendChild(price); tr.appendChild(tdPrice);
+
+// BUYBACK PRICE -- internal only, never shown publicly except via a verified sell-back code lookup
+const tdBuyback = document.createElement("td");
+tdBuyback.className = "price-cell buyback-cell";
+const dollarBB = document.createElement("span"); dollarBB.className = "dollar"; dollarBB.textContent = "$";
+const buyback = document.createElement("input");
+buyback.type = "number"; buyback.step = "0.01"; buyback.min = "0"; buyback.placeholder = "0.00";
+buyback.title = "Internal only -- revealed to a customer only after they enter their sell-back code.";
+buyback.value = data.buybackPrice; buyback.dataset.key = "buybackPrice";
+tr.dataset.buybackManual = (data.buybackManual === true || data.buybackManual === "true") ? "1" : "";
+buyback.addEventListener("input", ()=>{
+tr.dataset.buybackManual = buyback.value.trim() === "" ? "" : "1";
+onEdit();
+});
+buyback.addEventListener("blur", ()=>{
+if(buyback.value !== "" && !isNaN(parseFloat(buyback.value))){
+buyback.value = parseFloat(buyback.value).toFixed(2);
+}
+});
+tdBuyback.appendChild(dollarBB); tdBuyback.appendChild(buyback); tr.appendChild(tdBuyback);
+
+// LEVEL dropdown
+const tdLvl = document.createElement("td");
+const sel = document.createElement("select");
+sel.dataset.key = "level";
+sel.innerHTML = '<option value="">— select level —</option>' +
+LEVELS.map(l=>`<option value="${l.name}" ${l.name===data.level?"selected":""}>${l.label}</option>`).join("");
+sel.addEventListener("change", onEdit);
+tdLvl.appendChild(sel); tr.appendChild(tdLvl);
+
+// INVENTORY toggle — Yes / No, both directly clickable
+const tdGa = document.createElement("td");
+tdGa.className = "ga";
+const invWrap = document.createElement("div");
+invWrap.className = "inv-toggle"; invWrap.dataset.key = "ga";
+const yesBtn = document.createElement("button");
+yesBtn.type = "button"; yesBtn.className = "inv-btn yes"; yesBtn.textContent = "Yes"; yesBtn.title = "In stock";
+const noBtn = document.createElement("button");
+noBtn.type = "button"; noBtn.className = "inv-btn no"; noBtn.textContent = "No"; noBtn.title = "Out of stock";
+const setInv = on=>{
+yesBtn.classList.toggle("active", on);
+noBtn.classList.toggle("active", !on);
+invWrap.dataset.value = on ? "true" : "false";
+tr.classList.toggle("ga-row", on);
+};
+setInv(data.ga === true || data.ga === "true");
+yesBtn.addEventListener("click", ()=>{ setInv(true); onEdit(); });
+noBtn.addEventListener("click", ()=>{ setInv(false); onEdit(); });
+invWrap.appendChild(yesBtn); invWrap.appendChild(noBtn);
+tdGa.appendChild(invWrap); tr.appendChild(tdGa);
+
+// QR code — links directly to this coin's customer-facing page
+const tdQr = document.createElement("td");
+tdQr.className = "qr";
+const qrBtn = document.createElement("button");
+qrBtn.type = "button"; qrBtn.className = "qr-btn"; qrBtn.textContent = "QR";
+qrBtn.title = "Download a QR code linking to this coin's page";
+qrBtn.addEventListener("click", ()=>{
+const sku = tr.querySelector("td.sku").textContent;
+if(!sku){ alert("This row doesn't have a SKU yet — enter coin details first."); return; }
+downloadQrForSku(sku);
+});
+tdQr.appendChild(qrBtn); tr.appendChild(tdQr);
+
+// delete
+const tdDel = document.createElement("td");
+tdDel.className = "del";
+const del = document.createElement("button");
+del.type = "button"; del.title = "Delete row"; del.textContent = "✕";
+del.addEventListener("click", ()=>{
+const skuEl = tr.querySelector("td.sku");
+const sku = skuEl ? skuEl.textContent.trim() : "";
+if(sku){
+let pending = [];
+try{ pending = JSON.parse(store.get(DELETES_KEY) || "[]"); }catch(e){}
+if(!pending.includes(sku)) pending.push(sku);
+store.set(DELETES_KEY, JSON.stringify(pending));
+}
+tr.remove(); ensureBlankRow(); refresh();
+});
+tdDel.appendChild(del); tr.appendChild(tdDel);
+
+requestAnimationFrame(()=>autosize(ta));
+return tr;
+}
+
+function rowData(tr){
+const d = {sku: tr.querySelector("td.sku").textContent,
+imgObverse: tr.dataset.imgObverse || "", imgReverse: tr.dataset.imgReverse || "",
+imgExtra1: tr.dataset.imgExtra1 || "", imgExtra2: tr.dataset.imgExtra2 || "",
+capObverse: tr.dataset.capObverse || "", capReverse: tr.dataset.capReverse || "",
+capExtra1: tr.dataset.capExtra1 || "", capExtra2: tr.dataset.capExtra2 || "",
+buybackManual: tr.dataset.buybackManual === "1"};
+tr.querySelectorAll("[data-key]").forEach(el => {
+if(el.dataset.key === "ga"){ d.ga = el.dataset.value === "true"; }
+else { d[el.dataset.key] = el.value.trim(); }
+});
+return d;
+}
+const rowIsEmpty = d => !d.year && !d.mint && !d.country && !d.denomination && !d.description &&
+!d.ogGrader && !d.grade && !d.color && !d.weight && !d.fineWeight && !d.metal &&
+!d.size && !d.gasket && !d.price && !d.level &&
+!d.imgObverse && !d.imgReverse && !d.imgExtra1 && !d.imgExtra2;
+
+function assignSkus(){
+[...tbody.children].forEach(tr=>{
+const td = tr.querySelector("td.sku");
+const d = rowData(tr);
+if(!rowIsEmpty(d) && !td.textContent){
+td.textContent = newSku();
+}else if(rowIsEmpty(d) && td.textContent){
+td.textContent = "";
+}
+});
+}
+
+function ensureBlankRow(){
+const trs = [...tbody.children];
+const last = trs[trs.length-1];
+if(!last || !rowIsEmpty(rowData(last))){
+tbody.appendChild(makeRow());
+}
+let blanks = [...tbody.children].filter(tr=>rowIsEmpty(rowData(tr)));
+while(blanks.length > 1){
+blanks[0].remove();
+blanks = [...tbody.children].filter(tr=>rowIsEmpty(rowData(tr)));
+}
+renumber();
+}
+
+function renumber(){
+[...tbody.children].forEach((tr,i)=>{
+const empty = rowIsEmpty(rowData(tr));
+tr.classList.toggle("is-new", empty);
+tr.querySelector(".rownum").textContent = empty ? "+" : i+1;
+});
+}
+
+function onEdit(){ assignSkus(); ensureBlankRow(); refresh(); applySearch(); }
+
+/* ---------- summary + save ---------- */
+function getEntries(){
+return [...tbody.children].map(rowData).filter(d=>!rowIsEmpty(d));
+}
+
+function refresh(){
+const entries = getEntries();
+const grid = document.getElementById("sumGrid");
+let html = '<div class="sum-row head"><div>Level</div><div class="val">Coins</div><div class="val">Value</div><div class="val">Avg</div></div>';
+
+LEVELS.forEach(l=>{
+const rows = entries.filter(e=>e.level===l.name);
+const total = rows.reduce((s,e)=>s+(parseFloat(e.price)||0),0);
+const priced = rows.filter(e=>e.price!=="").length;
+const avg = priced ? total/priced : null;
+html += `<div class="sum-row">
+<div class="lvl"><span class="lvl-chip" style="background:${l.color}"></span><span class="name">${l.label}</span></div>
+<div class="val">${rows.length}</div>
+<div class="val">${rows.length?fmtMoney(total):"—"}</div>
+<div class="val">${avg!==null?fmtMoney(avg):"—"}</div>
+</div>`;
+});
+
+const unassigned = entries.filter(e=>!e.level).length;
+const grandTotal = entries.reduce((s,e)=>s+(parseFloat(e.price)||0),0);
+const pricedAll = entries.filter(e=>e.price!=="").length;
+const grandAvg = pricedAll ? grandTotal/pricedAll : null;
+
+html += `<div class="sum-row total">
+<div class="lvl">TOTAL</div>
+<div class="val">${entries.length}</div>
+<div class="val">${fmtMoney(grandTotal)}</div>
+<div class="val">${grandAvg!==null?fmtMoney(grandAvg):"—"}</div>
+</div>`;
+if(unassigned>0){
+html += `<div class="sum-row unassigned"><div class="lvl">No level set</div><div class="val">${unassigned}</div><div></div><div></div></div>`;
+}
+grid.innerHTML = html;
+
+document.getElementById("statCount").textContent = entries.length;
+document.getElementById("statValue").textContent = fmtMoney(grandTotal);
+document.getElementById("statAvg").textContent = grandAvg!==null?fmtMoney(grandAvg):"—";
+
+store.set(KEY, JSON.stringify(entries));
+const storageFooter = document.getElementById("storageFooter");
+if(storageFooter){
+if(store.ok){
+storageFooter.textContent = "Entries save automatically in this browser; the Save button confirms it. Use Export CSV for a backup copy.";
+storageFooter.classList.remove("storage-warning");
+}else{
+storageFooter.textContent = "⚠ This browser's local storage is full — new changes are NOT being saved. Click \"Sync to Site\" now to push what's synced, then use Export CSV, then refresh the page to recover space.";
+storageFooter.classList.add("storage-warning");
+}
+}
+}
+
+/* ---------- logo (baked in; click to replace) ---------- */
+const logoSlot = document.getElementById("logoSlot");
+const logoFile = document.getElementById("logoFile");
+const logoImg = document.getElementById("logoImg");
+logoSlot.addEventListener("click", ()=>logoFile.click());
+logoFile.addEventListener("change", ()=>{
+const f = logoFile.files[0];
+if(!f) return;
+const r = new FileReader();
+r.onload = () => { logoImg.src = r.result; store.set(LOGO_KEY, r.result); };
+r.readAsDataURL(f);
+});
+
+/* ---------- sorting ---------- */
+let sortState = {key:null, dir:1};
+
+function sortBy(key){
+if(sortState.key === key){ sortState.dir *= -1; } else { sortState = {key, dir:1}; }
+
+const rows = [...tbody.children];
+const blank = rows.filter(tr=>rowIsEmpty(rowData(tr)));
+const data = rows.filter(tr=>!rowIsEmpty(rowData(tr)));
+
+const numericSortKeys = new Set(["sku","size","gasket","price","level"]);
+data.sort((a,b)=>{
+const da = rowData(a)[key] ?? "", db = rowData(b)[key] ?? "";
+let cmp;
+if(key==="ga"){
+cmp = (db?1:0) - (da?1:0); // Inventory "Yes" rows first
+}else if(numericSortKeys.has(key)){
+const na = da==="" ? Infinity : parseFloat(da);
+const nb = db==="" ? Infinity : parseFloat(db);
+cmp = na - nb;
+}else{ // text fields — alphabetical, blanks last
+if(da==="" && db==="") cmp = 0;
+else if(da==="") cmp = 1;
+else if(db==="") cmp = -1;
+else cmp = String(da).localeCompare(String(db), undefined, {sensitivity:"base", numeric:true});
+}
+return cmp * sortState.dir;
+});
+
+data.forEach(tr=>tbody.appendChild(tr));
+blank.forEach(tr=>tbody.appendChild(tr));
+renumber();
+applySearch();
+
+document.querySelectorAll("thead th.sortable").forEach(th=>{
+const active = th.dataset.sort === key;
+th.classList.toggle("sorted", active);
+th.querySelector(".arrow").textContent = active ? (sortState.dir===1 ? "▲" : "▼") : "↕";
+});
+}
+document.querySelectorAll("thead th.sortable").forEach(th=>{
+th.addEventListener("click", ()=>sortBy(th.dataset.sort));
+});
+
+/* ---------- search ---------- */
+const searchBox = document.getElementById("searchBox");
+const searchCount = document.getElementById("searchCount");
+const btnClearSearch = document.getElementById("btnClearSearch");
+
+function applySearch(){
+const q = searchBox.value.trim().toLowerCase();
+const rows = [...tbody.children];
+if(!q){
+rows.forEach(tr=>tr.style.display = "");
+searchCount.textContent = "";
+btnClearSearch.hidden = true;
+return;
+}
+let hits = 0;
+rows.forEach(tr=>{
+const d = rowData(tr);
+if(rowIsEmpty(d)){ tr.style.display = "none"; return; } // hide the "+" row while searching
+const invText = "inventory " + (d.ga ? "yes in stock" : "no out of stock");
+const hay = [d.sku,d.year,d.mint,d.country,d.denomination,d.description,d.ogGrader,d.grade,
+d.color,d.weight,d.fineWeight,d.metal,d.size,d.gasket,d.price,d.level,invText].join(" ").toLowerCase();
+const match = hay.includes(q);
+tr.style.display = match ? "" : "none";
+if(match) hits++;
+});
+searchCount.textContent = hits + " match" + (hits===1?"":"es");
+btnClearSearch.hidden = false;
+}
+searchBox.addEventListener("input", applySearch);
+btnClearSearch.addEventListener("click", ()=>{ searchBox.value=""; applySearch(); searchBox.focus(); });
+
+/* ---------- Detail modal (view / edit / photos) ---------- */
+const DETAIL_FIELDS = [
+{key:"year", label:"Year"},
+{key:"mint", label:"Mint"},
+{key:"country", label:"Country"},
+{key:"denomination", label:"Denomination"},
+{key:"ogGrader", label:"OG Grader"},
+{key:"grade", label:"Grade"},
+{key:"color", label:"Color"},
+{key:"weight", label:"Weight"},
+{key:"fineWeight", label:"Fine Weight"},
+{key:"metal", label:"Metal", list:"metalList"},
+{key:"size", label:"Size (mm)", type:"number"},
+{key:"gasket", label:"Gasket (mm)", type:"number"},
+{key:"price", label:"Price ($)", type:"number"},
+{key:"buybackPrice", label:"Buyback Price ($) -- internal only", type:"number"},
+{key:"level", label:"Level", type:"select"}
+];
+
+const PHOTO_SLOTS = [
+{key:"imgObverse", capKey:"capObverse", label:"Obverse"},
+{key:"imgReverse", capKey:"capReverse", label:"Reverse"},
+{key:"imgExtra1", capKey:"capExtra1", label:"Extra photo 1"},
+{key:"imgExtra2", capKey:"capExtra2", label:"Extra photo 2"}
+];
+
+let activeDetailRow = null;
+const detailModal = document.getElementById("detailModal");
+const modalPhotoGrid = document.getElementById("modalPhotoGrid");
+const modalSku = document.getElementById("modalSku");
+const modalDesc = document.getElementById("modalDesc");
+const modalFieldsGrid = document.getElementById("modalFieldsGrid");
+const modalInvYes = document.getElementById("modalInvYes");
+const modalInvNo = document.getElementById("modalInvNo");
+const modalStatus = document.getElementById("modalStatus");
+
+function resizeImageFile(file, maxDim, quality){
+return new Promise((resolve, reject)=>{
+const reader = new FileReader();
+reader.onerror = ()=>reject(new Error("Couldn't read that file"));
+reader.onload = ()=>{
+const img = new Image();
+img.onerror = ()=>reject(new Error("Couldn't decode that image"));
+img.onload = ()=>{
+let w = img.width, h = img.height;
+if(w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+else if(h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+const canvas = document.createElement("canvas");
+canvas.width = w; canvas.height = h;
+canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+resolve(canvas.toDataURL("image/jpeg", quality));
+};
+img.src = reader.result;
+};
+reader.readAsDataURL(file);
+});
+}
+
+// Composes the customer-facing coin title the same way the live site does,
+// so photo caption defaults match what shoppers will actually see.
+function composeCoinName(d){
+const bits = [d.year, d.mint, d.color, d.denomination, d.description, d.grade]
+.map(s=>(s||"").toString().trim()).filter(Boolean);
+let composed = bits.join(" ").replace(/\s+/g," ").trim();
+if(d.metal && String(d.metal).trim()){
+composed = composed ? `${composed} (${String(d.metal).trim()})` : `(${String(d.metal).trim()})`;
+}
+return composed;
+}
+
+function defaultCaption(key, coinName){
+const name = coinName || "This coin";
+if(key === "imgObverse") return `${name} (OBVERSE)`;
+if(key === "imgReverse") return `${name} (REVERSE)`;
+if(key === "imgExtra1") return "Original Grading Insert (Not associated with Mini-Slabs)";
+return "";
+}
+
+/* ---------- Lightbox (zoom) ---------- */
+const lightboxOverlay = document.getElementById("lightboxOverlay");
+const lightboxImg = document.getElementById("lightboxImg");
+function openLightbox(src){
+if(!src) return;
+lightboxImg.src = src;
+lightboxOverlay.hidden = false;
+}
+function closeLightbox(){
+lightboxOverlay.hidden = true;
+lightboxImg.src = "";
+}
+lightboxOverlay.addEventListener("click", closeLightbox);
+document.addEventListener("keydown", e=>{ if(e.key === "Escape" && !lightboxOverlay.hidden) closeLightbox(); });
+
+const photoSlots = {};
+(function buildPhotoSlots(){
+modalPhotoGrid.innerHTML = "";
+PHOTO_SLOTS.forEach(slot=>{
+const wrap = document.createElement("div");
+wrap.className = "photo-slot";
+
+const lab = document.createElement("div");
+lab.className = "photo-slot-label";
+lab.textContent = slot.label;
+wrap.appendChild(lab);
+
+const frame = document.createElement("div");
+frame.className = "modal-img-frame";
+frame.title = "Click to zoom";
+const img = document.createElement("img");
+img.alt = slot.label; img.hidden = true;
+const placeholder = document.createElement("div");
+placeholder.className = "modal-img-placeholder";
+placeholder.textContent = "No photo yet";
+frame.appendChild(img); frame.appendChild(placeholder);
+wrap.appendChild(frame);
+frame.addEventListener("click", ()=>{ if(!img.hidden) openLightbox(img.src); });
+
+const fileInput = document.createElement("input");
+fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.hidden = true;
+wrap.appendChild(fileInput);
+
+const actions = document.createElement("div");
+actions.className = "modal-img-actions";
+const uploadBtn = document.createElement("button");
+uploadBtn.type = "button"; uploadBtn.className = "btn btn-ghost"; uploadBtn.textContent = "Upload photo";
+const removeBtn = document.createElement("button");
+removeBtn.type = "button"; removeBtn.className = "btn btn-danger"; removeBtn.textContent = "Remove photo";
+actions.appendChild(uploadBtn); actions.appendChild(removeBtn);
+wrap.appendChild(actions);
+
+const captionInput = document.createElement("input");
+captionInput.type = "text";
+captionInput.className = "photo-caption-input";
+captionInput.placeholder = "Caption for this photo";
+wrap.appendChild(captionInput);
+
+modalPhotoGrid.appendChild(wrap);
+
+uploadBtn.addEventListener("click", ()=>fileInput.click());
+fileInput.addEventListener("change", async ()=>{
+const f = fileInput.files[0];
+fileInput.value = "";
+if(!f) return;
+try{
+const dataUrl = await resizeImageFile(f, 900, 0.85);
+setModalImage(slot.key, dataUrl);
+}catch(err){
+alert("Couldn't use that image: " + err.message);
+}
+});
+removeBtn.addEventListener("click", ()=>setModalImage(slot.key, ""));
+
+photoSlots[slot.key] = {img, placeholder, fileInput, uploadBtn, removeBtn, captionInput, capKey: slot.capKey};
+});
+})();
+
+(function buildDetailFields(){
+modalFieldsGrid.innerHTML = "";
+DETAIL_FIELDS.forEach(f=>{
+const wrap = document.createElement("div");
+wrap.className = "modal-field";
+const lab = document.createElement("label");
+lab.textContent = f.label;
+wrap.appendChild(lab);
+let input;
+if(f.type === "select"){
+input = document.createElement("select");
+input.innerHTML = '<option value="">— select —</option>' +
+LEVELS.map(l=>`<option value="${l.name}">${l.label}</option>`).join("");
+}else{
+input = document.createElement("input");
+input.type = f.type === "number" ? "number" : "text";
+if(f.type === "number"){ input.step = "0.01"; input.min = "0"; }
+if(f.list) input.setAttribute("list", f.list);
+}
+input.dataset.key = f.key;
+wrap.appendChild(input);
+modalFieldsGrid.appendChild(wrap);
+});
+})();
+
+function setModalInv(on){
+modalInvYes.classList.toggle("active", on);
+modalInvNo.classList.toggle("active", !on);
+modalInvYes.dataset.value = on ? "true" : "false";
+}
+modalInvYes.addEventListener("click", ()=>setModalInv(true));
+modalInvNo.addEventListener("click", ()=>setModalInv(false));
+
+function setModalImage(key, dataUrl){
+const slot = photoSlots[key];
+if(!slot) return;
+if(dataUrl){
+slot.img.src = dataUrl; slot.img.hidden = false; slot.placeholder.hidden = true;
+}else{
+slot.img.src = ""; slot.img.hidden = true; slot.placeholder.hidden = false;
+}
+slot.img.dataset.pending = dataUrl || "__REMOVE__";
+}
+
+function openDetail(tr){
+activeDetailRow = tr;
+const d = rowData(tr);
+modalSku.textContent = "SKU " + (d.sku || "—");
+modalDesc.value = d.description || "";
+modalFieldsGrid.querySelectorAll("[data-key]").forEach(el=>{ el.value = d[el.dataset.key] || ""; });
+setModalInv(d.ga === true);
+const coinName = composeCoinName(d);
+PHOTO_SLOTS.forEach(slot=>{
+const s = photoSlots[slot.key];
+delete s.img.dataset.pending;
+const url = tr.dataset[slot.key] || "";
+if(url){ s.img.src = url; s.img.hidden = false; s.placeholder.hidden = true; }
+else{ s.img.src = ""; s.img.hidden = true; s.placeholder.hidden = false; }
+s.captionInput.value = tr.dataset[slot.capKey] || defaultCaption(slot.key, coinName);
+});
+modalStatus.textContent = "";
+detailModal.hidden = false;
+}
+
+function closeDetail(){
+detailModal.hidden = true;
+activeDetailRow = null;
+}
+
+document.getElementById("modalClose").addEventListener("click", closeDetail);
+document.getElementById("modalCancel").addEventListener("click", closeDetail);
+detailModal.addEventListener("click", e=>{ if(e.target === detailModal) closeDetail(); });
+document.addEventListener("keydown", e=>{ if(e.key === "Escape" && !detailModal.hidden) closeDetail(); });
+
+document.getElementById("modalSave").addEventListener("click", ()=>{
+if(!activeDetailRow) return;
+const d = { sku: rowData(activeDetailRow).sku };
+modalFieldsGrid.querySelectorAll("[data-key]").forEach(el=>{ d[el.dataset.key] = el.value.trim(); });
+d.description = modalDesc.value.trim();
+d.ga = modalInvYes.dataset.value === "true";
+
+updateRowFields(activeDetailRow, d);
+
+PHOTO_SLOTS.forEach(slot=>{
+const s = photoSlots[slot.key];
+const pending = s.img.dataset.pending;
+if(pending === "__REMOVE__"){ activeDetailRow.dataset[slot.key] = ""; }
+else if(pending){ activeDetailRow.dataset[slot.key] = pending; }
+delete s.img.dataset.pending;
+activeDetailRow.dataset[slot.capKey] = s.captionInput.value.trim();
+});
+
+updateImgBadge(activeDetailRow);
+onEdit();
+closeDetail();
+});
+
+/* ---------- Google Sheet sync ---------- */
+const SHEET_KEY = "miniSlabsSheetURL_v1";
+function getSheetUrl(){ return store.get(SHEET_KEY) || ""; }
+function setSheetUrl(){
+const current = getSheetUrl();
+const url = prompt("Paste your Google Apps Script Web App URL (ends in /exec):", current || "");
+if(url === null) return;
+store.set(SHEET_KEY, url.trim());
+alert(url.trim() ? "Google Sheet linked." : "Google Sheet link cleared.");
+}
+function ensureSheetUrl(){
+let url = getSheetUrl();
+if(!url){ setSheetUrl(); url = getSheetUrl(); }
+return url;
+}
+
+/* ---------- Site link + QR codes ---------- */
+const SITE_KEY = "miniSlabsSiteURL_v1";
+function getSiteUrl(){ return store.get(SITE_KEY) || ""; }
+function setSiteUrl(){
+const current = getSiteUrl();
+const url = prompt("Paste your Mini-Slabs site URL (e.g. https://mini-slabs.netlify.app):", current || "https://mini-slabs.netlify.app");
+if(url === null) return;
+store.set(SITE_KEY, url.trim().replace(/\/$/,""));
+alert(url.trim() ? "Site linked for QR codes." : "Site link cleared.");
+}
+function ensureSiteUrl(){
+let url = getSiteUrl();
+if(!url){ setSiteUrl(); url = getSiteUrl(); }
+return url;
+}
+function coinPageUrl(sku){
+const base = ensureSiteUrl();
+if(!base) return null;
+return base.replace(/\/$/,"") + "/coins/" + encodeURIComponent(sku);
+}
+
+function roundRect(ctx,x,y,w,h,r){
+ctx.beginPath();
+ctx.moveTo(x+r,y);
+ctx.arcTo(x+w,y,x+w,y+h,r);
+ctx.arcTo(x+w,y+h,x,y+h,r);
+ctx.arcTo(x,y+h,x,y,r);
+ctx.arcTo(x,y,x+w,y,r);
+ctx.closePath();
+}
+
+function drawLogoCentered(ctx, cx, cy, box){
+return new Promise(resolve=>{
+const img = new Image();
+img.onload = ()=>{
+const scale = Math.min(box/img.naturalWidth, box/img.naturalHeight);
+const w = img.naturalWidth*scale, h = img.naturalHeight*scale;
+ctx.drawImage(img, cx-w/2, cy-h/2, w, h);
+resolve();
+};
+img.onerror = resolve;
+img.src = logoImg.src;
+});
+}
+
+async function generateQrCanvas(sku){
+const url = coinPageUrl(sku);
+if(!url) return null;
+const holder = document.createElement("div");
+holder.style.position = "fixed"; holder.style.left = "-9999px";
+document.body.appendChild(holder);
+new QRCode(holder, { text: url, width: 640, height: 640, correctLevel: QRCode.CorrectLevel.H });
+await new Promise(r=>setTimeout(r, 60));
+const qrCanvas = holder.querySelector("canvas");
+const out = document.createElement("canvas");
+out.width = 640; out.height = 640;
+const ctx = out.getContext("2d");
+ctx.fillStyle = "#fff";
+ctx.fillRect(0,0,640,640);
+if(qrCanvas) ctx.drawImage(qrCanvas, 0, 0, 640, 640);
+const plate = 640 * 0.30, cx = 320, cy = 320;
+ctx.fillStyle = "#fff";
+roundRect(ctx, cx-plate/2-8, cy-plate/2-8, plate+16, plate+16, 14);
+ctx.fill();
+await drawLogoCentered(ctx, cx, cy, plate);
+document.body.removeChild(holder);
+return out;
+}
+
+function dataUrlToBlob(dataUrl){
+const [meta, b64] = dataUrl.split(",");
+const mime = meta.match(/:(.*?);/)[1];
+const bin = atob(b64);
+const arr = new Uint8Array(bin.length);
+for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+return new Blob([arr], {type: mime});
+}
+
+async function downloadQrForSku(sku){
+const canvas = await generateQrCanvas(sku);
+if(!canvas) return;
+const a = document.createElement("a");
+a.href = canvas.toDataURL("image/png");
+a.download = "MS-" + sku + "-QR.png";
+a.click();
+}
+
+async function downloadAllQr(){
+const entries = getEntries().filter(e=>e.sku);
+if(entries.length === 0){ alert("No coins with SKUs yet."); return; }
+if(!ensureSiteUrl()) return;
+btnQrAll.disabled = true; const orig = btnQrAll.textContent;
+const zip = new JSZip();
+for(let i=0;i<entries.length;i++){
+const e0 = entries[i];
+btnQrAll.textContent = "Generating " + (i+1) + "/" + entries.length + "…";
+const canvas = await generateQrCanvas(e0.sku);
+if(!canvas) continue;
+zip.file("MS-" + e0.sku + "-QR.png", dataUrlToBlob(canvas.toDataURL("image/png")));
+}
+btnQrAll.textContent = "Zipping…";
+const content = await zip.generateAsync({type:"blob"});
+const a = document.createElement("a");
+a.href = URL.createObjectURL(content);
+a.download = "MINI-SLABS_QR_codes.zip";
+a.click();
+URL.revokeObjectURL(a.href);
+btnQrAll.disabled = false; btnQrAll.textContent = orig;
+}
+
+function updateRowFields(tr, d){
+tr.querySelectorAll("[data-key]").forEach(el=>{
+if(el.dataset.key === "ga"){
+const on = d.ga === true || d.ga === "true";
+el.dataset.value = on ? "true" : "false";
+const yb = el.querySelector(".inv-btn.yes"), nb = el.querySelector(".inv-btn.no");
+if(yb) yb.classList.toggle("active", on);
+if(nb) nb.classList.toggle("active", !on);
+tr.classList.toggle("ga-row", on);
+}else if(el.tagName === "SELECT"){
+el.value = d[el.dataset.key] || "";
+}else{
+el.value = d[el.dataset.key] ?? "";
+if(el.tagName === "TEXTAREA") autosize(el);
+}
+});
+["imgObverse","imgReverse","imgExtra1","imgExtra2","capObverse","capReverse","capExtra1","capExtra2"].forEach(key=>{
+if(Object.prototype.hasOwnProperty.call(d, key)){
+tr.dataset[key] = d[key] || "";
+}
+});
+if(Object.prototype.hasOwnProperty.call(d, "buybackManual")){
+tr.dataset.buybackManual = (d.buybackManual === true || d.buybackManual === "true") ? "1" : "";
+}
+updateImgBadge(tr);
+}
+
+async function pullFromSheet(){
+const url = ensureSheetUrl();
+if(!url) return;
+btnPull.disabled = true; const orig = btnPull.textContent; btnPull.textContent = "Pulling…";
+try{
+const sep = url.includes("?") ? "&" : "?";
+const res = await fetch(url + sep + "action=read");
+const json = await res.json();
+if(!json.ok) throw new Error(json.error || "Unknown error from Sheet");
+
+const bySku = {};
+[...tbody.children].forEach(tr=>{
+const d = rowData(tr);
+if(d.sku) bySku[d.sku] = tr;
+});
+let added = 0, updated = 0;
+(json.entries || []).forEach(e=>{
+if(!e.sku) e.sku = newSku();
+if(bySku[e.sku]){
+updateRowFields(bySku[e.sku], e);
+updated++;
+}else{
+const tr = makeRow(e);
+tbody.insertBefore(tr, tbody.lastElementChild);
+bySku[e.sku] = tr;
+added++;
+}
+});
+ensureBlankRow();
+refresh();
+alert("Pulled from Sheet: " + added + " added, " + updated + " updated.");
+}catch(err){
+alert("Pull failed: " + err.message + "\n\nCheck the Web App URL and that it's deployed with access set to 'Anyone'.");
+}finally{
+btnPull.disabled = false; btnPull.textContent = orig;
+}
+}
+
+async function pushToSheet(){
+const url = ensureSheetUrl();
+if(!url) return;
+const entries = getEntries();
+btnPush.disabled = true; const orig = btnPush.textContent; btnPush.textContent = "Pushing…";
+try{
+const res = await fetch(url, {
+method: "POST",
+headers: {"Content-Type": "text/plain;charset=utf-8"},
+body: JSON.stringify({entries})
+});
+const json = await res.json();
+if(!json.ok) throw new Error(json.error || "Unknown error from Sheet");
+alert("Pushed " + json.count + " coin(s) to the Sheet.");
+}catch(err){
+alert("Push failed: " + err.message + "\n\nCheck the Web App URL and that it's deployed with access set to 'Anyone'.");
+}finally{
+btnPush.disabled = false; btnPush.textContent = orig;
+}
+}
+
+const btnSiteLink = document.getElementById("btnSiteLink");
+const btnQrAll = document.getElementById("btnQrAll");
+btnSiteLink.addEventListener("click", setSiteUrl);
+btnQrAll.addEventListener("click", downloadAllQr);
+
+/* ---------- Sync to Site (direct to Supabase, no Google Sheet involved) ---------- */
+const SUPABASE_URL = "https://xqeboeuukodkwankpmcl.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZWJvZXV1a29ka3dhbmtwbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzE3MTgsImV4cCI6MjEwMDc0NzcxOH0.yGPWjdvVLNannb0PygD5B6zkAWAr9idQHKUBM3mh_dw";
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function ensureAdminSession(){
+const { data: { session } } = await sbClient.auth.getSession();
+if(session) return session;
+const email = prompt("Admin email (peter@ or info@goldandcoinexchange.com):");
+if(!email) return null;
+const password = prompt("Admin password:");
+if(!password) return null;
+const { data, error } = await sbClient.auth.signInWithPassword({ email: email.trim(), password });
+if(error){ alert("Sign-in failed: " + error.message); return null; }
+return data.session;
+}
+
+async function syncToSite(){
+const session = await ensureAdminSession();
+if(!session) return;
+const entries = getEntries();
+const liveSkus = new Set(entries.map(e=>e.sku).filter(Boolean));
+let pendingDeletes = [];
+try{ pendingDeletes = JSON.parse(store.get(DELETES_KEY) || "[]"); }catch(e){}
+// Don't delete a SKU server-side if it's back in the live entries (e.g. re-added).
+const toDelete = pendingDeletes.filter(sku=>!liveSkus.has(sku));
+if(entries.length === 0 && toDelete.length === 0){ alert("No coin entries to sync."); return; }
+
+const btnSyncSite = document.getElementById("btnSyncSite");
+btnSyncSite.disabled = true;
+const orig = btnSyncSite.textContent;
+const chunkSize = 15;
+let totalSynced = 0, totalCodes = 0, totalDeleted = 0;
+let resolvedAny = false;
+try{
+for(let i = 0; i < entries.length; i += chunkSize){
+const chunk = entries.slice(i, i + chunkSize);
+btnSyncSite.textContent = `Syncing ${Math.min(i + chunkSize, entries.length)}/${entries.length}…`;
+const { data, error } = await sbClient.functions.invoke("sync-tool-coins", { body: { entries: chunk } });
+if(error) throw new Error(error.message || "Sync failed");
+if(data && data.error) throw new Error(data.error);
+totalSynced += (data && data.rows_synced) || 0;
+totalCodes += (data && data.codes_created) || 0;
+
+if(data && data.resolved){
+[...tbody.children].forEach(tr=>{
+const skuEl = tr.querySelector(".sku");
+const sku = skuEl ? skuEl.textContent.trim() : "";
+const r = data.resolved[sku];
+if(!r) return;
+["imgObverse","imgReverse","imgExtra1","imgExtra2"].forEach(key=>{
+if(r[key] && tr.dataset[key] && tr.dataset[key].startsWith("data:")){
+tr.dataset[key] = r[key];
+resolvedAny = true;
+}
+});
+updateImgBadge(tr);
+});
+}
+}
+
+if(toDelete.length > 0){
+btnSyncSite.textContent = `Deleting ${toDelete.length}…`;
+const { data, error } = await sbClient.functions.invoke("sync-tool-coins", { body: { entries: [], deletes: toDelete } });
+if(error) throw new Error(error.message || "Delete failed");
+if(data && data.error) throw new Error(data.error);
+totalDeleted = (data && data.deleted_count) || 0;
+const stillPending = pendingDeletes.filter(sku=>!toDelete.includes(sku));
+store.set(DELETES_KEY, JSON.stringify(stillPending));
+}
+
+if(resolvedAny) refresh();
+let msg = `Synced ${totalSynced} coin(s) to the site.`;
+if(totalCodes) msg += ` ${totalCodes} new redemption code(s) created.`;
+if(totalDeleted) msg += ` ${totalDeleted} coin(s) removed from the site.`;
+alert(msg);
+}catch(err){
+alert("Sync failed: " + err.message);
+}finally{
+btnSyncSite.disabled = false;
+btnSyncSite.textContent = orig;
+}
+}
+
+document.getElementById("btnSyncSite").addEventListener("click", syncToSite);
+
+/* ---------- toolbar ---------- */
+const btnSave = document.getElementById("btnSave");
+btnSave.addEventListener("click", ()=>{
+refresh();
+if(store.ok){
+btnSave.textContent = "Saved ✓";
+btnSave.classList.add("saved");
+setTimeout(()=>{ btnSave.textContent = "Save"; btnSave.classList.remove("saved"); }, 1600);
+}else{
+alert("This browser is blocking local storage, so entries can't be kept after the page closes.\nUse Export CSV to keep a copy of your data.");
+}
+});
+
+document.getElementById("btnPrint").addEventListener("click", ()=>window.print());
+
+document.getElementById("btnExport").addEventListener("click", async ()=>{
+const entries = getEntries();
+const esc = v => '"' + String(v).replace(/"/g,'""') + '"';
+const btnExport = document.getElementById("btnExport");
+const orig = btnExport.textContent;
+let codesBySku = {};
+try{
+const session = await ensureAdminSession();
+if(session){
+const skus = entries.map(e=>e.sku).filter(Boolean);
+if(skus.length){
+btnExport.textContent = "Loading codes…";
+const { data, error } = await sbClient.from("redemption_codes").select("sku, code").in("sku", skus);
+if(!error && data){
+data.forEach(r=>{ codesBySku[r.sku] = r.code; });
+}
+}
+}
+}catch(e){ }
+finally{ btnExport.textContent = orig; }
+const csv = ["SKU,YEAR,MINT,COUNTRY,DENOMINATION,DESCRIPTION,OG GRADER,GRADE,COLOR,WEIGHT,FINE WEIGHT,METAL,SIZE,GASKET,PRICE,BUYBACK PRICE,LEVEL,INVENTORY,REDEMPTION CODE",
+...entries.map(e=>[e.sku,e.year,e.mint,e.country,e.denomination,e.description,e.ogGrader,e.grade,
+e.color,e.weight,e.fineWeight,e.metal,e.size,e.gasket,e.price,e.buybackPrice,e.level,e.ga?"Yes":"No",codesBySku[e.sku]||""].map(esc).join(","))].join("\n");
+const a = document.createElement("a");
+a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+a.download = "MINI-SLABS_coins.csv";
+a.click();
+URL.revokeObjectURL(a.href);
+});
+
+document.getElementById("btnClear").addEventListener("click", ()=>{
+if(!confirm("Delete ALL coin entries? This cannot be undone.")) return;
+tbody.innerHTML = "";
+store.del(KEY);
+ensureBlankRow();
+refresh();
+});
+
+function applyBuybackDefaults(){
+[...tbody.children].forEach(tr=>{
+if(tr.dataset.buybackManual === "1") return;
+const priceInput = tr.querySelector('[data-key="price"]');
+const bbInput = tr.querySelector('[data-key="buybackPrice"]');
+if(!priceInput || !bbInput) return;
+if(priceInput.value === "") return;
+bbInput.value = computeBuybackFromPrice(priceInput.value, getBuybackPct());
+});
+}
+
+const buybackPctInput = document.getElementById("buybackPctInput");
+buybackPctInput.value = getBuybackPct();
+buybackPctInput.addEventListener("change", ()=>{
+const v = parseFloat(buybackPctInput.value);
+if(isFinite(v) && v >= 0) setBuybackPct(v);
+else buybackPctInput.value = getBuybackPct();
+});
+
+document.getElementById("btnApplyBuybackPct").addEventListener("click", ()=>{
+const v = parseFloat(buybackPctInput.value);
+if(!isFinite(v) || v < 0){ alert("Enter a valid percentage (0 or higher)."); return; }
+if(!confirm(`Set every coin's buyback price to ${v}% of its price? This overrides any individually-adjusted buyback prices.`)) return;
+setBuybackPct(v);
+[...tbody.children].forEach(tr=>{
+const priceInput = tr.querySelector('[data-key="price"]');
+const bbInput = tr.querySelector('[data-key="buybackPrice"]');
+if(!priceInput || !bbInput) return;
+tr.dataset.buybackManual = "";
+bbInput.value = priceInput.value === "" ? "" : computeBuybackFromPrice(priceInput.value, v);
+});
+refresh();
+alert(`Buyback price set to ${v}% of price for all coins.`);
+});
+
+/* ---------- init ---------- */
+(function init(){
+let saved = [];
+try{ saved = JSON.parse(store.get(KEY) || "[]"); }catch(e){}
+saved.forEach(d=>{ if(LEVEL_MIGRATE[d.level]) d.level = LEVEL_MIGRATE[d.level]; });
+saved.forEach(d=>tbody.appendChild(makeRow(d)));
+assignSkus();
+applyBuybackDefaults();
+ensureBlankRow();
+
+const logo = store.get(LOGO_KEY);
+if(logo) logoImg.src = logo;
+
+refresh();
+})();
+</script>
+<script>
+(function(){
+function onReady(fn){ if(document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+
+var SUPABASE_URL = 'https://xqeboeuukodkwankpmcl.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZWJvZXV1a29ka3dhbmtwbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzE3MTgsImV4cCI6MjEwMDc0NzcxOH0.yGPWjdvVLNannb0PygD5B6zkAWAr9idQHKUBM3mh_dw';
+
+var ICONS = {
+'Elite': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-2-elite.png?v=2',
+'Choice': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-3-choice.png?v=2',
+'Classic': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-4-classic.png?v=2',
+'Select': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-5-select.png?v=2',
+'RoundTable': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-6-roundtable.png?v=2'
+};
+var LABELS = Object.keys(ICONS);
+
+var MAG_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"></circle><line x1="20" y1="20" x2="14.65" y2="14.65"></line><line x1="10" y1="7.2" x2="10" y2="12.8"></line><line x1="7.2" y1="10" x2="12.8" y2="10"></line></svg>';
+
+function fixTransform(el){
+var t = el.style && el.style.transform;
+if(t && t.indexOf('rotateY(') !== -1){
+el.style.transform = t.replace(/rotateY\(/g, 'rotateX(');
+}
+}
+function scanFlips(root){
+(root || document).querySelectorAll('[style*="rotateY"]').forEach(fixTransform);
+}
+
+function patchBadges(root){
+(root || document).querySelectorAll('span').forEach(function(span){
+if(span.dataset.msIconDone) return;
+var text = (span.textContent || '').trim();
+if(LABELS.indexOf(text) === -1) return;
+var cls = span.className || '';
+if(typeof cls !== 'string' || cls.indexOf('rounded-full') === -1) return;
+span.dataset.msIconDone = '1';
+span.innerHTML = '<img src="' + ICONS[text] + '" alt="' + text + '" title="' + text + '" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:block">';
+span.style.display = 'inline-flex';
+span.style.alignItems = 'center';
+span.style.justifyContent = 'center';
+span.style.padding = '2px 6px';
+});
+}
+
+function patchLogoVisibility(root){
+(root || document).querySelectorAll('img[src*="wordmark"]').forEach(function(img){
+if(img.dataset.msLogoFixed) return;
+img.dataset.msLogoFixed = '1';
+img.style.filter = 'invert(1) brightness(1.3)';
+});
+}
+
+var viewerEl = null;
+function buildViewer(){
+if(viewerEl) return viewerEl;
+var wrap = document.createElement('div');
+wrap.id = 'ms-zoom-viewer';
+wrap.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;overflow:hidden;touch-action:none;cursor:zoom-in;';
+var img = document.createElement('img');
+img.id = 'ms-zoom-img';
+img.style.cssText = 'max-width:none;max-height:none;user-select:none;pointer-events:none;will-change:transform;';
+wrap.appendChild(img);
+
+var hint = document.createElement('div');
+hint.textContent = 'Scroll or pinch to zoom • drag to pan • double-click to reset';
+hint.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.65);font:13px system-ui,sans-serif;pointer-events:none;z-index:1000000;';
+wrap.appendChild(hint);
+
+var bar = document.createElement('div');
+bar.style.cssText = 'position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:1000000;';
+function mkBtn(label, title){
+var b = document.createElement('button');
+b.type = 'button';
+b.innerHTML = label;
+b.title = title;
+b.style.cssText = 'width:40px;height:40px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:#fff;font-size:18px;line-height:1;cursor:pointer;';
+return b;
+}
+var btnIn = mkBtn('+', 'Zoom in');
+var btnOut = mkBtn('−', 'Zoom out');
+var btnReset = mkBtn('↺', 'Reset');
+var btnClose = mkBtn('✕', 'Close');
+[btnIn, btnOut, btnReset, btnClose].forEach(function(b){ bar.appendChild(b); });
+wrap.appendChild(bar);
+document.body.appendChild(wrap);
+
+var state = { scale: 1, x: 0, y: 0, panning: false, lastX: 0, lastY: 0 };
+function apply(){
+img.style.transform = 'translate(' + state.x + 'px,' + state.y + 'px) scale(' + state.scale + ')';
+wrap.style.cursor = state.scale > 1 ? 'grab' : 'zoom-in';
+}
+function clamp(){
+if(state.scale < 1) state.scale = 1;
+if(state.scale > 8) state.scale = 8;
+if(state.scale === 1){ state.x = 0; state.y = 0; }
+}
+function zoomAt(clientX, clientY, factor){
+var rect = wrap.getBoundingClientRect();
+var cx = clientX - rect.left - rect.width / 2;
+var cy = clientY - rect.top - rect.height / 2;
+var prevScale = state.scale;
+state.scale = state.scale * factor;
+clamp();
+var ratio = state.scale / prevScale;
+state.x = cx - (cx - state.x) * ratio;
+state.y = cy - (cy - state.y) * ratio;
+if(state.scale === 1){ state.x = 0; state.y = 0; }
+apply();
+}
+function isBtn(t){ return t === btnIn || t === btnOut || t === btnReset || t === btnClose; }
+
+wrap.addEventListener('wheel', function(e){
+e.preventDefault();
+var factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+zoomAt(e.clientX, e.clientY, factor);
+}, { passive: false });
+
+wrap.addEventListener('dblclick', function(e){
+if(isBtn(e.target)) return;
+zoomAt(e.clientX, e.clientY, state.scale > 1 ? (1 / state.scale) : 2.5);
+});
+
+wrap.addEventListener('mousedown', function(e){
+if(isBtn(e.target)) return;
+state.panning = true; state.lastX = e.clientX; state.lastY = e.clientY;
+wrap.style.cursor = 'grabbing';
+});
+window.addEventListener('mousemove', function(e){
+if(!state.panning) return;
+state.x += (e.clientX - state.lastX);
+state.y += (e.clientY - state.lastY);
+state.lastX = e.clientX; state.lastY = e.clientY;
+apply();
+});
+window.addEventListener('mouseup', function(){
+if(state.panning){ state.panning = false; apply(); }
+});
+
+var ts = { startDist: 0, startScale: 1, panning: false, lastX: 0, lastY: 0 };
+function dist(a, b){ return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+wrap.addEventListener('touchstart', function(e){
+if(e.touches.length === 2){
+ts.startDist = dist(e.touches[0], e.touches[1]);
+ts.startScale = state.scale;
+} else if(e.touches.length === 1){
+ts.panning = true;
+ts.lastX = e.touches[0].clientX; ts.lastY = e.touches[0].clientY;
+}
+}, { passive: true });
+wrap.addEventListener('touchmove', function(e){
+e.preventDefault();
+if(e.touches.length === 2){
+var d = dist(e.touches[0], e.touches[1]);
+state.scale = ts.startScale * (d / (ts.startDist || d));
+clamp();
+apply();
+} else if(e.touches.length === 1 && ts.panning && state.scale > 1){
+state.x += (e.touches[0].clientX - ts.lastX);
+state.y += (e.touches[0].clientY - ts.lastY);
+ts.lastX = e.touches[0].clientX; ts.lastY = e.touches[0].clientY;
+apply();
+}
+}, { passive: false });
+wrap.addEventListener('touchend', function(){ ts.panning = false; });
+
+btnIn.addEventListener('click', function(){ var r = wrap.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.4); });
+btnOut.addEventListener('click', function(){ var r = wrap.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.4); });
+btnReset.addEventListener('click', function(){ state.scale = 1; state.x = 0; state.y = 0; apply(); });
+btnClose.addEventListener('click', close);
+wrap.addEventListener('click', function(e){
+if(e.target === wrap && state.scale === 1) close();
+});
+document.addEventListener('keydown', function(e){
+if(wrap.style.display !== 'none' && e.key === 'Escape') close();
+});
+
+function open(src){
+img.src = src;
+state.scale = 1; state.x = 0; state.y = 0;
+apply();
+wrap.style.display = 'flex';
+document.body.style.overflow = 'hidden';
+}
+function close(){
+wrap.style.display = 'none';
+document.body.style.overflow = '';
+}
+viewerEl = { open: open, close: close };
+return viewerEl;
+}
+function openZoom(src){ buildViewer().open(src); }
+
+function patchDetailZoom(root){
+if(!/^\/coins\/[^/]+$/.test(window.location.pathname)) return;
+(root || document).querySelectorAll('div').forEach(function(box){
+var cls = box.className;
+if(typeof cls !== 'string') return;
+if(cls.indexOf('circuit-bg') === -1 || cls.indexOf('min-h-[260px]') === -1) return;
+if(box.dataset.msZoomDone) return;
+var img = box.querySelector('img');
+if(!img) return;
+box.dataset.msZoomDone = '1';
+box.style.position = 'relative';
+var badge = document.createElement('div');
+badge.style.cssText = 'position:absolute;bottom:10px;right:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+badge.innerHTML = MAG_SVG;
+box.appendChild(badge);
+box.style.cursor = 'zoom-in';
+box.addEventListener('click', function(e){
+e.stopPropagation();
+e.preventDefault();
+var curImg = box.querySelector('img');
+if(curImg && curImg.src) openZoom(curImg.src);
+}, true);
+});
+}
+
+function isCoinInputTool(){ return /coin-input-tool/.test(window.location.pathname); }
+
+function patchToolHeader(){
+var slot = document.getElementById('logoSlot');
+if(!slot || slot.dataset.msLinked) return;
+slot.dataset.msLinked = '1';
+slot.style.cursor = 'pointer';
+slot.title = 'Back to Mini-Slabs home';
+slot.addEventListener('click', function(){ window.location.href = '/'; });
+}
+
+function patchToolLightboxBadges(root){
+(root || document).querySelectorAll('.modal-img-frame').forEach(function(frame){
+if(frame.dataset.msZoomBadge) return;
+frame.dataset.msZoomBadge = '1';
+frame.style.position = 'relative';
+var badge = document.createElement('div');
+badge.style.cssText = 'position:absolute;bottom:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:2;';
+badge.innerHTML = MAG_SVG;
+frame.appendChild(badge);
+});
+}
+
+function patchToolOpenLightbox(){
+if(typeof window.openLightbox === 'function' && !window.__msOpenLightboxPatched){
+window.__msOpenLightboxPatched = true;
+window.openLightbox = function(src){ openZoom(src); };
+}
+}
+
+function patchCoinDbLight(){
+var onDbPage = window.location.pathname === '/coins';
+if(!onDbPage) return;
+var cards = document.querySelectorAll('.card');
+cards.forEach(function(card){
+card.style.setProperty('background', '#ffffff', 'important');
+card.style.setProperty('border-color', '#d7dbe3', 'important');
+var circuit = card.querySelector('.circuit-bg');
+if(circuit){
+circuit.style.setProperty('background-color', '#ffffff', 'important');
+circuit.style.setProperty('background-image', 'none', 'important');
+}
+card.querySelectorAll('.text-white').forEach(function(el){
+el.style.setProperty('color', '#111827', 'important');
+});
+card.querySelectorAll('p[class*="text-dim"]').forEach(function(el){
+el.style.setProperty('color', '#55606f', 'important');
+});
+card.querySelectorAll('span.text-white').forEach(function(el){
+el.style.setProperty('border-color', '#94a3b8', 'important');
+});
+if(!card.dataset.msHoverBound){
+card.dataset.msHoverBound = '1';
+card.addEventListener('mouseenter', function(){ card.style.setProperty('background', '#eef9ff', 'important'); });
+card.addEventListener('mouseleave', function(){ card.style.setProperty('background', '#ffffff', 'important'); });
+}
+});
+}
+
+/* ---------- Claim / Sell Back: coin image + click-to-expand info modal ---------- */
+
+function escapeHtml(s){
+return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+});
+}
+
+function fmtMoney(v){
+if(v === null || v === undefined || v === '') return null;
+var n = Number(v);
+if(!isFinite(n)) return null;
+return '$' + n.toFixed(2);
+}
+
+var coinModalEl = null;
+function buildCoinModal(){
+if(coinModalEl) return coinModalEl;
+var overlay = document.createElement('div');
+overlay.id = 'ms-coin-modal';
+overlay.style.cssText = 'position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.75);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;';
+var box = document.createElement('div');
+box.style.cssText = 'background:#12131c;color:#fff;max-width:640px;width:100%;border-radius:14px;padding:26px;position:relative;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
+var closeBtn = document.createElement('button');
+closeBtn.type = 'button';
+closeBtn.textContent = '✕';
+closeBtn.title = 'Close';
+closeBtn.style.cssText = 'position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;font-size:16px;cursor:pointer;line-height:1;';
+closeBtn.addEventListener('click', function(){ close(); });
+var content = document.createElement('div');
+content.id = 'ms-coin-modal-content';
+box.appendChild(closeBtn);
+box.appendChild(content);
+overlay.appendChild(box);
+document.body.appendChild(overlay);
+overlay.addEventListener('click', function(e){ if(e.target === overlay) close(); });
+document.addEventListener('keydown', function(e){ if(overlay.style.display !== 'none' && e.key === 'Escape') close(); });
+function open(html){
+content.innerHTML = html;
+content.querySelectorAll('[data-ms-zoom-src]').forEach(function(el){
+el.style.cursor = 'zoom-in';
+el.addEventListener('click', function(){ openZoom(el.getAttribute('data-ms-zoom-src')); });
+});
+overlay.style.display = 'flex';
+document.body.style.overflow = 'hidden';
+var amountEl = content.querySelector('#ms-buyback-amount');
+if(amountEl){
+var target = parseFloat(amountEl.getAttribute('data-target')) || 0;
+requestAnimationFrame(function(){ requestAnimationFrame(function(){ animateBuybackCountUp(amountEl, target); }); });
+}
+}
+function close(){
+overlay.style.display = 'none';
+document.body.style.overflow = '';
+}
+coinModalEl = { open: open, close: close };
+return coinModalEl;
+}
+
+function coinModalHtml(coin, sku, buybackPrice){
+var name = coin.name || '';
+var photos = [
+{ src: coin.image_url, cap: coin.image_caption || 'Obverse' },
+{ src: coin.reverse_image_url, cap: coin.reverse_image_caption || 'Reverse' },
+{ src: coin.extra_image_url_1, cap: coin.extra_image_caption_1 || '' },
+{ src: coin.extra_image_url_2, cap: coin.extra_image_caption_2 || '' }
+].filter(function(p){ return !!p.src; });
+
+var photosHtml = photos.map(function(p){
+return '<div style="flex:1 1 130px;min-width:110px;max-width:150px;">' +
+'<img src="' + escapeHtml(p.src) + '" data-ms-zoom-src="' + escapeHtml(p.src) + '" alt="' + escapeHtml(p.cap) + '" style="width:100%;aspect-ratio:1;object-fit:contain;background:#1b1c26;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">' +
+(p.cap ? '<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:4px;text-align:center;">' + escapeHtml(p.cap) + '</div>' : '') +
+'</div>';
+}).join('');
+
+var fields = [
+['Year', coin.year], ['Mint', coin.mint], ['Country', coin.country], ['Denomination', coin.denomination],
+['Description', coin.description], ['OG Grader', coin.og_grader], ['Grade', coin.grade], ['Color', coin.color],
+['Weight', coin.weight], ['Fine Weight', coin.fine_weight], ['Metal', coin.metal],
+['Size', coin.size != null && coin.size !== '' ? coin.size + ' mm' : null]
+].filter(function(f){ return f[1] !== null && f[1] !== undefined && f[1] !== ''; });
+
+var fieldsHtml = fields.map(function(f){
+return '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:12px;font-size:13px;">' +
+'<span style="color:rgba(255,255,255,0.5);">' + escapeHtml(f[0]) + '</span>' +
+'<span style="text-align:right;">' + escapeHtml(f[1]) + '</span>' +
+'</div>';
+}).join('');
+
+var priceHtml = '';
+var price = fmtMoney(coin.price);
+if(price) priceHtml += '<div style="font-size:15px;font-weight:700;margin-top:14px;">Price: ' + price + '</div>';
+
+var buybackHtml = '';
+var bbNum = (buybackPrice !== null && buybackPrice !== undefined && buybackPrice !== '') ? Number(buybackPrice) : null;
+if(bbNum !== null && isFinite(bbNum)){
+buybackHtml = '<div id="ms-buyback-hero" style="margin-top:18px;padding:22px 16px;border-radius:14px;background:linear-gradient(135deg, rgba(46,230,255,0.14), rgba(255,51,224,0.14));border:1px solid rgba(46,230,255,0.35);text-align:center;position:relative;">' +
+'<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;">Buyback Offer</div>' +
+'<div id="ms-buyback-amount" data-target="' + bbNum.toFixed(2) + '" style="font-size:48px;font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(90deg,#2ee6ff,#ff33e0);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;">$0.00</div>' +
+'</div>';
+}
+
+return '<div>' +
+'<h2 style="font-size:20px;font-weight:800;margin:0 0 4px;padding-right:40px;">' + escapeHtml(name) + '</h2>' +
+'<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;">SKU ' + escapeHtml(sku) + '</div>' +
+(photosHtml ? '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">' + photosHtml + '</div>' : '') +
+fieldsHtml +
+priceHtml +
+buybackHtml +
+'</div>';
+}
+
+/* ---------- Buyback amount count-up + confetti burst ---------- */
+
+function injectBuybackAnimStyles(){
+if(document.getElementById('ms-buyback-anim-style')) return;
+var style = document.createElement('style');
+style.id = 'ms-buyback-anim-style';
+style.textContent =
+'@keyframes msConfettiBurst{0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1;}70%{opacity:1;}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.4);opacity:0;}}' +
+'@keyframes msAmountFlash{0%{transform:scale(1);}35%{transform:scale(1.22);}65%{transform:scale(0.94);}100%{transform:scale(1);}}';
+document.head.appendChild(style);
+}
+
+function burstConfetti(anchorEl){
+injectBuybackAnimStyles();
+var rect = anchorEl.getBoundingClientRect();
+var cx = rect.left + rect.width / 2;
+var cy = rect.top + rect.height / 2;
+var colors = ['#2ee6ff', '#ff33e0', '#ffffff', '#7CE0FF', '#FF7EEA'];
+var count = 34;
+for(var i = 0; i < count; i++){
+var el = document.createElement('div');
+var angle = Math.random() * Math.PI * 2;
+var dist = 70 + Math.random() * 110;
+var dx = Math.cos(angle) * dist;
+var dy = Math.sin(angle) * dist - 30;
+var rot = (Math.random() * 720 - 360);
+var w = 4 + Math.random() * 5;
+var h = w * (1.4 + Math.random() * 0.8);
+var color = colors[Math.floor(Math.random() * colors.length)];
+var delay = Math.random() * 80;
+el.style.cssText = 'position:fixed;left:' + cx + 'px;top:' + cy + 'px;width:' + w + 'px;height:' + h + 'px;margin:' + (-h/2) + 'px 0 0 ' + (-w/2) + 'px;background:' + color + ';border-radius:1px;pointer-events:none;z-index:1000001;--dx:' + dx + 'px;--dy:' + dy + 'px;--rot:' + rot + 'deg;animation:msConfettiBurst 950ms cubic-bezier(.2,.7,.3,1) ' + delay + 'ms forwards;';
+document.body.appendChild(el);
+(function(node){ setTimeout(function(){ node.remove(); }, 1100); })(el);
+}
+}
+
+function animateBuybackCountUp(el, target){
+injectBuybackAnimStyles();
+var duration = 650; // "very quickly"
+var start = null;
+function frame(now){
+if(start === null) start = now;
+var t = Math.min(1, (now - start) / duration);
+var eased = 1 - Math.pow(1 - t, 3);
+el.textContent = '$' + (target * eased).toFixed(2);
+if(t < 1){
+requestAnimationFrame(frame);
+}else{
+el.textContent = '$' + target.toFixed(2);
+el.style.animation = 'msAmountFlash 420ms ease-out';
+burstConfetti(el);
+}
+}
+requestAnimationFrame(frame);
+}
+
+function findLookupCode(container){
+var scope = container ? container.ownerDocument : document;
+var inputs = scope.querySelectorAll('input');
+for(var i = 0; i < inputs.length; i++){
+var v = (inputs[i].value || '').trim();
+if(/^MS-[0-9A-F]+$/i.test(v)) return v.toUpperCase();
+}
+return null;
+}
+
+// On /sell-back, React swaps the code-lookup input out for a name/email/phone
+// form the moment a lookup succeeds, so by the time the result card exists in
+// the DOM the code is already gone. This keeps a running record of the last
+// value that looked like a code, captured live as the customer types, so it's
+// still available afterward.
+var lastLookupCode = null;
+function trackLookupInputs(root){
+(root || document).querySelectorAll('input').forEach(function(inp){
+var v = (inp.value || '').trim();
+if(/^MS-[0-9A-F]+$/i.test(v)) lastLookupCode = v.toUpperCase();
+});
+}
+
+var codeLookupCache = {};
+function fetchCoinByCode(code, context){
+var cacheKey = code + '|' + (context || '');
+if(codeLookupCache[cacheKey]) return codeLookupCache[cacheKey];
+var p = fetch(SUPABASE_URL + '/functions/v1/validate-code', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+body: JSON.stringify({ code: code, context: context })
+}).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+codeLookupCache[cacheKey] = p;
+return p;
+}
+
+function patchClaimSellback(){
+var path = window.location.pathname;
+var isClaim = path === '/claim';
+var isSellback = path === '/sell-back';
+if(!isClaim && !isSellback) return;
+
+document.querySelectorAll('.card').forEach(function(card){
+if(card.dataset.msCoinCardDone) return;
+var directPs = card.querySelectorAll(':scope > p');
+if(directPs.length < 2) return;
+var nameP = directPs[0];
+var statusP = directPs[1];
+if(!/text-white/.test(nameP.className || '')) return;
+var text = statusP.textContent || '';
+var m = /SKU\s+(\S+)/.exec(text);
+if(!m) return;
+var sku = m[1];
+
+// The code the customer typed can be captured here (still present in the
+// lookup form on /claim) or, on /sell-back, may already have been swapped
+// out of the DOM by the time the result card renders -- fall back to the
+// most recently observed matching value, tracked separately by
+// trackLookupInputs()/the document-level input listener below.
+var code = findLookupCode(card) || lastLookupCode;
+if(!code) return; // don't mark done yet -- retry on the next scan once a code shows up
+
+card.dataset.msCoinCardDone = '1';
+
+var context = isSellback ? 'sellback' : undefined;
+fetchCoinByCode(code, context).then(function(data){
+if(!data || !data.coin || data.sku !== sku) return;
+var coin = data.coin;
+if(!coin.image_url) return;
+
+var summary = document.createElement('div');
+summary.style.cssText = 'display:flex;align-items:center;gap:14px;cursor:pointer;';
+var thumb = document.createElement('img');
+thumb.src = coin.image_url;
+thumb.alt = coin.name || sku;
+thumb.style.cssText = 'width:64px;height:64px;object-fit:contain;background:#1b1c26;border-radius:8px;border:1px solid rgba(255,255,255,0.15);flex:0 0 auto;';
+summary.appendChild(thumb);
+var hint = document.createElement('div');
+hint.textContent = 'Tap to view coin details';
+hint.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);';
+summary.appendChild(hint);
+summary.addEventListener('click', function(){
+buildCoinModal().open(coinModalHtml(coin, sku, null));
+});
+
+var bbNum = (isSellback && data.buyback_price !== null && data.buyback_price !== undefined && data.buyback_price !== '') ? Number(data.buyback_price) : null;
+var hasBuyback = bbNum !== null && isFinite(bbNum);
+
+if(!hasBuyback){
+card.insertBefore(summary, nameP);
+return;
+}
+
+// Top row: coin thumbnail/name-hint on the left, a "Reveal Your Offer" button
+// on the right. Clicking the button morphs it in place into the large
+// gradient count-up amount (handled by animateBuybackCountUp).
+var topRow = document.createElement('div');
+topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:2px;';
+topRow.appendChild(summary);
+
+var revealBtn = document.createElement('button');
+revealBtn.type = 'button';
+revealBtn.textContent = 'Reveal Your Offer';
+revealBtn.style.cssText = 'flex:0 0 auto;padding:12px 20px;border-radius:10px;border:none;font-weight:800;font-size:14px;letter-spacing:.02em;cursor:pointer;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;box-shadow:0 0 0 rgba(46,230,255,0);transition:transform .15s,box-shadow .15s;';
+revealBtn.addEventListener('mouseenter', function(){ revealBtn.style.transform = 'translateY(-1px)'; revealBtn.style.boxShadow = '0 6px 24px -6px #2ee6ff66'; });
+revealBtn.addEventListener('mouseleave', function(){ revealBtn.style.transform = ''; revealBtn.style.boxShadow = '0 0 0 rgba(46,230,255,0)'; });
+revealBtn.addEventListener('click', function(){
+var wrap = document.createElement('div');
+wrap.style.cssText = 'text-align:right;';
+var label = document.createElement('div');
+label.textContent = 'Your Buyback Offer';
+label.style.cssText = 'font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:2px;';
+var amountEl = document.createElement('div');
+amountEl.id = 'ms-buyback-amount-' + sku;
+amountEl.style.cssText = 'font-size:34px;font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(90deg,#2ee6ff,#ff33e0);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;';
+amountEl.textContent = '$0.00';
+wrap.appendChild(label);
+wrap.appendChild(amountEl);
+revealBtn.replaceWith(wrap);
+requestAnimationFrame(function(){ requestAnimationFrame(function(){ animateBuybackCountUp(amountEl, bbNum); }); });
+});
+topRow.appendChild(revealBtn);
+
+card.insertBefore(topRow, nameP);
+});
+});
+}
+
+function runAll(root){
+patchCoinDbLight();
+scanFlips(root);
+patchBadges(root);
+patchLogoVisibility(root);
+patchDetailZoom(root);
+trackLookupInputs(root);
+patchClaimSellback();
+if(isCoinInputTool()){
+patchToolHeader();
+patchToolLightboxBadges(root);
+patchToolOpenLightbox();
+}
+}
+
+onReady(function(){
+runAll(document);
+document.addEventListener('input', function(e){
+var v = (e.target && e.target.value || '').trim();
+if(/^MS-[0-9A-F]+$/i.test(v)) lastLookupCode = v.toUpperCase();
+}, true);
+var mo = new MutationObserver(function(muts){
+var needsFullScan = false;
+for(var i = 0; i < muts.length; i++){
+var m = muts[i];
+if(m.type === 'attributes' && m.attributeName === 'style'){
+fixTransform(m.target);
+}
+if(m.addedNodes && m.addedNodes.length) needsFullScan = true;
+}
+if(needsFullScan) runAll(document);
+});
+mo.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+
+var tries = 0;
+var iv = setInterval(function(){
+tries++;
+patchToolHeader();
+patchToolOpenLightbox();
+runAll(document);
+if(tries > 20) clearInterval(iv);
+}, 500);
+});
+})();
+
+</script></body>
+</html>

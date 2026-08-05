@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mini-slabs</title>
+    <script type="module" crossorigin src="/assets/index-DvL4W1wH.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D90Nm3Qs.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  <script>
+(function(){
+function onReady(fn){ if(document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+
+var SUPABASE_URL = 'https://xqeboeuukodkwankpmcl.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZWJvZXV1a29ka3dhbmtwbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzE3MTgsImV4cCI6MjEwMDc0NzcxOH0.yGPWjdvVLNannb0PygD5B6zkAWAr9idQHKUBM3mh_dw';
+
+var ICONS = {
+'Elite': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-2-elite.png?v=2',
+'Choice': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-3-choice.png?v=2',
+'Classic': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-4-classic.png?v=2',
+'Select': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-5-select.png?v=2',
+'RoundTable': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-6-roundtable.png?v=2'
+};
+var LABELS = Object.keys(ICONS);
+
+var MAG_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"></circle><line x1="20" y1="20" x2="14.65" y2="14.65"></line><line x1="10" y1="7.2" x2="10" y2="12.8"></line><line x1="7.2" y1="10" x2="12.8" y2="10"></line></svg>';
+
+function fixTransform(el){
+var t = el.style && el.style.transform;
+if(t && t.indexOf('rotateY(') !== -1){
+el.style.transform = t.replace(/rotateY\(/g, 'rotateX(');
+}
+}
+function scanFlips(root){
+(root || document).querySelectorAll('[style*="rotateY"]').forEach(fixTransform);
+}
+
+function patchBadges(root){
+(root || document).querySelectorAll('span').forEach(function(span){
+if(span.dataset.msIconDone) return;
+var text = (span.textContent || '').trim();
+if(LABELS.indexOf(text) === -1) return;
+var cls = span.className || '';
+if(typeof cls !== 'string' || cls.indexOf('rounded-full') === -1) return;
+span.dataset.msIconDone = '1';
+span.innerHTML = '<img src="' + ICONS[text] + '" alt="' + text + '" title="' + text + '" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;display:block">';
+span.style.display = 'inline-flex';
+span.style.alignItems = 'center';
+span.style.justifyContent = 'center';
+span.style.padding = '2px 6px';
+});
+}
+
+function patchLogoVisibility(root){
+(root || document).querySelectorAll('img[src*="wordmark"]').forEach(function(img){
+if(img.dataset.msLogoFixed) return;
+img.dataset.msLogoFixed = '1';
+img.style.filter = 'invert(1) brightness(1.3)';
+});
+}
+
+var viewerEl = null;
+function buildViewer(){
+if(viewerEl) return viewerEl;
+var wrap = document.createElement('div');
+wrap.id = 'ms-zoom-viewer';
+wrap.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;overflow:hidden;touch-action:none;cursor:zoom-in;';
+var img = document.createElement('img');
+img.id = 'ms-zoom-img';
+img.style.cssText = 'max-width:none;max-height:none;user-select:none;pointer-events:none;will-change:transform;';
+wrap.appendChild(img);
+
+var hint = document.createElement('div');
+hint.textContent = 'Scroll or pinch to zoom • drag to pan • double-click to reset';
+hint.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.65);font:13px system-ui,sans-serif;pointer-events:none;z-index:1000000;';
+wrap.appendChild(hint);
+
+var bar = document.createElement('div');
+bar.style.cssText = 'position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:1000000;';
+function mkBtn(label, title){
+var b = document.createElement('button');
+b.type = 'button';
+b.innerHTML = label;
+b.title = title;
+b.style.cssText = 'width:40px;height:40px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:#fff;font-size:18px;line-height:1;cursor:pointer;';
+return b;
+}
+var btnIn = mkBtn('+', 'Zoom in');
+var btnOut = mkBtn('−', 'Zoom out');
+var btnReset = mkBtn('↺', 'Reset');
+var btnClose = mkBtn('✕', 'Close');
+[btnIn, btnOut, btnReset, btnClose].forEach(function(b){ bar.appendChild(b); });
+wrap.appendChild(bar);
+document.body.appendChild(wrap);
+
+var state = { scale: 1, x: 0, y: 0, panning: false, lastX: 0, lastY: 0 };
+function apply(){
+img.style.transform = 'translate(' + state.x + 'px,' + state.y + 'px) scale(' + state.scale + ')';
+wrap.style.cursor = state.scale > 1 ? 'grab' : 'zoom-in';
+}
+function clamp(){
+if(state.scale < 1) state.scale = 1;
+if(state.scale > 8) state.scale = 8;
+if(state.scale === 1){ state.x = 0; state.y = 0; }
+}
+function zoomAt(clientX, clientY, factor){
+var rect = wrap.getBoundingClientRect();
+var cx = clientX - rect.left - rect.width / 2;
+var cy = clientY - rect.top - rect.height / 2;
+var prevScale = state.scale;
+state.scale = state.scale * factor;
+clamp();
+var ratio = state.scale / prevScale;
+state.x = cx - (cx - state.x) * ratio;
+state.y = cy - (cy - state.y) * ratio;
+if(state.scale === 1){ state.x = 0; state.y = 0; }
+apply();
+}
+function isBtn(t){ return t === btnIn || t === btnOut || t === btnReset || t === btnClose; }
+
+wrap.addEventListener('wheel', function(e){
+e.preventDefault();
+var factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+zoomAt(e.clientX, e.clientY, factor);
+}, { passive: false });
+
+wrap.addEventListener('dblclick', function(e){
+if(isBtn(e.target)) return;
+zoomAt(e.clientX, e.clientY, state.scale > 1 ? (1 / state.scale) : 2.5);
+});
+
+wrap.addEventListener('mousedown', function(e){
+if(isBtn(e.target)) return;
+state.panning = true; state.lastX = e.clientX; state.lastY = e.clientY;
+wrap.style.cursor = 'grabbing';
+});
+window.addEventListener('mousemove', function(e){
+if(!state.panning) return;
+state.x += (e.clientX - state.lastX);
+state.y += (e.clientY - state.lastY);
+state.lastX = e.clientX; state.lastY = e.clientY;
+apply();
+});
+window.addEventListener('mouseup', function(){
+if(state.panning){ state.panning = false; apply(); }
+});
+
+var ts = { startDist: 0, startScale: 1, panning: false, lastX: 0, lastY: 0 };
+function dist(a, b){ return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+wrap.addEventListener('touchstart', function(e){
+if(e.touches.length === 2){
+ts.startDist = dist(e.touches[0], e.touches[1]);
+ts.startScale = state.scale;
+} else if(e.touches.length === 1){
+ts.panning = true;
+ts.lastX = e.touches[0].clientX; ts.lastY = e.touches[0].clientY;
+}
+}, { passive: true });
+wrap.addEventListener('touchmove', function(e){
+e.preventDefault();
+if(e.touches.length === 2){
+var d = dist(e.touches[0], e.touches[1]);
+state.scale = ts.startScale * (d / (ts.startDist || d));
+clamp();
+apply();
+} else if(e.touches.length === 1 && ts.panning && state.scale > 1){
+state.x += (e.touches[0].clientX - ts.lastX);
+state.y += (e.touches[0].clientY - ts.lastY);
+ts.lastX = e.touches[0].clientX; ts.lastY = e.touches[0].clientY;
+apply();
+}
+}, { passive: false });
+wrap.addEventListener('touchend', function(){ ts.panning = false; });
+
+btnIn.addEventListener('click', function(){ var r = wrap.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.4); });
+btnOut.addEventListener('click', function(){ var r = wrap.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.4); });
+btnReset.addEventListener('click', function(){ state.scale = 1; state.x = 0; state.y = 0; apply(); });
+btnClose.addEventListener('click', close);
+wrap.addEventListener('click', function(e){
+if(e.target === wrap && state.scale === 1) close();
+});
+document.addEventListener('keydown', function(e){
+if(wrap.style.display !== 'none' && e.key === 'Escape') close();
+});
+
+function open(src){
+img.src = src;
+state.scale = 1; state.x = 0; state.y = 0;
+apply();
+wrap.style.display = 'flex';
+document.body.style.overflow = 'hidden';
+}
+function close(){
+wrap.style.display = 'none';
+document.body.style.overflow = '';
+}
+viewerEl = { open: open, close: close };
+return viewerEl;
+}
+function openZoom(src){ buildViewer().open(src); }
+
+function patchDetailZoom(root){
+if(!/^\/coins\/[^/]+$/.test(window.location.pathname)) return;
+(root || document).querySelectorAll('div').forEach(function(box){
+var cls = box.className;
+if(typeof cls !== 'string') return;
+if(cls.indexOf('circuit-bg') === -1 || cls.indexOf('min-h-[260px]') === -1) return;
+if(box.dataset.msZoomDone) return;
+var img = box.querySelector('img');
+if(!img) return;
+box.dataset.msZoomDone = '1';
+box.style.position = 'relative';
+var badge = document.createElement('div');
+badge.style.cssText = 'position:absolute;bottom:10px;right:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+badge.innerHTML = MAG_SVG;
+box.appendChild(badge);
+box.style.cursor = 'zoom-in';
+box.addEventListener('click', function(e){
+e.stopPropagation();
+e.preventDefault();
+var curImg = box.querySelector('img');
+if(curImg && curImg.src) openZoom(curImg.src);
+}, true);
+});
+}
+
+function isCoinInputTool(){ return /coin-input-tool/.test(window.location.pathname); }
+
+function patchToolHeader(){
+var slot = document.getElementById('logoSlot');
+if(!slot || slot.dataset.msLinked) return;
+slot.dataset.msLinked = '1';
+slot.style.cursor = 'pointer';
+slot.title = 'Back to Mini-Slabs home';
+slot.addEventListener('click', function(){ window.location.href = '/'; });
+}
+
+function patchToolLightboxBadges(root){
+(root || document).querySelectorAll('.modal-img-frame').forEach(function(frame){
+if(frame.dataset.msZoomBadge) return;
+frame.dataset.msZoomBadge = '1';
+frame.style.position = 'relative';
+var badge = document.createElement('div');
+badge.style.cssText = 'position:absolute;bottom:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:2;';
+badge.innerHTML = MAG_SVG;
+frame.appendChild(badge);
+});
+}
+
+function patchToolOpenLightbox(){
+if(typeof window.openLightbox === 'function' && !window.__msOpenLightboxPatched){
+window.__msOpenLightboxPatched = true;
+window.openLightbox = function(src){ openZoom(src); };
+}
+}
+
+function patchCoinDbLight(){
+var onDbPage = window.location.pathname === '/coins';
+if(!onDbPage) return;
+var cards = document.querySelectorAll('.card');
+cards.forEach(function(card){
+card.style.setProperty('background', '#ffffff', 'important');
+card.style.setProperty('border-color', '#d7dbe3', 'important');
+var circuit = card.querySelector('.circuit-bg');
+if(circuit){
+circuit.style.setProperty('background-color', '#ffffff', 'important');
+circuit.style.setProperty('background-image', 'none', 'important');
+}
+card.querySelectorAll('.text-white').forEach(function(el){
+el.style.setProperty('color', '#111827', 'important');
+});
+card.querySelectorAll('p[class*="text-dim"]').forEach(function(el){
+el.style.setProperty('color', '#55606f', 'important');
+});
+card.querySelectorAll('span.text-white').forEach(function(el){
+el.style.setProperty('border-color', '#94a3b8', 'important');
+});
+if(!card.dataset.msHoverBound){
+card.dataset.msHoverBound = '1';
+card.addEventListener('mouseenter', function(){ card.style.setProperty('background', '#eef9ff', 'important'); });
+card.addEventListener('mouseleave', function(){ card.style.setProperty('background', '#ffffff', 'important'); });
+}
+});
+}
+
+/* ---------- Claim / Sell Back: coin image + click-to-expand info modal ---------- */
+
+function escapeHtml(s){
+return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+});
+}
+
+function fmtMoney(v){
+if(v === null || v === undefined || v === '') return null;
+var n = Number(v);
+if(!isFinite(n)) return null;
+return '$' + n.toFixed(2);
+}
+
+var coinModalEl = null;
+function buildCoinModal(){
+if(coinModalEl) return coinModalEl;
+var overlay = document.createElement('div');
+overlay.id = 'ms-coin-modal';
+overlay.style.cssText = 'position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.75);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;';
+var box = document.createElement('div');
+box.style.cssText = 'background:#12131c;color:#fff;max-width:640px;width:100%;border-radius:14px;padding:26px;position:relative;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
+var closeBtn = document.createElement('button');
+closeBtn.type = 'button';
+closeBtn.textContent = '✕';
+closeBtn.title = 'Close';
+closeBtn.style.cssText = 'position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;font-size:16px;cursor:pointer;line-height:1;';
+closeBtn.addEventListener('click', function(){ close(); });
+var content = document.createElement('div');
+content.id = 'ms-coin-modal-content';
+box.appendChild(closeBtn);
+box.appendChild(content);
+overlay.appendChild(box);
+document.body.appendChild(overlay);
+overlay.addEventListener('click', function(e){ if(e.target === overlay) close(); });
+document.addEventListener('keydown', function(e){ if(overlay.style.display !== 'none' && e.key === 'Escape') close(); });
+function open(html){
+content.innerHTML = html;
+content.querySelectorAll('[data-ms-zoom-src]').forEach(function(el){
+el.style.cursor = 'zoom-in';
+el.addEventListener('click', function(){ openZoom(el.getAttribute('data-ms-zoom-src')); });
+});
+overlay.style.display = 'flex';
+document.body.style.overflow = 'hidden';
+var amountEl = content.querySelector('#ms-buyback-amount');
+if(amountEl){
+var target = parseFloat(amountEl.getAttribute('data-target')) || 0;
+requestAnimationFrame(function(){ requestAnimationFrame(function(){ animateBuybackCountUp(amountEl, target); }); });
+}
+}
+function close(){
+overlay.style.display = 'none';
+document.body.style.overflow = '';
+}
+coinModalEl = { open: open, close: close };
+return coinModalEl;
+}
+
+function coinModalHtml(coin, sku, buybackPrice){
+var name = coin.name || '';
+var photos = [
+{ src: coin.image_url, cap: coin.image_caption || 'Obverse' },
+{ src: coin.reverse_image_url, cap: coin.reverse_image_caption || 'Reverse' },
+{ src: coin.extra_image_url_1, cap: coin.extra_image_caption_1 || '' },
+{ src: coin.extra_image_url_2, cap: coin.extra_image_caption_2 || '' }
+].filter(function(p){ return !!p.src; });
+
+var photosHtml = photos.map(function(p){
+return '<div style="flex:1 1 130px;min-width:110px;max-width:150px;">' +
+'<img src="' + escapeHtml(p.src) + '" data-ms-zoom-src="' + escapeHtml(p.src) + '" alt="' + escapeHtml(p.cap) + '" style="width:100%;aspect-ratio:1;object-fit:contain;background:#1b1c26;border-radius:8px;border:1px solid rgba(255,255,255,0.12);">' +
+(p.cap ? '<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:4px;text-align:center;">' + escapeHtml(p.cap) + '</div>' : '') +
+'</div>';
+}).join('');
+
+var fields = [
+['Year', coin.year], ['Mint', coin.mint], ['Country', coin.country], ['Denomination', coin.denomination],
+['Description', coin.description], ['OG Grader', coin.og_grader], ['Grade', coin.grade], ['Color', coin.color],
+['Weight', coin.weight], ['Fine Weight', coin.fine_weight], ['Metal', coin.metal],
+['Size', coin.size != null && coin.size !== '' ? coin.size + ' mm' : null]
+].filter(function(f){ return f[1] !== null && f[1] !== undefined && f[1] !== ''; });
+
+var fieldsHtml = fields.map(function(f){
+return '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:12px;font-size:13px;">' +
+'<span style="color:rgba(255,255,255,0.5);">' + escapeHtml(f[0]) + '</span>' +
+'<span style="text-align:right;">' + escapeHtml(f[1]) + '</span>' +
+'</div>';
+}).join('');
+
+var buybackHtml = '';
+var bbNum = (buybackPrice !== null && buybackPrice !== undefined && buybackPrice !== '') ? Number(buybackPrice) : null;
+if(bbNum !== null && isFinite(bbNum)){
+buybackHtml = '<div id="ms-buyback-hero" style="margin-top:18px;padding:22px 16px;border-radius:14px;background:linear-gradient(135deg, rgba(46,230,255,0.14), rgba(255,51,224,0.14));border:1px solid rgba(46,230,255,0.35);text-align:center;position:relative;">' +
+'<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;">Buyback Offer</div>' +
+'<div id="ms-buyback-amount" data-target="' + bbNum.toFixed(2) + '" style="font-size:48px;font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(90deg,#2ee6ff,#ff33e0);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;">$0.00</div>' +
+'</div>';
+}
+
+return '<div>' +
+'<h2 style="font-size:20px;font-weight:800;margin:0 0 4px;padding-right:40px;">' + escapeHtml(name) + '</h2>' +
+'<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;">SKU ' + escapeHtml(sku) + '</div>' +
+(photosHtml ? '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">' + photosHtml + '</div>' : '') +
+fieldsHtml +
+buybackHtml +
+'</div>';
+}
+
+/* ---------- Buyback amount count-up + confetti burst ---------- */
+
+function injectBuybackAnimStyles(){
+if(document.getElementById('ms-buyback-anim-style')) return;
+var style = document.createElement('style');
+style.id = 'ms-buyback-anim-style';
+style.textContent =
+'@keyframes msConfettiBurst{0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1;}70%{opacity:1;}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.4);opacity:0;}}' +
+'@keyframes msAmountFlash{0%{transform:scale(1);}35%{transform:scale(1.22);}65%{transform:scale(0.94);}100%{transform:scale(1);}}';
+document.head.appendChild(style);
+}
+
+function burstConfetti(anchorEl){
+injectBuybackAnimStyles();
+var rect = anchorEl.getBoundingClientRect();
+var cx = rect.left + rect.width / 2;
+var cy = rect.top + rect.height / 2;
+var colors = ['#2ee6ff', '#ff33e0', '#ffffff', '#7CE0FF', '#FF7EEA'];
+var count = 34;
+for(var i = 0; i < count; i++){
+var el = document.createElement('div');
+var angle = Math.random() * Math.PI * 2;
+var dist = 70 + Math.random() * 110;
+var dx = Math.cos(angle) * dist;
+var dy = Math.sin(angle) * dist - 30;
+var rot = (Math.random() * 720 - 360);
+var w = 4 + Math.random() * 5;
+var h = w * (1.4 + Math.random() * 0.8);
+var color = colors[Math.floor(Math.random() * colors.length)];
+var delay = Math.random() * 80;
+el.style.cssText = 'position:fixed;left:' + cx + 'px;top:' + cy + 'px;width:' + w + 'px;height:' + h + 'px;margin:' + (-h/2) + 'px 0 0 ' + (-w/2) + 'px;background:' + color + ';border-radius:1px;pointer-events:none;z-index:1000001;--dx:' + dx + 'px;--dy:' + dy + 'px;--rot:' + rot + 'deg;animation:msConfettiBurst 950ms cubic-bezier(.2,.7,.3,1) ' + delay + 'ms forwards;';
+document.body.appendChild(el);
+(function(node){ setTimeout(function(){ node.remove(); }, 1100); })(el);
+}
+}
+
+function animateBuybackCountUp(el, target){
+injectBuybackAnimStyles();
+var duration = 650; // "very quickly"
+var start = null;
+function frame(now){
+if(start === null) start = now;
+var t = Math.min(1, (now - start) / duration);
+var eased = 1 - Math.pow(1 - t, 3);
+el.textContent = '$' + (target * eased).toFixed(2);
+if(t < 1){
+requestAnimationFrame(frame);
+}else{
+el.textContent = '$' + target.toFixed(2);
+el.style.animation = 'msAmountFlash 420ms ease-out';
+burstConfetti(el);
+}
+}
+requestAnimationFrame(frame);
+}
+
+function findLookupCode(container){
+var scope = container ? container.ownerDocument : document;
+var inputs = scope.querySelectorAll('input');
+for(var i = 0; i < inputs.length; i++){
+var v = (inputs[i].value || '').trim();
+if(/^MS-[0-9A-F]+$/i.test(v)) return v.toUpperCase();
+}
+return null;
+}
+
+// On /sell-back, React swaps the code-lookup input out for a name/email/phone
+// form the moment a lookup succeeds, so by the time the result card exists in
+// the DOM the code is already gone. This keeps a running record of the last
+// value that looked like a code, captured live as the customer types, so it's
+// still available afterward.
+var lastLookupCode = null;
+function trackLookupInputs(root){
+(root || document).querySelectorAll('input').forEach(function(inp){
+var v = (inp.value || '').trim();
+if(/^MS-[0-9A-F]+$/i.test(v)) lastLookupCode = v.toUpperCase();
+});
+}
+
+var codeLookupCache = {};
+function fetchCoinByCode(code, context){
+var cacheKey = code + '|' + (context || '');
+if(codeLookupCache[cacheKey]) return codeLookupCache[cacheKey];
+var p = fetch(SUPABASE_URL + '/functions/v1/validate-code', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+body: JSON.stringify({ code: code, context: context })
+}).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+codeLookupCache[cacheKey] = p;
+return p;
+}
+
+function patchClaimSellback(){
+var path = window.location.pathname;
+var isClaim = path === '/claim';
+var isSellback = path === '/sell-back';
+if(!isClaim && !isSellback) return;
+
+document.querySelectorAll('.card').forEach(function(card){
+if(card.dataset.msCoinCardDone) return;
+var directPs = card.querySelectorAll(':scope > p');
+if(directPs.length < 2) return;
+var nameP = directPs[0];
+var statusP = directPs[1];
+if(!/text-white/.test(nameP.className || '')) return;
+var text = statusP.textContent || '';
+var m = /SKU\s+(\S+)/.exec(text);
+if(!m) return;
+var sku = m[1];
+
+var code = findLookupCode(card) || lastLookupCode;
+if(!code) return;
+
+card.dataset.msCoinCardDone = '1';
+
+var context = isSellback ? 'sellback' : undefined;
+fetchCoinByCode(code, context).then(function(data){
+if(!data || !data.coin || data.sku !== sku) return;
+var coin = data.coin;
+if(!coin.image_url) return;
+
+var summary = document.createElement('div');
+summary.style.cssText = 'display:flex;align-items:center;gap:14px;cursor:pointer;';
+var thumb = document.createElement('img');
+thumb.src = coin.image_url;
+thumb.alt = coin.name || sku;
+thumb.style.cssText = 'width:64px;height:64px;object-fit:contain;background:#1b1c26;border-radius:8px;border:1px solid rgba(255,255,255,0.15);flex:0 0 auto;';
+summary.appendChild(thumb);
+var hint = document.createElement('div');
+hint.textContent = 'Tap to view coin details';
+hint.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);';
+summary.appendChild(hint);
+summary.addEventListener('click', function(){
+buildCoinModal().open(coinModalHtml(coin, sku, null));
+});
+
+var bbNum = (isSellback && data.buyback_price !== null && data.buyback_price !== undefined && data.buyback_price !== '') ? Number(data.buyback_price) : null;
+var hasBuyback = bbNum !== null && isFinite(bbNum);
+
+if(!hasBuyback){
+card.insertBefore(summary, nameP);
+return;
+}
+
+var topRow = document.createElement('div');
+topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:2px;';
+topRow.appendChild(summary);
+
+var revealBtn = document.createElement('button');
+revealBtn.type = 'button';
+revealBtn.textContent = 'Reveal Your Offer';
+revealBtn.style.cssText = 'flex:0 0 auto;padding:12px 20px;border-radius:10px;border:none;font-weight:800;font-size:14px;letter-spacing:.02em;cursor:pointer;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;box-shadow:0 0 0 rgba(46,230,255,0);transition:transform .15s,box-shadow .15s;';
+revealBtn.addEventListener('mouseenter', function(){ revealBtn.style.transform = 'translateY(-1px)'; revealBtn.style.boxShadow = '0 6px 24px -6px #2ee6ff66'; });
+revealBtn.addEventListener('mouseleave', function(){ revealBtn.style.transform = ''; revealBtn.style.boxShadow = '0 0 0 rgba(46,230,255,0)'; });
+revealBtn.addEventListener('click', function(){
+var wrap = document.createElement('div');
+wrap.style.cssText = 'text-align:right;';
+var label = document.createElement('div');
+label.textContent = 'Your Buyback Offer';
+label.style.cssText = 'font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:2px;';
+var amountEl = document.createElement('div');
+amountEl.id = 'ms-buyback-amount-' + sku;
+amountEl.style.cssText = 'font-size:34px;font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(90deg,#2ee6ff,#ff33e0);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;';
+amountEl.textContent = '$0.00';
+wrap.appendChild(label);
+wrap.appendChild(amountEl);
+revealBtn.replaceWith(wrap);
+requestAnimationFrame(function(){ requestAnimationFrame(function(){ animateBuybackCountUp(amountEl, bbNum); }); });
+});
+topRow.appendChild(revealBtn);
+
+card.insertBefore(topRow, nameP);
+});
+});
+}
+
+/* ---------- Resale marketplace: render live listings ---------- */
+
+function patchResalePage(){
+if(window.location.pathname !== '/resale') return;
+if(document.getElementById('ms-resale-list')) return;
+
+var paras = document.querySelectorAll('p');
+var placeholder = null;
+for(var i = 0; i < paras.length; i++){
+if((paras[i].textContent || '').indexOf('No resale listings right now') !== -1){ placeholder = paras[i]; break; }
+}
+if(!placeholder || placeholder.dataset.msResaleDone) return;
+placeholder.dataset.msResaleDone = '1';
+
+var container = document.createElement('div');
+container.id = 'ms-resale-list';
+container.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:20px;color:rgba(255,255,255,0.5);font-size:13px;';
+container.textContent = 'Loading listings…';
+placeholder.parentNode.insertBefore(container, placeholder.nextSibling);
+
+fetch(SUPABASE_URL + '/rest/v1/claims?select=id,sku,asking_price,coins(name,image_url)&offer_status=eq.available&order=claimed_at.desc', {
+headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+container.textContent = '';
+if(!rows || !rows.length){
+placeholder.style.display = '';
+return;
+}
+placeholder.style.display = 'none';
+rows.forEach(function(row){
+var coin = row.coins || {};
+var card = document.createElement('div');
+card.className = 'card';
+card.style.cssText = 'padding:16px;';
+var img = coin.image_url ? '<img src="' + escapeHtml(coin.image_url) + '" style="width:100%;aspect-ratio:1;object-fit:contain;background:#1b1c26;border-radius:8px;margin-bottom:10px;">' : '';
+var price = fmtMoney(row.asking_price);
+card.innerHTML = img +
+'<div style="font-weight:700;margin-bottom:4px;">' + escapeHtml(coin.name || row.sku) + '</div>' +
+(price ? '<div style="color:#2ee6ff;font-weight:800;margin-bottom:10px;">' + price + '</div>' : '') +
+'<button type="button" class="btn-primary" style="width:100%;">Make an Offer</button>';
+var btn = card.querySelector('button');
+btn.addEventListener('click', function(){
+var amount = window.prompt('Your offer amount ($):');
+if(!amount || isNaN(Number(amount))) return;
+var name = window.prompt('Your name:');
+if(!name) return;
+var email = window.prompt('Your email:');
+if(!email) return;
+btn.disabled = true;
+btn.textContent = 'Submitting…';
+fetch(SUPABASE_URL + '/functions/v1/resale-offer-submit', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+body: JSON.stringify({ claim_id: row.id, offer_amount: Number(amount), buyer_name: name, buyer_email: email })
+}).then(function(r){ return r.json(); }).then(function(res){
+btn.disabled = false;
+if(res && res.ok){ btn.textContent = 'Offer sent!'; }
+else { btn.textContent = 'Make an Offer'; window.alert((res && res.error) || 'Something went wrong.'); }
+}).catch(function(){ btn.disabled = false; btn.textContent = 'Make an Offer'; window.alert('Something went wrong.'); });
+});
+container.appendChild(card);
+});
+}).catch(function(){
+container.textContent = '';
+placeholder.style.display = '';
+});
+}
+
+function runAll(root){
+patchCoinDbLight();
+scanFlips(root);
+patchBadges(root);
+patchLogoVisibility(root);
+patchDetailZoom(root);
+trackLookupInputs(root);
+patchClaimSellback();
+patchResalePage();
+if(isCoinInputTool()){
+patchToolHeader();
+patchToolLightboxBadges(root);
+patchToolOpenLightbox();
+}
+}
+
+onReady(function(){
+runAll(document);
+document.addEventListener('input', function(e){
+var v = (e.target && e.target.value || '').trim();
+if(/^MS-[0-9A-F]+$/i.test(v)) lastLookupCode = v.toUpperCase();
+}, true);
+var mo = new MutationObserver(function(muts){
+var needsFullScan = false;
+for(var i = 0; i < muts.length; i++){
+var m = muts[i];
+if(m.type === 'attributes' && m.attributeName === 'style'){
+fixTransform(m.target);
+}
+if(m.addedNodes && m.addedNodes.length) needsFullScan = true;
+}
+if(needsFullScan) runAll(document);
+});
+mo.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+
+var tries = 0;
+var iv = setInterval(function(){
+tries++;
+patchToolHeader();
+patchToolOpenLightbox();
+runAll(document);
+if(tries > 20) clearInterval(iv);
+}, 500);
+});
+})();
+
+</script></body>
+</html>
