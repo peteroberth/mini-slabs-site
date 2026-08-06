@@ -862,7 +862,7 @@ inner.appendChild(front);
 inner.appendChild(back);
 wrap.appendChild(inner);
 circuit.appendChild(wrap);
-a.querySelectorAll('img').forEach(function(img){
+circuit.querySelectorAll('img').forEach(function(img){
 if(wrap.contains(img)) return;
 img.style.visibility = 'hidden';
 });
