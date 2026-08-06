@@ -55,6 +55,129 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 .ms-lookup-card button.btn-primary{width:100% !important;margin-top:1.2rem !important;}
 .ms-lookup-card.ms-sellback button.btn-primary{background:#34D399 !important;background-image:none !important;color:#000 !important;}
 .ms-lookup-label{font-family:'Eras Bold ITC','Syne',sans-serif !important;font-size:0.72rem !important;font-weight:700 !important;letter-spacing:0.1em !important;text-transform:uppercase !important;color:var(--text-dim) !important;display:block !important;margin-bottom:0.5rem !important;width:100% !important;}
+.ms29-hero{min-height:calc(100vh - 64px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem 0;position:relative;overflow:hidden;}
+.ms29-hero-bg-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:800px;height:800px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,57,0.08) 0%,rgba(168,85,247,0.04) 40%,transparent 70%);pointer-events:none;animation:ms29HeroGlow 6s ease-in-out infinite alternate;}
+@keyframes ms29HeroGlow{0%{transform:translate(-50%,-50%) scale(1);opacity:0.7}100%{transform:translate(-50%,-50%) scale(1.15);opacity:1}}
+.ms29-hero-sparkles{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;}
+.ms29-mini-coin{position:absolute;animation:ms29CoinFloat linear infinite;opacity:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));}
+@keyframes ms29CoinFloat{0%{opacity:0;transform:translateY(100vh) rotate(0deg) scale(0.6)}8%{opacity:0.7}50%{opacity:0.8}92%{opacity:0.5}100%{opacity:0;transform:translateY(-10vh) rotate(360deg) scale(0.8)}}
+.ms29-hero-content{position:relative;z-index:1;max-width:1200px;width:100%;flex:1;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;}
+.ms29-hero-left{text-align:left;}
+.ms29-hero-right{display:flex;justify-content:center;align-items:center;}
+.ms29-hero-title{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:clamp(2.6rem,6vw,4.8rem);font-weight:800;line-height:1.05;margin-bottom:1.5rem;letter-spacing:-0.03em;color:#FAFAFA;}
+.ms29-highlight{background:linear-gradient(90deg,#C5A44E,#E8D48B,#C5A44E,#D0D0D8,#E8E8F0,#D0D0D8);background-size:200% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:ms29Shimmer 4s ease-in-out infinite;}
+@keyframes ms29Shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.ms29-hero-subtitle{font-size:1.15rem;color:#8888A0;max-width:560px;margin:0 0 2.5rem;}
+.ms29-hero-actions{display:flex;gap:1rem;flex-wrap:wrap;}
+.ms29-btn-big{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:1rem;font-weight:700;background:#FFD639;color:#000;padding:1rem 2.2rem;border-radius:100px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:all 0.3s;}
+.ms29-btn-big:hover{background:#FFE87A;transform:translateY(-2px);box-shadow:0 8px 30px rgba(255,214,57,0.3);}
+.ms29-btn-ghost{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:1rem;font-weight:600;background:rgba(255,255,255,0.05);color:#FAFAFA;padding:1rem 2.2rem;border-radius:100px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;text-decoration:none;display:inline-block;transition:all 0.3s;}
+.ms29-btn-ghost:hover{background:rgba(255,255,255,0.1);transform:translateY(-2px);}
+.ms29-hero-coins{margin-top:1.5rem;display:flex;justify-content:center;align-items:center;position:relative;perspective:1200px;}
+.ms29-hero-coin{filter:drop-shadow(0 20px 40px rgba(0,0,0,0.5));width:300px;border-radius:16px;transform-style:preserve-3d;will-change:transform;}
+.ms29-hero-question{position:absolute;top:-30px;left:50%;transform:translateX(-50%);font-family:'Eras Bold ITC','Syne',sans-serif;font-size:5rem;font-weight:800;background:linear-gradient(135deg,#FFD639,#FF8A3D,#FF5E6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0.15;pointer-events:none;animation:ms29QuestionBounce 3s ease-in-out infinite;}
+@keyframes ms29QuestionBounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-15px)}}
+.ms29-marquee{padding:1.1rem 0;overflow:hidden;border-bottom:1px solid rgba(255,255,255,0.06);border-top:1px solid rgba(255,255,255,0.06);background:rgba(255,214,57,0.02);width:100%;margin-top:2rem;}
+.ms29-marquee-track{display:flex;gap:2rem;animation:ms29MarqueeScroll 25s linear infinite;width:max-content;}
+.ms29-marquee-item{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#8888A0;white-space:nowrap;display:flex;align-items:center;gap:2rem;}
+.ms29-marquee-item .ms29-dot{width:6px;height:6px;border-radius:50%;background:#FFD639;flex-shrink:0;}
+@keyframes ms29MarqueeScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ms29-how-section,.ms29-boxes-section,.ms29-possibilities,.ms29-buyback-section,.ms29-whats-inside,.ms29-faq-section,.ms29-cta-section{padding:6rem 2rem;}
+.ms29-section-inner,.ms29-boxes-inner,.ms29-possibilities-inner,.ms29-buyback-inner,.ms29-whats-inner,.ms29-faq-inner{max-width:1100px;margin:0 auto;}
+.ms29-section-label{font-family:'Space Mono',monospace;font-size:0.68rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#FFD639;margin-bottom:0.75rem;display:block;}
+.ms29-section-heading{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-0.02em;margin-bottom:1rem;color:#FAFAFA;}
+.ms29-section-desc{font-size:1.02rem;color:#8888A0;max-width:560px;margin-bottom:3rem;}
+.ms29-steps-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;}
+.ms29-step-card{background:#13131A;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:2rem;transition:all 0.4s;opacity:0;transform:translateY(30px);}
+.ms29-step-card.ms29-visible{opacity:1;transform:translateY(0);}
+.ms29-step-card:hover{background:#1A1A24;transform:translateY(-4px);border-color:rgba(255,214,57,0.15);}
+.ms29-step-num{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:3.2rem;font-weight:800;line-height:1;margin-bottom:1rem;-webkit-text-stroke:1.5px rgba(255,255,255,0.1);-webkit-text-fill-color:transparent;color:transparent;}
+.ms29-step-card:hover .ms29-step-num{-webkit-text-stroke-color:#FFD639;}
+.ms29-step-emoji{font-size:1.8rem;margin-bottom:0.75rem;display:block;}
+.ms29-step-card h3{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;color:#FAFAFA;}
+.ms29-step-card p{font-size:0.92rem;color:#8888A0;line-height:1.6;}
+.ms29-boxes-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;max-width:850px;margin:0 auto;}
+.ms29-retailer-badges{display:flex;gap:0.75rem;justify-content:center;margin-bottom:1.5rem;}
+.ms29-retailer-badge{display:inline-flex;align-items:center;gap:0.5rem;background:#fff;border:1px solid rgba(255,255,255,0.9);border-radius:10px;padding:0.5rem 1rem;transition:all 0.3s;text-decoration:none;}
+.ms29-retailer-badge:hover{background:#f0f0f0;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.2);}
+.ms29-retailer-badge img{height:18px;width:auto;}
+.ms29-box-card{background:#13131A;border:1px solid rgba(255,255,255,0.06);border-radius:24px;overflow:hidden;transition:all 0.5s cubic-bezier(0.23,1,0.32,1);position:relative;}
+.ms29-box-card:hover{transform:translateY(-8px);}
+.ms29-box-card.ms29-silver .ms29-box-header{background:linear-gradient(135deg,#71717a,#a1a1aa,#71717a);}
+.ms29-box-card.ms29-platinum .ms29-box-header{background:linear-gradient(135deg,#6366f1,#a855f7,#ec4899);}
+.ms29-box-header{padding:2rem 2rem 3rem;text-align:center;position:relative;}
+.ms29-box-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:0.6rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;background:rgba(0,0,0,0.3);color:#fff;padding:0.3rem 0.9rem;border-radius:100px;margin-bottom:1rem;}
+.ms29-box-icon{font-size:4rem;display:block;margin-bottom:0.5rem;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.2));}
+.ms29-box-header h3{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:1.5rem;font-weight:800;color:#000;letter-spacing:-0.02em;}
+.ms29-box-card.ms29-platinum .ms29-box-header h3{color:#fff;}
+.ms29-box-body{padding:2rem;}
+.ms29-box-price{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:2.8rem;font-weight:800;margin-bottom:0.25rem;color:#FAFAFA;}
+.ms29-box-price sup{font-size:1rem;vertical-align:super;margin-right:2px;}
+.ms29-box-per{font-size:0.85rem;color:#8888A0;margin-bottom:1.5rem;}
+.ms29-box-includes{list-style:none;margin-bottom:2rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:1.25rem;padding-left:0;}
+.ms29-box-includes li{padding:0.5rem 0;font-size:0.92rem;color:#8888A0;display:flex;align-items:center;gap:0.6rem;}
+.ms29-box-includes li .ms29-check{color:#34D399;font-weight:700;font-size:1rem;}
+.ms29-highlight-text{color:#FFD639;font-weight:600;}
+.ms29-box-btn{display:block;text-align:center;width:100%;font-family:'Eras Bold ITC','Syne',sans-serif;font-size:0.85rem;font-weight:700;padding:0.9rem;border-radius:14px;border:none;cursor:pointer;transition:all 0.3s;text-decoration:none;box-sizing:border-box;}
+.ms29-box-card.ms29-silver .ms29-box-btn{background:rgba(255,255,255,0.08);color:#FAFAFA;}
+.ms29-box-card.ms29-silver .ms29-box-btn:hover{background:rgba(255,255,255,0.15);}
+.ms29-box-card.ms29-platinum .ms29-box-btn{background:linear-gradient(135deg,#A855F7,#FF5E6B);color:#fff;}
+.ms29-box-card.ms29-platinum .ms29-box-btn:hover{box-shadow:0 4px 20px rgba(168,85,247,0.3);}
+.ms29-box-popular{position:absolute;top:12px;right:12px;z-index:2;font-family:'Space Mono',monospace;font-size:0.55rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;background:#000;color:#FFD639;padding:0.35rem 0.8rem;border-radius:100px;}
+.ms29-coin-examples{display:flex;gap:3rem;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:3rem;}
+.ms29-coin-example{text-align:center;transition:transform 0.4s;}
+.ms29-coin-example:hover{transform:scale(1.05);}
+.ms29-coin-example img{width:220px;border-radius:12px;filter:drop-shadow(0 12px 30px rgba(0,0,0,0.4));margin-bottom:1rem;}
+.ms29-coin-example .ms29-coin-name{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:0.9rem;font-weight:700;margin-bottom:0.2rem;color:#FAFAFA;}
+.ms29-coin-example .ms29-coin-desc{font-size:0.8rem;color:#8888A0;}
+.ms29-coin-example .ms29-coin-value{font-family:'Space Mono',monospace;font-size:0.75rem;font-weight:700;color:#34D399;margin-top:0.4rem;display:block;}
+.ms29-buyback-box{background:linear-gradient(160deg,#13131A,rgba(52,211,153,0.04));border:1px solid rgba(52,211,153,0.15);border-radius:28px;padding:3.5rem;position:relative;overflow:hidden;}
+.ms29-buyback-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;}
+.ms29-buyback-info h3{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:0.75rem;color:#FAFAFA;}
+.ms29-buyback-info p{font-size:0.95rem;color:#8888A0;line-height:1.7;margin-bottom:1rem;}
+.ms29-buyback-perks{list-style:none;padding-left:0;}
+.ms29-buyback-perks li{padding:0.4rem 0;font-size:0.9rem;color:#8888A0;display:flex;align-items:center;gap:0.6rem;}
+.ms29-buyback-perks li .ms29-perk-icon{color:#34D399;font-size:1rem;}
+.ms29-buyback-form-area{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:2rem;}
+.ms29-buyback-form-area label{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8888A0;display:block;margin-bottom:0.5rem;}
+.ms29-slab-code-input{width:100%;font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:700;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;color:#FAFAFA;padding:1rem 1.25rem;letter-spacing:0.1em;text-align:center;transition:all 0.3s;box-sizing:border-box;}
+.ms29-slab-code-input:focus{outline:none;border-color:#34D399;box-shadow:0 0 0 3px rgba(52,211,153,0.12);}
+.ms29-slab-code-hint{font-size:0.75rem;color:#8888A0;margin-top:0.5rem;text-align:center;}
+.ms29-buyback-submit{width:100%;font-family:'Eras Bold ITC','Syne',sans-serif;font-size:0.85rem;font-weight:700;background:#34D399;color:#000;padding:0.9rem;border-radius:14px;border:none;cursor:pointer;margin-top:1.25rem;transition:all 0.3s;letter-spacing:0.05em;}
+.ms29-buyback-submit:hover{background:#5ee8b7;box-shadow:0 4px 20px rgba(52,211,153,0.3);transform:translateY(-1px);}
+.ms29-inside-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;margin-top:3rem;}
+.ms29-inside-card{background:#13131A;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:2rem;display:flex;gap:1.25rem;align-items:flex-start;transition:all 0.3s;}
+.ms29-inside-card:hover{background:#1A1A24;border-color:rgba(255,255,255,0.1);transform:translateY(-2px);}
+.ms29-inside-icon{font-size:2rem;flex-shrink:0;width:52px;height:52px;display:flex;align-items:center;justify-content:center;background:rgba(255,214,57,0.08);border-radius:14px;}
+.ms29-inside-card h3{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:0.35rem;color:#FAFAFA;}
+.ms29-inside-card p{font-size:0.9rem;color:#8888A0;line-height:1.6;}
+.ms29-trust-bar{padding:3.5rem 2rem;border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);}
+.ms29-trust-inner{max-width:1000px;margin:0 auto;display:flex;justify-content:center;gap:4rem;flex-wrap:wrap;}
+.ms29-trust-stat{text-align:center;}
+.ms29-trust-num{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:2.3rem;font-weight:800;background:linear-gradient(135deg,#FFD639,#FF8A3D);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.ms29-trust-label{font-size:0.82rem;color:#8888A0;margin-top:0.25rem;}
+.ms29-faq-item{border-bottom:1px solid rgba(255,255,255,0.06);}
+.ms29-faq-q{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:1.02rem;font-weight:600;padding:1.2rem 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:color 0.3s;color:#FAFAFA;}
+.ms29-faq-q:hover{color:#FFD639;}
+.ms29-faq-q .ms29-toggle{font-size:1.4rem;font-weight:300;transition:transform 0.3s;color:#8888A0;}
+.ms29-faq-item.ms29-open .ms29-faq-q .ms29-toggle{transform:rotate(45deg);color:#FFD639;}
+.ms29-faq-a{max-height:0;overflow:hidden;transition:max-height 0.4s ease,padding 0.4s ease;}
+.ms29-faq-item.ms29-open .ms29-faq-a{max-height:300px;padding-bottom:1.2rem;}
+.ms29-faq-a p{font-size:0.95rem;color:#8888A0;line-height:1.7;}
+.ms29-cta-box{max-width:900px;margin:0 auto;text-align:center;background:linear-gradient(135deg,rgba(255,214,57,0.08),rgba(168,85,247,0.06));border:1px solid rgba(255,214,57,0.12);border-radius:32px;padding:3.5rem 3rem;}
+.ms29-cta-box h2{font-family:'Eras Bold ITC','Syne',sans-serif;font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;letter-spacing:-0.02em;margin-bottom:1rem;color:#FAFAFA;}
+.ms29-cta-box p{font-size:1.05rem;color:#8888A0;margin-bottom:2rem;max-width:500px;margin-left:auto;margin-right:auto;}
+@media(max-width:900px){
+.ms29-hero-content{grid-template-columns:1fr;text-align:center;}
+.ms29-hero-left{text-align:center;}
+.ms29-hero-subtitle{margin:0 auto 2.5rem;}
+.ms29-hero-actions{justify-content:center;}
+.ms29-steps-row{grid-template-columns:1fr;}
+.ms29-boxes-grid{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto;}
+.ms29-inside-grid{grid-template-columns:1fr;}
+.ms29-buyback-grid{grid-template-columns:1fr;}
+.ms29-buyback-box{padding:2.5rem 1.5rem;}
+}
 .ms-list-view{display:flex !important;flex-direction:column !important;gap:8px !important;}
 .ms-list-view > a.card{flex-direction:row !important;align-items:center !important;padding:10px 14px !important;gap:14px !important;}
 .ms-list-view > a.card > .aspect-square{width:56px !important;height:56px !important;flex:0 0 56px !important;}
@@ -314,93 +437,221 @@ window.openLightbox = function(src){ openZoom(src); };
 }
 }
 
-/* ---------- Home: hero glow, floating coins, shimmer pill, marquee ---------- */
+/* ---------- Home: full literal port of index_29 reference (hero through CTA) ---------- */
 
 function patchHomeHero(){
 if(window.location.pathname !== '/') return;
-var h1 = document.querySelector('h1');
-if(!h1) return;
-var gt = h1.querySelector('.gradient-text');
-if(!gt) return;
-var heroSection = h1.closest('section');
-if(!heroSection || heroSection.dataset.msHeroDone) return;
-heroSection.dataset.msHeroDone = '1';
-heroSection.style.position = 'relative';
-heroSection.style.overflow = 'hidden';
+var header = document.querySelector('header');
+var footer = document.querySelector('footer');
+if(!header || !footer) return;
+var main = header.nextElementSibling;
+if(!main || main.tagName !== 'MAIN') return;
+if(main.dataset.msHome29Done) return;
+main.dataset.msHome29Done = '1';
 
-h1.innerHTML = 'Unbox Real<br><span class="gradient-text">Gold &amp; Silver</span> Coins';
+main.innerHTML =
+'<section class="ms29-hero" id="ms29-top">' +
+'<div class="ms29-hero-bg-glow"></div>' +
+'<div class="ms29-hero-sparkles" id="ms29-sparkles"></div>' +
+'<div class="ms29-hero-content">' +
+'<div class="ms29-hero-left">' +
+'<h1 class="ms29-hero-title">Unbox Real<br><span class="ms29-highlight">Gold &amp; Silver</span> Coins</h1>' +
+'<p class="ms29-hero-subtitle">Every Mini Slabs mystery box contains authenticated U.S. coins sealed in our signature miniature slabs. You never know what you\'re going to get.</p>' +
+'<div class="ms29-hero-actions">' +
+'<a href="/shop" class="ms29-btn-big">Shop Mystery Boxes <span class="ms29-arrow">&rarr;</span></a>' +
+'<a href="#ms29-how" class="ms29-btn-ghost">See How It Works</a>' +
+'</div></div>' +
+'<div class="ms29-hero-right"><div class="ms29-hero-coins">' +
+'<div class="ms29-hero-question">?</div>' +
+'<img class="ms29-hero-coin" id="ms29-hero-coin-img" src="/assets/ms-hero-coin.jpg" alt="Mini Slabs gold coin">' +
+'</div></div></div>' +
+'<div class="ms29-marquee"><div class="ms29-marquee-track" id="ms29-marquee-track"></div></div>' +
+'</section>' +
+'<section class="ms29-how-section" id="ms29-how"><div class="ms29-section-inner">' +
+'<span class="ms29-section-label">How It Works</span>' +
+'<h2 class="ms29-section-heading">Three steps to treasure</h2>' +
+'<p class="ms29-section-desc">No hunting at coin shows. No bidding wars. Just pick your box, rip it open, and see what fate has in store.</p>' +
+'<div class="ms29-steps-row">' +
+'<div class="ms29-step-card ms29-reveal"><div class="ms29-step-num">01</div><span class="ms29-step-emoji">📦</span><h3>Pick Your Box</h3><p>Choose Silver or Platinum — each packed with authenticated coins in Mini Slab holders.</p></div>' +
+'<div class="ms29-step-card ms29-reveal"><div class="ms29-step-num">02</div><span class="ms29-step-emoji">🚀</span><h3>We Ship It Fast</h3><p>Your mystery box ships within 48 hours, fully insured. Track it all the way to your doorstep.</p></div>' +
+'<div class="ms29-step-card ms29-reveal"><div class="ms29-step-num">03</div><span class="ms29-step-emoji">🤩</span><h3>Unbox &amp; Discover</h3><p>Crack it open and discover your coins! Share your pulls, flex your finds, and start your collection.</p></div>' +
+'</div></div></section>' +
+'<section class="ms29-boxes-section" id="ms29-boxes"><div class="ms29-boxes-inner">' +
+'<div style="text-align:center;margin-bottom:3.5rem">' +
+'<span class="ms29-section-label">Mystery Boxes</span>' +
+'<h2 class="ms29-section-heading">Choose your adventure</h2>' +
+'<p class="ms29-section-desc" style="margin:0 auto">Every box is hand-packed with genuine U.S. coins sealed in our signature Mini Slab holders. Higher tiers = rarer coins.</p>' +
+'</div><div class="ms29-boxes-grid">' +
+'<div class="ms29-box-card ms29-silver">' +
+'<div class="ms29-box-header"><span class="ms29-box-badge">Starter</span><span class="ms29-box-icon">🥈</span><h3>Silver Box</h3></div>' +
+'<div class="ms29-box-body">' +
+'<div class="ms29-box-price"><sup>$</sup>24<span style="font-size:1.2rem">.99</span></div>' +
+'<div class="ms29-box-per">per box</div>' +
+'<ul class="ms29-box-includes">' +
+'<li><span class="ms29-check">&#10003;</span> 1 entry-level Mini Slab with a chance at a Premium Hit</li>' +
+'<li><span class="ms29-check">&#10003;</span> Genuine U.S. coin guaranteed</li>' +
+'<li><span class="ms29-check">&#10003;</span> Tamper-evident sealed holder</li>' +
+'<li><span class="ms29-check">&#10003;</span> Unique serial number</li>' +
+'<li><span class="ms29-check">&#10003;</span> <span class="ms29-highlight-text">Chance of rare pulls!</span></li>' +
+'</ul>' +
+'<div style="font-size:0.7rem;color:#8888A0;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.75rem;font-weight:600">Available exclusively at</div>' +
+'<div class="ms29-retailer-badges">' +
+'<a href="/shop" class="ms29-retailer-badge"><img src="/assets/ms-retailer-walmart.svg" alt="Walmart"></a>' +
+'<a href="/shop" class="ms29-retailer-badge"><img src="/assets/ms-retailer-amazon.png" alt="Amazon"></a>' +
+'</div>' +
+'<a href="/shop" class="ms29-box-btn">Find a Silver Box &rarr;</a>' +
+'</div></div>' +
+'<div class="ms29-box-card ms29-platinum">' +
+'<span class="ms29-box-popular">&#11088; Premium</span>' +
+'<div class="ms29-box-header"><span class="ms29-box-badge">Exclusive</span><span class="ms29-box-icon">💎</span><h3>Platinum Box</h3></div>' +
+'<div class="ms29-box-body">' +
+'<div class="ms29-box-price"><sup>$</sup>249<span style="font-size:1.2rem">.99</span></div>' +
+'<div class="ms29-box-per">per box</div>' +
+'<ul class="ms29-box-includes">' +
+'<li><span class="ms29-check">&#10003;</span> 1 Premium Mini Slab &amp; 1 entry-level Mini Slab</li>' +
+'<li><span class="ms29-check">&#10003;</span> Premium U.S. coins guaranteed</li>' +
+'<li><span class="ms29-check">&#10003;</span> Tamper-evident sealed holders</li>' +
+'<li><span class="ms29-check">&#10003;</span> Free insured shipping</li>' +
+'<li><span class="ms29-check">&#10003;</span> <span class="ms29-highlight-text">Best chance of jackpot pulls!</span></li>' +
+'</ul>' +
+'<a href="/shop" class="ms29-box-btn">Get a Platinum Box &rarr;</a>' +
+'</div></div>' +
+'</div></div></section>' +
+'<section class="ms29-possibilities"><div class="ms29-possibilities-inner">' +
+'<div style="text-align:center;margin-bottom:1rem">' +
+'<span class="ms29-section-label">What Could You Pull?</span>' +
+'<h2 class="ms29-section-heading">Every box is a treasure hunt</h2>' +
+'<p class="ms29-section-desc" style="margin:0 auto">From classic silver dollars to pre-1933 gold eagles — you never know what\'s waiting inside your Mini Slab box.</p>' +
+'</div><div class="ms29-coin-examples"><div class="ms29-coin-example">' +
+'<img src="/assets/ms-coin-example.jpg" alt="$10 Indian Head Eagle">' +
+'<div class="ms29-coin-name">$10 Indian Head Eagle</div>' +
+'<div class="ms29-coin-desc">1926 &middot; .900 Fine Gold</div>' +
+'<span class="ms29-coin-value">Value: $800&ndash;$2,500+</span>' +
+'</div></div></div></section>' +
+'<section class="ms29-buyback-section" id="ms29-buyback"><div class="ms29-buyback-inner">' +
+'<div style="text-align:center;margin-bottom:1.5rem">' +
+'<span class="ms29-section-label">BuyBack Program</span>' +
+'<h2 class="ms29-section-heading">Cash out your pulls instantly</h2>' +
+'<p class="ms29-section-desc" style="margin:0 auto">Don\'t love what you got? No problem. Enter your slab code below and we\'ll make you an instant offer to buy it back. No haggling, no waiting.</p>' +
+'</div><div class="ms29-buyback-box"><div class="ms29-buyback-grid">' +
+'<div class="ms29-buyback-info">' +
+'<h3>How it works</h3>' +
+'<p>Every coin in a Mini Slabs mystery box has a unique serial code printed on the slab label. Enter that code and we\'ll instantly tell you what we\'ll pay for it.</p>' +
+'<ul class="ms29-buyback-perks">' +
+'<li><span class="ms29-perk-icon">&#9889;</span> Instant offer — no waiting for appraisals</li>' +
+'<li><span class="ms29-perk-icon">💵</span> Paid via PayPal, Venmo, or check</li>' +
+'<li><span class="ms29-perk-icon">📦</span> Free prepaid return shipping label</li>' +
+'<li><span class="ms29-perk-icon">🔒</span> Offer valid for 30 days</li>' +
+'<li><span class="ms29-perk-icon">&#128260;</span> Works for any Mini Slabs coin</li>' +
+'</ul></div>' +
+'<div class="ms29-buyback-form-area">' +
+'<label for="ms29-slab-code">Enter your slab code</label>' +
+'<input type="text" id="ms29-slab-code" class="ms29-slab-code-input" placeholder="e.g. 1995584-669" maxlength="20">' +
+'<div class="ms29-slab-code-hint">Find this number on your Mini Slab label</div>' +
+'<button type="button" class="ms29-buyback-submit" id="ms29-buyback-submit-btn">Get My Offer</button>' +
+'</div></div></div></div></section>' +
+'<section class="ms29-whats-inside" id="ms29-inside"><div class="ms29-whats-inner">' +
+'<div style="text-align:center;margin-bottom:1rem"><span class="ms29-section-label">Every Box Includes</span><h2 class="ms29-section-heading">Not just coins — an experience</h2></div>' +
+'<div class="ms29-inside-grid">' +
+'<div class="ms29-inside-card"><div class="ms29-inside-icon">🪙</div><div><h3>Genuine U.S. Coins</h3><p>Every coin is an authentic U.S. gold or silver piece — no replicas, no filler, no foreign currency.</p></div></div>' +
+'<div class="ms29-inside-card"><div class="ms29-inside-icon">🔒</div><div><h3>Mini Slab Holders</h3><p>Each coin arrives sealed in our signature tamper-evident mini slab with serial number and metal content verified.</p></div></div>' +
+'<div class="ms29-inside-card"><div class="ms29-inside-icon">🎲</div><div><h3>True Randomness</h3><p>Boxes are packed blind. Every customer has the same odds at a jackpot pull — we don\'t cherry-pick.</p></div></div>' +
+'<div class="ms29-inside-card"><div class="ms29-inside-icon">📸</div><div><h3>Share-Worthy Unboxing</h3><p>The Mini Slab presentation is designed to look amazing on camera. Share your pulls with the community!</p></div></div>' +
+'</div></div></section>' +
+'<div class="ms29-trust-bar"><div class="ms29-trust-inner">' +
+'<div class="ms29-trust-stat"><div class="ms29-trust-num">10K+</div><div class="ms29-trust-label">Boxes shipped</div></div>' +
+'<div class="ms29-trust-stat"><div class="ms29-trust-num">50K+</div><div class="ms29-trust-label">Coins slabbed</div></div>' +
+'<div class="ms29-trust-stat"><div class="ms29-trust-num">100%</div><div class="ms29-trust-label">Authentic coins</div></div>' +
+'<div class="ms29-trust-stat"><div class="ms29-trust-num">4.9&#9733;</div><div class="ms29-trust-label">Customer rating</div></div>' +
+'</div></div>' +
+'<section class="ms29-faq-section" id="ms29-faq"><div class="ms29-faq-inner">' +
+'<div style="text-align:center;margin-bottom:3rem"><span class="ms29-section-label">FAQ</span><h2 class="ms29-section-heading">Got questions?</h2></div>' +
+'<div class="ms29-faq-item"><div class="ms29-faq-q">Are the coins real? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>Every coin in a Mini Slabs box is a genuine, authenticated U.S. gold or silver coin. We verify metal composition and seal each piece in a tamper-evident Mini Slab holder with a unique serial number.</p></div></div>' +
+'<div class="ms29-faq-item"><div class="ms29-faq-q">What\'s the minimum value of coins in each box? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>We guarantee that the melt value of coins in every box meets or exceeds the box price. On top of that, numismatic value and rarity can make your pulls worth significantly more!</p></div></div>' +
+'<div class="ms29-faq-item"><div class="ms29-faq-q">How are boxes packed? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>Boxes are packed blind from our inventory — we don\'t cherry-pick or sort. Every customer has an equal chance at pulling a high-value rarity. It\'s completely random.</p></div></div>' +
+'<div class="ms29-faq-item"><div class="ms29-faq-q">How fast do you ship? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>Orders ship within 48 hours, fully insured. Gold and Platinum boxes include free shipping. You\'ll get a tracking number as soon as your box is on its way.</p></div></div>' +
+'<div class="ms29-faq-item"><div class="ms29-faq-q">Can I return or exchange a box? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>Due to the mystery nature of our boxes, we can\'t accept returns on opened boxes. Unopened boxes can be returned within 14 days. If there\'s an issue with your order, our support team will make it right.</p></div></div>' +
+'</div></section>' +
+'<section class="ms29-cta-section"><div class="ms29-cta-box">' +
+'<span class="ms29-section-label">Ready to find out?</span>' +
+'<h2>Your next great coin<br>is waiting inside 🎁</h2>' +
+'<p>Pick a box, rip it open, and discover what\'s inside. Every Mini Slab mystery box is packed with real gold and silver coins.</p>' +
+'<a href="/shop" class="ms29-btn-big">Shop Mystery Boxes <span class="ms29-arrow">&rarr;</span></a>' +
+'</div></section>';
 
-var eyebrow = h1.parentElement.querySelector('p');
-if(eyebrow) eyebrow.classList.add('ms-hero-pill');
+main.querySelectorAll('.ms29-faq-q').forEach(function(q){
+q.addEventListener('click', function(){ q.parentElement.classList.toggle('ms29-open'); });
+});
 
-var glow = document.createElement('div');
-glow.className = 'ms-hero-glow';
-glow.innerHTML = '<div class="blob"></div>';
-heroSection.insertBefore(glow, heroSection.firstChild);
+var bbBtn = document.getElementById('ms29-buyback-submit-btn');
+if(bbBtn){
+bbBtn.addEventListener('click', function(){ window.location.href = '/sell-back'; });
+}
 
-var sparkleWrap = document.createElement('div');
-sparkleWrap.style.cssText = 'position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;';
-for(var i = 0; i < 16; i++){
+var track = document.getElementById('ms29-marquee-track');
+if(track){
+var items = ['Authenticated U.S. Coins', 'Sealed Mini Slabs', 'Gold & Silver', 'Every Box a Surprise', 'Free Shipping', 'Tamper-Evident Holders', 'Collect Them All'];
+var mHtml = '';
+for(var r = 0; r < 2; r++){
+items.forEach(function(t){ mHtml += '<span class="ms29-marquee-item">' + t + ' <span class="ms29-dot"></span></span>'; });
+}
+track.innerHTML = mHtml;
+}
+
+var sc = document.getElementById('ms29-sparkles');
+if(sc){
+function ms29Svg(isGold){
+var color = isGold ? '#C5A44E' : '#B8B8C8';
+var hl = isGold ? '#E8D48B' : '#D8D8E8';
+var sh = isGold ? '#8B7332' : '#888898';
+return '<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="8.5" fill="' + color + '" stroke="' + sh + '" stroke-width="0.5"/><circle cx="9" cy="9" r="7" fill="none" stroke="' + sh + '" stroke-width="0.3" opacity="0.5"/><circle cx="7" cy="7" r="1" fill="' + hl + '" opacity="0.4"/></svg>';
+}
+for(var i = 0; i < 22; i++){
 var c = document.createElement('div');
-c.className = 'ms-mini-coin';
 var isGold = Math.random() > 0.4;
-var size = 8 + Math.random() * 10;
+c.className = 'ms29-mini-coin';
+c.innerHTML = ms29Svg(isGold);
+c.style.left = Math.random() * 100 + '%';
+c.style.animationDuration = (6 + Math.random() * 10) + 's';
+c.style.animationDelay = (Math.random() * 12) + 's';
+var size = 10 + Math.random() * 12;
 c.style.width = size + 'px';
 c.style.height = size + 'px';
-c.style.left = Math.random() * 100 + '%';
-c.style.bottom = '0';
-c.style.background = isGold ? 'radial-gradient(circle at 30% 30%, #FFD639, #FF8A3D)' : 'radial-gradient(circle at 30% 30%, #FFE87A, #D4AF00)';
-c.style.animationDuration = (8 + Math.random() * 10) + 's';
-c.style.animationDelay = (Math.random() * 10) + 's';
-sparkleWrap.appendChild(c);
+sc.appendChild(c);
 }
-heroSection.insertBefore(sparkleWrap, heroSection.firstChild);
+}
 
-var heroImg = heroSection.querySelector('img');
-if(heroImg){
-heroImg.classList.add('ms-hero-tilt');
-if(heroImg.parentElement){
-heroImg.parentElement.style.perspective = '1200px';
-heroImg.parentElement.style.position = 'relative';
-heroImg.parentElement.style.overflow = 'visible';
-var qGlyph = document.createElement('div');
-qGlyph.className = 'ms-hero-question';
-qGlyph.textContent = '?';
-heroImg.parentElement.insertBefore(qGlyph, heroImg);
-}
-var msCurrentRot = 0, msTargetRot = 0;
-function msHeroScroll(){
-var rect = heroImg.getBoundingClientRect();
+var ms29Obs = new IntersectionObserver(function(entries){
+entries.forEach(function(el){ if(el.isIntersecting){ el.target.classList.add('ms29-visible'); ms29Obs.unobserve(el.target); } });
+}, {threshold: 0.08, rootMargin: '0px 0px -30px 0px'});
+main.querySelectorAll('.ms29-reveal').forEach(function(el){ ms29Obs.observe(el); });
+
+var heroCoin = document.getElementById('ms29-hero-coin-img');
+if(heroCoin){
+var msCur = 0, msTgt = 0;
+function ms29OnScroll(){
+var rect = heroCoin.getBoundingClientRect();
+var vh = window.innerHeight;
 var center = rect.top + rect.height / 2;
-var vpCenter = window.innerHeight / 2;
-var normalized = (vpCenter - center) / vpCenter;
-msTargetRot = Math.max(-20, Math.min(20, normalized * 20));
+var n = (center - vh / 2) / (vh / 2);
+msTgt = Math.max(-45, Math.min(45, n * 45));
 }
-function msHeroTiltAnimate(){
-msCurrentRot += (msTargetRot - msCurrentRot) * 0.08;
-heroImg.style.transform = 'rotateY(' + msCurrentRot.toFixed(2) + 'deg)';
-requestAnimationFrame(msHeroTiltAnimate);
+function ms29Anim(){
+msCur += (msTgt - msCur) * 0.08;
+if(heroCoin.isConnected){ heroCoin.style.transform = 'rotateY(' + msCur + 'deg)'; requestAnimationFrame(ms29Anim); }
 }
-window.addEventListener('scroll', msHeroScroll, {passive:true});
-msHeroScroll();
-msHeroTiltAnimate();
+window.addEventListener('scroll', ms29OnScroll, {passive:true});
+ms29OnScroll();
+ms29Anim();
 }
 
-if(!document.getElementById('ms-home-marquee')){
-var items = ['Authenticated Coins', 'Sealed Mini Slabs', 'One-Of-A-Kind Drops', 'Claim Your Coin', 'Resale Marketplace', 'Instant Sell Back', 'Live-Synced Database'];
-var marquee = document.createElement('div');
-marquee.id = 'ms-home-marquee';
-marquee.className = 'ms-marquee';
-var track = document.createElement('div');
-track.className = 'ms-marquee-track';
-var html = '';
-for(var r = 0; r < 2; r++){
-items.forEach(function(t){ html += '<span class="ms-marquee-item">' + t + ' <span class="dot"></span></span>'; });
-}
-track.innerHTML = html;
-marquee.appendChild(track);
-heroSection.parentNode.insertBefore(marquee, heroSection.nextSibling);
-}
+main.querySelectorAll('a[href^="#"]').forEach(function(a){
+a.addEventListener('click', function(e){
+var id = a.getAttribute('href').slice(1);
+var target = document.getElementById(id);
+if(target){ e.preventDefault(); target.scrollIntoView({behavior:'smooth'}); }
+});
+});
 }
 
 /* ---------- Coin Database: grid / list view toggle ---------- */
