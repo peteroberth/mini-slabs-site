@@ -444,7 +444,8 @@ if(!window.__ms29NavGuard){
 window.__ms29NavGuard = true;
 document.addEventListener('click', function(e){
 if(window.location.pathname !== '/') return;
-if(!document.getElementById('ms29-home-wrapper')) return;
+var wrap = document.getElementById('ms29-home-wrapper');
+if(!wrap) return;
 var a = e.target.closest('a[href]');
 if(!a) return;
 var href = a.getAttribute('href');
@@ -453,9 +454,14 @@ var url;
 try { url = new URL(href, window.location.href); } catch(err){ return; }
 if(url.origin !== window.location.origin) return;
 if(url.pathname === window.location.pathname) return;
-e.preventDefault();
-e.stopPropagation();
-window.location.href = a.href;
+/* Clean up our injected content BEFORE React's own click handler runs,
+so the DOM is back to exactly what React created and its unmount
+succeeds normally (no forced hard reload, so auth-gated routes
+like /admin still work via normal client-side navigation). */
+wrap.remove();
+var hdr = document.querySelector('header');
+var mainEl = hdr && hdr.nextElementSibling;
+if(mainEl && mainEl.tagName === 'MAIN') mainEl.style.display = '';
 }, true);
 }
 
