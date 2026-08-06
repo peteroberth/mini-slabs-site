@@ -24,6 +24,8 @@
 }
 body{ font-family:'Outfit',sans-serif !important; }
 h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; letter-spacing:-0.02em; }
+.btn-primary,.btn-secondary{ border-radius:100px !important; }
+.input{ border-radius:14px !important; }
 
 .gradient-text{background-size:200% auto !important;animation:msShimmer 4s ease-in-out infinite;}
 @keyframes msShimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
@@ -37,6 +39,7 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 @keyframes msGlowPulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.7}100%{transform:translate(-50%,-50%) scale(1.15);opacity:1}}
 .ms-mini-coin{position:absolute;border-radius:50%;pointer-events:none;opacity:0;animation:msCoinFloat linear infinite;}
 @keyframes msCoinFloat{0%{opacity:0;transform:translateY(0) scale(.6)}8%{opacity:.7}50%{opacity:.8}92%{opacity:.5}100%{opacity:0;transform:translateY(-520px) scale(.8)}}
+.ms-hero-tilt{transform-style:preserve-3d;will-change:transform;}
 
 .ms-marquee{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,214,57,0.03);padding:14px 0;position:relative;z-index:1;}
 .ms-marquee-track{display:flex;gap:2rem;width:max-content;animation:msMarqueeScroll 25s linear infinite;}
@@ -342,6 +345,28 @@ c.style.animationDelay = (Math.random() * 10) + 's';
 sparkleWrap.appendChild(c);
 }
 heroSection.insertBefore(sparkleWrap, heroSection.firstChild);
+
+var heroImg = heroSection.querySelector('img');
+if(heroImg){
+heroImg.classList.add('ms-hero-tilt');
+if(heroImg.parentElement) heroImg.parentElement.style.perspective = '1200px';
+var msCurrentRot = 0, msTargetRot = 0;
+function msHeroScroll(){
+var rect = heroImg.getBoundingClientRect();
+var center = rect.top + rect.height / 2;
+var vpCenter = window.innerHeight / 2;
+var normalized = (vpCenter - center) / vpCenter;
+msTargetRot = Math.max(-20, Math.min(20, normalized * 20));
+}
+function msHeroTiltAnimate(){
+msCurrentRot += (msTargetRot - msCurrentRot) * 0.08;
+heroImg.style.transform = 'rotateY(' + msCurrentRot.toFixed(2) + 'deg)';
+requestAnimationFrame(msHeroTiltAnimate);
+}
+window.addEventListener('scroll', msHeroScroll, {passive:true});
+msHeroScroll();
+msHeroTiltAnimate();
+}
 
 if(!document.getElementById('ms-home-marquee')){
 var items = ['Authenticated Coins', 'Sealed Mini Slabs', 'One-Of-A-Kind Drops', 'Claim Your Coin', 'Resale Marketplace', 'Instant Sell Back', 'Live-Synced Database'];
