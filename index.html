@@ -455,12 +455,14 @@ card.querySelectorAll('span.text-white').forEach(function(el){
 el.style.setProperty('border-color', '#94a3b8', 'important');
 });
 card.querySelectorAll('span').forEach(function(el){
+if((el.className || '').indexOf('rounded-full') !== -1){
+el.classList.add('ms-tier-badge');
+return;
+}
 if(el.children.length) return;
 var t = (el.textContent || '').trim();
 if(/^\$[\d,]+$/.test(t)){
 el.classList.add('ms-coin-price');
-} else if(parseInt(getComputedStyle(el).borderRadius || '0', 10) > 50){
-el.classList.add('ms-tier-badge');
 }
 });
 if(!card.dataset.msHoverBound){
