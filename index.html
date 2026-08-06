@@ -1563,6 +1563,38 @@ el.textContent = t.replace('synced from Google Sheet', 'synced from the coin inp
 });
 }
 
+/* ---------- Admin: direct links to external tools ---------- */
+
+function patchAdminToolLinks(){
+if(!isAdminPage()) return;
+var ordersLink = document.querySelector('a[href="/admin/orders"]');
+if(!ordersLink) return;
+var nav = ordersLink.parentElement;
+if(!nav) return;
+if(nav.querySelector('.ms-tool-link')) return;
+
+var tools = [
+{ label: 'Coin Input Database', href: '/coin-input-tool.html' },
+{ label: 'Label Printer', href: 'https://mini-slabs-label-printer.netlify.app/' },
+{ label: 'Slab Composer', href: 'https://mini-slab-composer.netlify.app/' }
+];
+
+var divider = document.createElement('div');
+divider.style.cssText = 'margin:12px 0;border-top:1px solid rgba(255,255,255,0.12);';
+nav.appendChild(divider);
+
+tools.forEach(function(tool){
+var item = ordersLink.cloneNode(true);
+item.classList.add('ms-tool-link');
+item.setAttribute('href', tool.href);
+item.setAttribute('target', '_blank');
+item.setAttribute('rel', 'noopener');
+item.innerHTML = '';
+item.textContent = tool.label;
+nav.appendChild(item);
+});
+}
+
 function runAll(root){
 patchHomeHero();
 patchCoinDbLight();
@@ -1581,6 +1613,7 @@ if(isAdminPage()){
 patchAdminSidebar();
 patchAdminListDeletes();
 patchAdminSyncLabel();
+patchAdminToolLinks();
 }
 if(isCoinInputTool()){
 patchToolHeader();
