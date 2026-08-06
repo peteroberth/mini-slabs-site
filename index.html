@@ -47,6 +47,13 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 .ms-marquee-item .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);flex-shrink:0;}
 @keyframes msMarqueeScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
+.ms-tier-badge{background:rgba(255,214,57,0.15) !important;color:#a37c00 !important;border-color:transparent !important;font-family:'Space Mono',monospace !important;font-weight:700 !important;letter-spacing:0.06em !important;}
+.ms-coin-price{font-family:'Eras Bold ITC','Syne',sans-serif !important;font-weight:800 !important;}
+.ms-lookup-card{max-width:560px !important;margin:2.5rem auto 0 !important;background:var(--bg-panel) !important;border:1px solid var(--border) !important;border-radius:22px !important;padding:2.5rem !important;display:flex !important;flex-direction:column !important;gap:0 !important;}
+.ms-lookup-card .input{width:100% !important;text-align:center !important;letter-spacing:0.1em !important;font-family:'Space Mono',monospace !important;font-weight:700 !important;font-size:1.1rem !important;}
+.ms-lookup-card button.btn-primary{width:100% !important;margin-top:1.2rem !important;}
+.ms-lookup-card.ms-sellback button.btn-primary{background:#34D399 !important;background-image:none !important;color:#000 !important;}
+.ms-lookup-label{font-family:'Eras Bold ITC','Syne',sans-serif !important;font-size:0.72rem !important;font-weight:700 !important;letter-spacing:0.1em !important;text-transform:uppercase !important;color:var(--text-dim) !important;display:block !important;margin-bottom:0.5rem !important;width:100% !important;}
 .ms-list-view{display:flex !important;flex-direction:column !important;gap:8px !important;}
 .ms-list-view > a.card{flex-direction:row !important;align-items:center !important;padding:10px 14px !important;gap:14px !important;}
 .ms-list-view > a.card > .aspect-square{width:56px !important;height:56px !important;flex:0 0 56px !important;}
@@ -432,6 +439,7 @@ var cards = document.querySelectorAll('.card');
 cards.forEach(function(card){
 card.style.setProperty('background', '#ffffff', 'important');
 card.style.setProperty('border-color', '#d7dbe3', 'important');
+card.style.setProperty('border-radius', '18px', 'important');
 var circuit = card.querySelector('.circuit-bg');
 if(circuit){
 circuit.style.setProperty('background-color', '#ffffff', 'important');
@@ -446,12 +454,39 @@ el.style.setProperty('color', '#55606f', 'important');
 card.querySelectorAll('span.text-white').forEach(function(el){
 el.style.setProperty('border-color', '#94a3b8', 'important');
 });
+card.querySelectorAll('span').forEach(function(el){
+if(el.children.length) return;
+var t = (el.textContent || '').trim();
+if(/^\$[\d,]+$/.test(t)){
+el.classList.add('ms-coin-price');
+} else if(parseInt(getComputedStyle(el).borderRadius || '0', 10) > 50){
+el.classList.add('ms-tier-badge');
+}
+});
 if(!card.dataset.msHoverBound){
 card.dataset.msHoverBound = '1';
 card.addEventListener('mouseenter', function(){ card.style.setProperty('background', '#eef9ff', 'important'); });
 card.addEventListener('mouseleave', function(){ card.style.setProperty('background', '#ffffff', 'important'); });
 }
 });
+}
+
+/* ---------- Claim / Sell Back: lookup form styled as a card ---------- */
+
+function patchLookupCardStyle(){
+var path = window.location.pathname;
+if(path !== '/claim' && path !== '/sell-back') return;
+var input = document.querySelector('input.input');
+if(!input) return;
+var form = input.closest('form');
+if(!form || form.dataset.msLookupCardDone) return;
+form.dataset.msLookupCardDone = '1';
+form.classList.add('ms-lookup-card');
+if(path === '/sell-back') form.classList.add('ms-sellback');
+var label = document.createElement('label');
+label.className = 'ms-lookup-label';
+label.textContent = path === '/claim' ? 'Redemption Code' : 'Slab Code';
+form.insertBefore(label, form.firstChild);
 }
 
 /* ---------- Coin Database: hover coin-flip (obverse -> reverse -> hold -> back) ---------- */
@@ -1235,6 +1270,7 @@ patchDetailZoom(root);
 patchCoinFlip(root);
 patchCoinViewToggle();
 trackLookupInputs(root);
+patchLookupCardStyle();
 patchClaimSellback();
 patchResalePage();
 patchMyCollection();
