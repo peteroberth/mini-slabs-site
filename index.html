@@ -24,6 +24,33 @@
 }
 body{ font-family:'Outfit',sans-serif !important; }
 h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; letter-spacing:-0.02em; }
+
+.gradient-text{background-size:200% auto !important;animation:msShimmer 4s ease-in-out infinite;}
+@keyframes msShimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+.ms-hero-pill{display:inline-flex !important;align-items:center;gap:8px;background:rgba(255,214,57,0.1);border:1px solid rgba(255,214,57,0.25);border-radius:100px;padding:6px 14px 6px 10px !important;}
+.ms-hero-pill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--cyan);animation:msPillBlink 2s infinite;flex:0 0 auto;}
+@keyframes msPillBlink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.ms-hero-glow{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
+.ms-hero-glow .blob{position:absolute;top:50%;left:30%;transform:translate(-50%,-50%);width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,57,0.14) 0%,rgba(168,85,247,0.06) 45%,transparent 70%);animation:msGlowPulse 6s ease-in-out infinite alternate;}
+@keyframes msGlowPulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.7}100%{transform:translate(-50%,-50%) scale(1.15);opacity:1}}
+.ms-mini-coin{position:absolute;border-radius:50%;pointer-events:none;opacity:0;animation:msCoinFloat linear infinite;}
+@keyframes msCoinFloat{0%{opacity:0;transform:translateY(0) scale(.6)}8%{opacity:.7}50%{opacity:.8}92%{opacity:.5}100%{opacity:0;transform:translateY(-520px) scale(.8)}}
+
+.ms-marquee{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,214,57,0.03);padding:14px 0;position:relative;z-index:1;}
+.ms-marquee-track{display:flex;gap:2rem;width:max-content;animation:msMarqueeScroll 25s linear infinite;}
+.ms-marquee-item{font-weight:700;font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;display:flex;align-items:center;gap:2rem;font-family:'Space Mono',monospace;}
+.ms-marquee-item .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);flex-shrink:0;}
+@keyframes msMarqueeScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+.ms-list-view{display:flex !important;flex-direction:column !important;gap:8px !important;}
+.ms-list-view > a.card{flex-direction:row !important;align-items:center !important;padding:10px 14px !important;gap:14px !important;}
+.ms-list-view > a.card > .aspect-square{width:56px !important;height:56px !important;flex:0 0 56px !important;}
+.ms-list-view > a.card > .flex.items-center.justify-between{flex:0 0 auto !important;min-width:150px !important;justify-content:flex-end !important;gap:12px !important;}
+.ms-view-toggle{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;height:fit-content;}
+.ms-view-toggle button{background:transparent;border:none;color:var(--text-dim);padding:9px 13px;cursor:pointer;font-size:14px;line-height:1;}
+.ms-view-toggle button.active{background:var(--cyan);color:#000;}
 </style>
 </head>
 <body>
@@ -274,6 +301,103 @@ if(typeof window.openLightbox === 'function' && !window.__msOpenLightboxPatched)
 window.__msOpenLightboxPatched = true;
 window.openLightbox = function(src){ openZoom(src); };
 }
+}
+
+/* ---------- Home: hero glow, floating coins, shimmer pill, marquee ---------- */
+
+function patchHomeHero(){
+if(window.location.pathname !== '/') return;
+var h1 = document.querySelector('h1');
+if(!h1) return;
+var gt = h1.querySelector('.gradient-text');
+if(!gt) return;
+var heroSection = h1.closest('section');
+if(!heroSection || heroSection.dataset.msHeroDone) return;
+heroSection.dataset.msHeroDone = '1';
+heroSection.style.position = 'relative';
+heroSection.style.overflow = 'hidden';
+
+var eyebrow = h1.parentElement.querySelector('p');
+if(eyebrow) eyebrow.classList.add('ms-hero-pill');
+
+var glow = document.createElement('div');
+glow.className = 'ms-hero-glow';
+glow.innerHTML = '<div class="blob"></div>';
+heroSection.insertBefore(glow, heroSection.firstChild);
+
+var sparkleWrap = document.createElement('div');
+sparkleWrap.style.cssText = 'position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;';
+for(var i = 0; i < 16; i++){
+var c = document.createElement('div');
+c.className = 'ms-mini-coin';
+var isGold = Math.random() > 0.4;
+var size = 8 + Math.random() * 10;
+c.style.width = size + 'px';
+c.style.height = size + 'px';
+c.style.left = Math.random() * 100 + '%';
+c.style.bottom = '0';
+c.style.background = isGold ? 'radial-gradient(circle at 30% 30%, #FFD639, #FF8A3D)' : 'radial-gradient(circle at 30% 30%, #FFE87A, #D4AF00)';
+c.style.animationDuration = (8 + Math.random() * 10) + 's';
+c.style.animationDelay = (Math.random() * 10) + 's';
+sparkleWrap.appendChild(c);
+}
+heroSection.insertBefore(sparkleWrap, heroSection.firstChild);
+
+if(!document.getElementById('ms-home-marquee')){
+var items = ['Authenticated Coins', 'Sealed Mini Slabs', 'One-Of-A-Kind Drops', 'Claim Your Coin', 'Resale Marketplace', 'Instant Sell Back', 'Live-Synced Database'];
+var marquee = document.createElement('div');
+marquee.id = 'ms-home-marquee';
+marquee.className = 'ms-marquee';
+var track = document.createElement('div');
+track.className = 'ms-marquee-track';
+var html = '';
+for(var r = 0; r < 2; r++){
+items.forEach(function(t){ html += '<span class="ms-marquee-item">' + t + ' <span class="dot"></span></span>'; });
+}
+track.innerHTML = html;
+marquee.appendChild(track);
+heroSection.parentNode.insertBefore(marquee, heroSection.nextSibling);
+}
+}
+
+/* ---------- Coin Database: grid / list view toggle ---------- */
+
+function patchCoinViewToggle(){
+if(window.location.pathname !== '/coins') return;
+var searchInput = document.querySelector('input[placeholder*="Search" i]');
+if(!searchInput) return;
+var controlsRow = searchInput.parentElement;
+if(!controlsRow || controlsRow.dataset.msViewToggleDone) return;
+var firstCard = document.querySelector('a.card[href^="/coins/"]');
+var grid = firstCard ? firstCard.closest('.grid') : null;
+if(!grid) return;
+controlsRow.dataset.msViewToggleDone = '1';
+
+var wrap = document.createElement('div');
+wrap.className = 'ms-view-toggle';
+var gridBtn = document.createElement('button');
+gridBtn.type = 'button';
+gridBtn.textContent = '▦';
+gridBtn.className = 'active';
+gridBtn.title = 'Grid view';
+var listBtn = document.createElement('button');
+listBtn.type = 'button';
+listBtn.textContent = '☰';
+listBtn.title = 'List view';
+wrap.appendChild(gridBtn);
+wrap.appendChild(listBtn);
+controlsRow.appendChild(wrap);
+
+gridBtn.addEventListener('click', function(){
+grid.classList.remove('ms-list-view');
+gridBtn.classList.add('active');
+listBtn.classList.remove('active');
+});
+listBtn.addEventListener('click', function(){
+grid.classList.add('ms-list-view');
+listBtn.classList.add('active');
+gridBtn.classList.remove('active');
+});
 }
 
 function patchCoinDbLight(){
@@ -1077,12 +1201,14 @@ el.textContent = t.replace('synced from Google Sheet', 'synced from the coin inp
 }
 
 function runAll(root){
+patchHomeHero();
 patchCoinDbLight();
 scanFlips(root);
 patchBadges(root);
 patchLogoVisibility(root);
 patchDetailZoom(root);
 patchCoinFlip(root);
+patchCoinViewToggle();
 trackLookupInputs(root);
 patchClaimSellback();
 patchResalePage();
