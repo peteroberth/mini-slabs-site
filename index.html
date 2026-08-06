@@ -40,6 +40,7 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 .ms-mini-coin{position:absolute;border-radius:50%;pointer-events:none;opacity:0;animation:msCoinFloat linear infinite;}
 @keyframes msCoinFloat{0%{opacity:0;transform:translateY(0) scale(.6)}8%{opacity:.7}50%{opacity:.8}92%{opacity:.5}100%{opacity:0;transform:translateY(-520px) scale(.8)}}
 .ms-hero-tilt{transform-style:preserve-3d;will-change:transform;}
+.ms-hero-question{position:absolute;top:-50px;left:50%;transform:translateX(-50%);font-family:'Eras Bold ITC','Syne',sans-serif;font-size:7rem;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0.35;pointer-events:none;z-index:0;}
 
 .ms-marquee{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(255,214,57,0.03);padding:14px 0;position:relative;z-index:1;}
 .ms-marquee-track{display:flex;gap:2rem;width:max-content;animation:msMarqueeScroll 25s linear infinite;}
@@ -327,6 +328,8 @@ heroSection.dataset.msHeroDone = '1';
 heroSection.style.position = 'relative';
 heroSection.style.overflow = 'hidden';
 
+h1.innerHTML = 'Unbox Real<br><span class="gradient-text">Gold &amp; Silver</span> Coins';
+
 var eyebrow = h1.parentElement.querySelector('p');
 if(eyebrow) eyebrow.classList.add('ms-hero-pill');
 
@@ -356,7 +359,15 @@ heroSection.insertBefore(sparkleWrap, heroSection.firstChild);
 var heroImg = heroSection.querySelector('img');
 if(heroImg){
 heroImg.classList.add('ms-hero-tilt');
-if(heroImg.parentElement) heroImg.parentElement.style.perspective = '1200px';
+if(heroImg.parentElement){
+heroImg.parentElement.style.perspective = '1200px';
+heroImg.parentElement.style.position = 'relative';
+heroImg.parentElement.style.overflow = 'visible';
+var qGlyph = document.createElement('div');
+qGlyph.className = 'ms-hero-question';
+qGlyph.textContent = '?';
+heroImg.parentElement.insertBefore(qGlyph, heroImg);
+}
 var msCurrentRot = 0, msTargetRot = 0;
 function msHeroScroll(){
 var rect = heroImg.getBoundingClientRect();
