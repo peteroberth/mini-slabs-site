@@ -7,6 +7,24 @@
 <title>mini-slabs</title>
 <script type="module" crossorigin src="/assets/index-DvL4W1wH.js"></script>
 <link rel="stylesheet" crossorigin href="/assets/index-D90Nm3Qs.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://db.onlinewebfonts.com/c/401b3afcdd14cf76b92956ecc7f7d8e6?family=Eras+Bold+ITC" rel="stylesheet">
+<style>
+:root{
+--bg:#0A0A0F !important;
+--bg-panel:#13131A !important;
+--bg-panel-2:#191922 !important;
+--border:#26262f !important;
+--cyan:#FFD639 !important;
+--magenta:#FF8A3D !important;
+--text:#a8a8b8 !important;
+--text-bright:#FAFAFA !important;
+--text-dim:#8888A0 !important;
+}
+body{ font-family:'Outfit',sans-serif !important; }
+h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; letter-spacing:-0.02em; }
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -284,6 +302,84 @@ card.dataset.msHoverBound = '1';
 card.addEventListener('mouseenter', function(){ card.style.setProperty('background', '#eef9ff', 'important'); });
 card.addEventListener('mouseleave', function(){ card.style.setProperty('background', '#ffffff', 'important'); });
 }
+});
+}
+
+/* ---------- Coin Database: hover coin-flip (obverse -> reverse -> hold -> back) ---------- */
+
+var coinFlipMapPromise = null;
+function ensureCoinFlipMap(){
+if(coinFlipMapPromise) return coinFlipMapPromise;
+coinFlipMapPromise = fetch(SUPABASE_URL + '/rest/v1/coins?select=sku,reverse_image_url&inventory=eq.true', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var map = {};
+(rows || []).forEach(function(row){ if(row.reverse_image_url) map[row.sku] = row.reverse_image_url; });
+return map;
+}).catch(function(){ return {}; });
+return coinFlipMapPromise;
+}
+
+function injectCoinFlipStyles(){
+if(document.getElementById('ms-coin-flip-style')) return;
+var style = document.createElement('style');
+style.id = 'ms-coin-flip-style';
+style.textContent =
+'.ms-flip-wrap{position:absolute;inset:0;perspective:1400px;z-index:1;}' +
+'.ms-flip-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transform:rotateX(0deg);}' +
+'.ms-flip-inner.ms-flipping{animation:msCoinHoverFlip 1.8s ease-in-out;}' +
+'@keyframes msCoinHoverFlip{0%{transform:rotateX(0deg);}22%{transform:rotateX(180deg);}78%{transform:rotateX(180deg);}100%{transform:rotateX(0deg);}}' +
+'.ms-flip-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:#fff;display:flex;align-items:center;justify-content:center;padding:10%;}' +
+'.ms-flip-face img{width:100%;height:100%;object-fit:contain;display:block;}' +
+'.ms-flip-back{transform:rotateX(180deg);}';
+document.head.appendChild(style);
+}
+
+function patchCoinFlip(root){
+if(window.location.pathname !== '/coins') return;
+var anchors = (root || document).querySelectorAll('a.card[href^="/coins/"]');
+if(!anchors.length) return;
+injectCoinFlipStyles();
+ensureCoinFlipMap().then(function(map){
+anchors.forEach(function(a){
+if(a.dataset.msFlipDone) return;
+var href = a.getAttribute('href') || '';
+var sku = href.replace('/coins/', '');
+var revSrc = map[sku];
+if(!revSrc) return;
+var circuit = a.querySelector('.circuit-bg');
+var frontImg = a.querySelector('img');
+if(!circuit || !frontImg) return;
+a.dataset.msFlipDone = '1';
+circuit.style.position = 'relative';
+
+var wrap = document.createElement('div');
+wrap.className = 'ms-flip-wrap';
+var inner = document.createElement('div');
+inner.className = 'ms-flip-inner';
+var front = document.createElement('div');
+front.className = 'ms-flip-face';
+var frontImgClone = document.createElement('img');
+frontImgClone.src = frontImg.src;
+frontImgClone.alt = frontImg.alt || '';
+front.appendChild(frontImgClone);
+var back = document.createElement('div');
+back.className = 'ms-flip-face ms-flip-back';
+var backImg = document.createElement('img');
+backImg.src = revSrc;
+backImg.alt = (frontImg.alt || '') + ' reverse';
+back.appendChild(backImg);
+inner.appendChild(front);
+inner.appendChild(back);
+wrap.appendChild(inner);
+circuit.appendChild(wrap);
+
+a.addEventListener('mouseenter', function(){
+inner.classList.remove('ms-flipping');
+void inner.offsetWidth;
+inner.classList.add('ms-flipping');
+});
+});
 });
 }
 
@@ -986,6 +1082,7 @@ scanFlips(root);
 patchBadges(root);
 patchLogoVisibility(root);
 patchDetailZoom(root);
+patchCoinFlip(root);
 trackLookupInputs(root);
 patchClaimSellback();
 patchResalePage();
