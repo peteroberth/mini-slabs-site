@@ -855,9 +855,11 @@ inner.appendChild(back);
 wrap.appendChild(inner);
 circuit.appendChild(wrap);
 
-a.addEventListener('mouseenter', function(){
+inner.addEventListener('animationend', function(){
 inner.classList.remove('ms-flipping');
-void inner.offsetWidth;
+});
+a.addEventListener('mouseenter', function(){
+if(inner.classList.contains('ms-flipping')) return;
 inner.classList.add('ms-flipping');
 });
 });
