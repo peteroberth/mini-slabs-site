@@ -440,16 +440,28 @@ window.openLightbox = function(src){ openZoom(src); };
 /* ---------- Home: full literal port of index_29 reference (hero through CTA) ---------- */
 
 function patchHomeHero(){
-if(window.location.pathname !== '/') return;
 var header = document.querySelector('header');
 var footer = document.querySelector('footer');
 if(!header || !footer) return;
 var main = header.nextElementSibling;
 if(!main || main.tagName !== 'MAIN') return;
-if(main.dataset.msHome29Done) return;
-main.dataset.msHome29Done = '1';
 
-main.innerHTML =
+var wrap = document.getElementById('ms29-home-wrapper');
+
+if(window.location.pathname !== '/'){
+if(wrap) wrap.remove();
+main.style.display = '';
+return;
+}
+
+main.style.display = 'none';
+if(wrap) return;
+
+wrap = document.createElement('main');
+wrap.id = 'ms29-home-wrapper';
+wrap.className = 'flex-1';
+
+wrap.innerHTML =
 '<section class="ms29-hero" id="ms29-top">' +
 '<div class="ms29-hero-bg-glow"></div>' +
 '<div class="ms29-hero-sparkles" id="ms29-sparkles"></div>' +
@@ -579,7 +591,9 @@ main.innerHTML =
 '<a href="/shop" class="ms29-btn-big">Shop Mystery Boxes <span class="ms29-arrow">&rarr;</span></a>' +
 '</div></section>';
 
-main.querySelectorAll('.ms29-faq-q').forEach(function(q){
+main.insertAdjacentElement('afterend', wrap);
+
+wrap.querySelectorAll('.ms29-faq-q').forEach(function(q){
 q.addEventListener('click', function(){ q.parentElement.classList.toggle('ms29-open'); });
 });
 
@@ -624,7 +638,7 @@ sc.appendChild(c);
 var ms29Obs = new IntersectionObserver(function(entries){
 entries.forEach(function(el){ if(el.isIntersecting){ el.target.classList.add('ms29-visible'); ms29Obs.unobserve(el.target); } });
 }, {threshold: 0.08, rootMargin: '0px 0px -30px 0px'});
-main.querySelectorAll('.ms29-reveal').forEach(function(el){ ms29Obs.observe(el); });
+wrap.querySelectorAll('.ms29-reveal').forEach(function(el){ ms29Obs.observe(el); });
 
 var heroCoin = document.getElementById('ms29-hero-coin-img');
 if(heroCoin){
@@ -645,7 +659,7 @@ ms29OnScroll();
 ms29Anim();
 }
 
-main.querySelectorAll('a[href^="#"]').forEach(function(a){
+wrap.querySelectorAll('a[href^="#"]').forEach(function(a){
 a.addEventListener('click', function(e){
 var id = a.getAttribute('href').slice(1);
 var target = document.getElementById(id);
