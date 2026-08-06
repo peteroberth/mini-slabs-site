@@ -238,7 +238,8 @@ main{display:block;max-width:none;padding:0 10px}
 tr.is-new{display:none}
 td textarea,td input,td select{padding:5px 8px}
 }
-.storage-warning{color:#b91c1c !important;font-weight:700;}\n</style>
+.storage-warning{color:#b91c1c !important;font-weight:700;}
+</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -257,6 +258,7 @@ td textarea,td input,td select{padding:5px 8px}
 <div class="header-actions">
 <button class="btn btn-save" id="btnSave">Save</button>
 <button class="btn btn-save" id="btnSyncSite">Sync to Site</button>
+<span id="pendingDeleteIndicator" style="display:none;font-size:12px;color:#f3b8c2;font-weight:700;align-self:center;white-space:nowrap;"></span>
 <button class="btn btn-ghost" id="btnSiteLink">Site Link</button>
 <button class="btn btn-ghost" id="btnQrAll">Download All QR</button>
 <button class="btn btn-ghost" id="btnPrint">Print</button>
@@ -402,6 +404,22 @@ del(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
 };
 
 const fmtMoney = n => "$" + n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+/* ---------- pending-deletes indicator ---------- */
+function getPendingDeletes(){
+try{ return JSON.parse(store.get(DELETES_KEY) || "[]"); }catch(e){ return []; }
+}
+function refreshPendingDeleteIndicator(){
+const el = document.getElementById("pendingDeleteIndicator");
+if(!el) return;
+const n = getPendingDeletes().length;
+if(n > 0){
+el.textContent = `⚠ ${n} deletion${n===1?"":"s"} not yet synced — click "Sync to Site"`;
+el.style.display = "";
+}else{
+el.style.display = "none";
+}
+}
 
 /* ---------- SKU ---------- */
 function usedSkus(){
@@ -619,10 +637,28 @@ del.addEventListener("click", ()=>{
 const skuEl = tr.querySelector("td.sku");
 const sku = skuEl ? skuEl.textContent.trim() : "";
 if(sku){
-let pending = [];
-try{ pending = JSON.parse(store.get(DELETES_KEY) || "[]"); }catch(e){}
+let pending = getPendingDeletes();
 if(!pending.includes(sku)) pending.push(sku);
 store.set(DELETES_KEY, JSON.stringify(pending));
+refreshPendingDeleteIndicator();
+// Try to push this deletion to the live site immediately, so it doesn't
+// stay silently stuck waiting for someone to remember to click
+// "Sync to Site". Only fires if already signed in -- never prompts for
+// credentials from a plain row delete. If it's not signed in or the
+// request fails, the SKU stays queued and the indicator above stays lit
+// until the next successful "Sync to Site".
+try{
+sbClient.auth.getSession().then(({ data })=>{
+if(!data || !data.session) return;
+return sbClient.functions.invoke("sync-tool-coins", { body: { entries: [], deletes: [sku] } });
+}).then(function(res){
+if(res && res.data && !res.data.error){
+const still = getPendingDeletes().filter(s=>s!==sku);
+store.set(DELETES_KEY, JSON.stringify(still));
+refreshPendingDeleteIndicator();
+}
+}).catch(function(){ /* stays queued; next "Sync to Site" will retry */ });
+}catch(e){ /* sbClient not ready yet -- stays queued */ }
 }
 tr.remove(); ensureBlankRow(); refresh();
 });
@@ -1322,8 +1358,7 @@ const session = await ensureAdminSession();
 if(!session) return;
 const entries = getEntries();
 const liveSkus = new Set(entries.map(e=>e.sku).filter(Boolean));
-let pendingDeletes = [];
-try{ pendingDeletes = JSON.parse(store.get(DELETES_KEY) || "[]"); }catch(e){}
+let pendingDeletes = getPendingDeletes();
 // Don't delete a SKU server-side if it's back in the live entries (e.g. re-added).
 const toDelete = pendingDeletes.filter(sku=>!liveSkus.has(sku));
 if(entries.length === 0 && toDelete.length === 0){ alert("No coin entries to sync."); return; }
@@ -1369,6 +1404,7 @@ if(data && data.error) throw new Error(data.error);
 totalDeleted = (data && data.deleted_count) || 0;
 const stillPending = pendingDeletes.filter(sku=>!toDelete.includes(sku));
 store.set(DELETES_KEY, JSON.stringify(stillPending));
+refreshPendingDeleteIndicator();
 }
 
 if(resolvedAny) refresh();
@@ -1488,6 +1524,7 @@ const logo = store.get(LOGO_KEY);
 if(logo) logoImg.src = logo;
 
 refresh();
+refreshPendingDeleteIndicator();
 })();
 </script>
 <script>
@@ -1855,10 +1892,6 @@ return '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08)
 '</div>';
 }).join('');
 
-var priceHtml = '';
-var price = fmtMoney(coin.price);
-if(price) priceHtml += '<div style="font-size:15px;font-weight:700;margin-top:14px;">Price: ' + price + '</div>';
-
 var buybackHtml = '';
 var bbNum = (buybackPrice !== null && buybackPrice !== undefined && buybackPrice !== '') ? Number(buybackPrice) : null;
 if(bbNum !== null && isFinite(bbNum)){
@@ -1873,7 +1906,6 @@ return '<div>' +
 '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;">SKU ' + escapeHtml(sku) + '</div>' +
 (photosHtml ? '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">' + photosHtml + '</div>' : '') +
 fieldsHtml +
-priceHtml +
 buybackHtml +
 '</div>';
 }
@@ -1988,13 +2020,8 @@ var m = /SKU\s+(\S+)/.exec(text);
 if(!m) return;
 var sku = m[1];
 
-// The code the customer typed can be captured here (still present in the
-// lookup form on /claim) or, on /sell-back, may already have been swapped
-// out of the DOM by the time the result card renders -- fall back to the
-// most recently observed matching value, tracked separately by
-// trackLookupInputs()/the document-level input listener below.
 var code = findLookupCode(card) || lastLookupCode;
-if(!code) return; // don't mark done yet -- retry on the next scan once a code shows up
+if(!code) return;
 
 card.dataset.msCoinCardDone = '1';
 
@@ -2027,9 +2054,6 @@ card.insertBefore(summary, nameP);
 return;
 }
 
-// Top row: coin thumbnail/name-hint on the left, a "Reveal Your Offer" button
-// on the right. Clicking the button morphs it in place into the large
-// gradient count-up amount (handled by animateBuybackCountUp).
 var topRow = document.createElement('div');
 topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:2px;';
 topRow.appendChild(summary);
@@ -2062,6 +2086,14 @@ card.insertBefore(topRow, nameP);
 });
 }
 
+function patchToolPatches(root){
+if(isCoinInputTool()){
+patchToolHeader();
+patchToolLightboxBadges(root);
+patchToolOpenLightbox();
+}
+}
+
 function runAll(root){
 patchCoinDbLight();
 scanFlips(root);
@@ -2070,11 +2102,7 @@ patchLogoVisibility(root);
 patchDetailZoom(root);
 trackLookupInputs(root);
 patchClaimSellback();
-if(isCoinInputTool()){
-patchToolHeader();
-patchToolLightboxBadges(root);
-patchToolOpenLightbox();
-}
+patchToolPatches(root);
 }
 
 onReady(function(){
@@ -2106,6 +2134,6 @@ if(tries > 20) clearInterval(iv);
 }, 500);
 });
 })();
-
-</script></body>
+</script>
+</body>
 </html>
