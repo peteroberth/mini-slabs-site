@@ -440,6 +440,25 @@ window.openLightbox = function(src){ openZoom(src); };
 /* ---------- Home: full literal port of index_29 reference (hero through CTA) ---------- */
 
 function patchHomeHero(){
+if(!window.__ms29NavGuard){
+window.__ms29NavGuard = true;
+document.addEventListener('click', function(e){
+if(window.location.pathname !== '/') return;
+if(!document.getElementById('ms29-home-wrapper')) return;
+var a = e.target.closest('a[href]');
+if(!a) return;
+var href = a.getAttribute('href');
+if(!href || href.charAt(0) === '#') return;
+var url;
+try { url = new URL(href, window.location.href); } catch(err){ return; }
+if(url.origin !== window.location.origin) return;
+if(url.pathname === window.location.pathname) return;
+e.preventDefault();
+e.stopPropagation();
+window.location.href = a.href;
+}, true);
+}
+
 var header = document.querySelector('header');
 var footer = document.querySelector('footer');
 if(!header || !footer) return;
@@ -457,7 +476,7 @@ return;
 main.style.display = 'none';
 if(wrap) return;
 
-wrap = document.createElement('main');
+wrap = document.createElement('div');
 wrap.id = 'ms29-home-wrapper';
 wrap.className = 'flex-1';
 
