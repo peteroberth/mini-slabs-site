@@ -454,14 +454,16 @@ var url;
 try { url = new URL(href, window.location.href); } catch(err){ return; }
 if(url.origin !== window.location.origin) return;
 if(url.pathname === window.location.pathname) return;
-/* Clean up our injected content BEFORE React's own click handler runs,
-so the DOM is back to exactly what React created and its unmount
-succeeds normally (no forced hard reload, so auth-gated routes
-like /admin still work via normal client-side navigation). */
+/* Remove our injected overlay sibling BEFORE React's own click handler
+runs, so React's unmount of the header/main/footer subtree succeeds
+normally (no forced hard reload, so auth-gated routes like /admin
+still work via normal client-side navigation). Deliberately leave
+<main> hidden here -- it still holds the old, undecorated content,
+and revealing it now would flash stale content before the new route's
+content is in place. The pathname-change branch below (run again via
+the MutationObserver once React finishes mounting the new route)
+restores main's visibility at the right time instead. */
 wrap.remove();
-var hdr = document.querySelector('header');
-var mainEl = hdr && hdr.nextElementSibling;
-if(mainEl && mainEl.tagName === 'MAIN') mainEl.style.display = '';
 }, true);
 }
 
