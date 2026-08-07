@@ -258,8 +258,8 @@ td textarea,td input,td select{padding:5px 8px}
 <div class="header-actions">
 <button class="btn btn-save" id="btnSave">Save</button>
 <button class="btn btn-save" id="btnSyncSite">Sync to Site</button>
+<button class="btn btn-ghost" id="btnReloadServer" title="Re-pull all coins from the live database into this browser">Reload from Server</button>
 <span id="pendingDeleteIndicator" style="display:none;font-size:12px;color:#f3b8c2;font-weight:700;align-self:center;white-space:nowrap;"></span>
-<button class="btn btn-ghost" id="btnSiteLink">Site Link</button>
 <button class="btn btn-ghost" id="btnQrAll">Download All QR</button>
 <button class="btn btn-ghost" id="btnPrint">Print</button>
 <button class="btn btn-ghost" id="btnExport">Export CSV</button>
@@ -1151,9 +1151,7 @@ if(!url){ setSiteUrl(); url = getSiteUrl(); }
 return url;
 }
 function coinPageUrl(sku){
-const base = ensureSiteUrl();
-if(!base) return null;
-return base.replace(/\/$/,"") + "/coins/" + encodeURIComponent(sku);
+  return "https://mini-slabs.netlify.app/coins/" + encodeURIComponent(sku);
 }
 
 function roundRect(ctx,x,y,w,h,r){
@@ -1331,15 +1329,63 @@ btnPush.disabled = false; btnPush.textContent = orig;
 }
 }
 
-const btnSiteLink = document.getElementById("btnSiteLink");
 const btnQrAll = document.getElementById("btnQrAll");
-btnSiteLink.addEventListener("click", setSiteUrl);
 btnQrAll.addEventListener("click", downloadAllQr);
+document.getElementById('btnReloadServer').addEventListener('click', reloadFromServer);
 
 /* ---------- Sync to Site (direct to Supabase, no Google Sheet involved) ---------- */
 const SUPABASE_URL = "https://xqeboeuukodkwankpmcl.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZWJvZXV1a29ka3dhbmtwbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzE3MTgsImV4cCI6MjEwMDc0NzcxOH0.yGPWjdvVLNannb0PygD5B6zkAWAr9idQHKUBM3mh_dw";
 const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function reloadFromServer(){
+  if(!confirm('Reload the coin list from the live database? This will overwrite what is currently shown in this browser (any unsaved local edits will be lost).')) return;
+  var btn = document.getElementById('btnReloadServer');
+  var origLabel = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Reloading...'; }
+  try{
+    var coinsRes = await sbClient.from('coins').select('*').order('sku');
+    var bbRes = await sbClient.from('coin_buyback').select('sku,buyback_price');
+    if(coinsRes.error) throw coinsRes.error;
+    if(bbRes.error) throw bbRes.error;
+    var bbMap = new Map((bbRes.data||[]).map(function(b){ return [b.sku, b.buyback_price]; }));
+    var entries = (coinsRes.data||[]).map(function(r){
+      return {
+        sku: r.sku || "",
+        year: r.year || "",
+        mint: r.mint || "",
+        country: r.country || "",
+        denomination: r.denomination || "",
+        description: r.description || "",
+        ogGrader: r.og_grader || "",
+        grade: r.grade || "",
+        color: r.color || "",
+        weight: r.weight || "",
+        fineWeight: r.fine_weight || "",
+        metal: r.metal || "",
+        size: r.size != null ? String(r.size) : "",
+        gasket: r.gasket != null ? String(r.gasket) : "",
+        price: r.price != null ? String(r.price) : "",
+        buybackPrice: (bbMap.has(r.sku) && bbMap.get(r.sku) != null) ? String(bbMap.get(r.sku)) : "",
+        level: r.level || "",
+        ga: r.inventory === true,
+        imgObverse: r.image_url || "",
+        imgReverse: r.reverse_image_url || "",
+        imgExtra1: r.extra_image_url_1 || "",
+        imgExtra2: r.extra_image_url_2 || "",
+        capObverse: r.image_caption || "",
+        capReverse: r.reverse_image_caption || "",
+        capExtra1: r.extra_image_caption_1 || "",
+        capExtra2: r.extra_image_caption_2 || ""
+      };
+    });
+    store.set(KEY, JSON.stringify(entries));
+    location.reload();
+  }catch(e){
+    alert('Reload failed: ' + (e && e.message ? e.message : e));
+    if(btn){ btn.disabled = false; btn.textContent = origLabel; }
+  }
+}
 
 async function ensureAdminSession(){
 const { data: { session } } = await sbClient.auth.getSession();
