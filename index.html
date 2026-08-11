@@ -1424,15 +1424,544 @@ card.appendChild(body);
 
 form.parentNode.insertBefore(card, form);
 
-fetch(SUPABASE_URL + '/rest/v1/profiles?select=avatar_url,header_url&id=eq.' + uid, {
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=avatar_url,header_url,public_slug,is_public&id=eq.' + uid, {
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
 }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 var profile = rows[0] || {};
 body.innerHTML = '';
 body.appendChild(buildProfileImageUploadRow('Avatar', profile.avatar_url, 'avatar', uid));
 body.appendChild(buildProfileImageUploadRow('Header image', profile.header_url, 'header', uid));
+if(profile.public_slug){
+var linkWrap = document.createElement('div');
+linkWrap.style.cssText = 'margin-top:4px;font-size:12px;color:rgba(255,255,255,0.5);';
+var linkHref = '/u/' + profile.public_slug;
+if(profile.is_public){
+linkWrap.innerHTML = 'Your public profile: <a href="' + linkHref + '" style="color:var(--cyan);">mini-slabs.netlify.app' + linkHref + '</a>';
+} else {
+linkWrap.textContent = 'Your profile link will be mini-slabs.netlify.app' + linkHref + ' once you check "Make my collection page public" above.';
+}
+body.appendChild(linkWrap);
+}
 }).catch(function(){
 body.textContent = 'Could not load profile photos.';
+});
+}
+
+/* ---------- Public profile pages: /u/:slug — follow, likes, comments ---------- */
+
+function wireFollowButton(btn, myUid, followeeId){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+var existing = null;
+function render(){
+if(!existing) btn.textContent = 'Follow';
+else if(existing.status === 'pending') btn.textContent = 'Requested';
+else btn.textContent = 'Following';
+}
+fetch(SUPABASE_URL + '/rest/v1/follows?select=status&follower_id=eq.' + myUid + '&followee_id=eq.' + followeeId, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+existing = rows[0] || null;
+render();
+btn.addEventListener('click', function(){
+btn.disabled = true;
+if(!existing){
+fetch(SUPABASE_URL + '/rest/v1/follows', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+body: JSON.stringify({ follower_id: myUid, followee_id: followeeId })
+}).then(function(r){ return r.ok ? r.json() : null; }).then(function(rowsRes){
+existing = (rowsRes && rowsRes[0]) || { status: 'pending' };
+render();
+btn.disabled = false;
+}).catch(function(){ btn.disabled = false; });
+} else {
+fetch(SUPABASE_URL + '/rest/v1/follows?follower_id=eq.' + myUid + '&followee_id=eq.' + followeeId, { method: 'DELETE', headers: headers })
+.then(function(){
+existing = null;
+render();
+btn.disabled = false;
+}).catch(function(){ btn.disabled = false; });
+}
+});
+});
+}
+
+function refreshFollowCounts(el, uid){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+Promise.all([
+fetch(SUPABASE_URL + '/rest/v1/follows?select=follower_id&followee_id=eq.' + uid + '&status=eq.accepted', { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+fetch(SUPABASE_URL + '/rest/v1/follows?select=followee_id&follower_id=eq.' + uid + '&status=eq.accepted', { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+]).then(function(results){
+el.innerHTML = '<span><strong style="color:#fff;">' + results[0].length + '</strong> Followers</span><span><strong style="color:#fff;">' + results[1].length + '</strong> Following</span>';
+});
+}
+
+function wireLikeButton(btn, claimId, myUid){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+function refresh(){
+fetch(SUPABASE_URL + '/rest/v1/claim_likes?select=user_id&claim_id=eq.' + claimId, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var liked = !!(myUid && rows.some(function(r){ return r.user_id === myUid; }));
+btn.textContent = (liked ? '♥ ' : '♡ ') + rows.length;
+btn.dataset.liked = liked ? '1' : '';
+});
+}
+refresh();
+btn.addEventListener('click', function(){
+if(!myUid){ window.location.href = '/login'; return; }
+btn.disabled = true;
+var authHeaders = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' };
+var req = btn.dataset.liked ?
+fetch(SUPABASE_URL + '/rest/v1/claim_likes?claim_id=eq.' + claimId + '&user_id=eq.' + myUid, { method: 'DELETE', headers: authHeaders }) :
+fetch(SUPABASE_URL + '/rest/v1/claim_likes', { method: 'POST', headers: authHeaders, body: JSON.stringify({ claim_id: claimId, user_id: myUid }) });
+req.then(function(){ refresh(); btn.disabled = false; }).catch(function(){ btn.disabled = false; });
+});
+}
+
+function loadClaimComments(wrap, claimId, myUid){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+fetch(SUPABASE_URL + '/rest/v1/claim_comments?select=id,body,created_at,user_id,profiles(display_name)&claim_id=eq.' + claimId + '&order=created_at.asc', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+wrap.innerHTML = '';
+if(!rows.length){
+var none = document.createElement('div');
+none.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:6px;';
+none.textContent = 'No comments yet.';
+wrap.appendChild(none);
+}
+rows.forEach(function(c){
+var line = document.createElement('div');
+line.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:4px;';
+var who = (c.profiles && c.profiles.display_name) || 'Someone';
+line.innerHTML = '<strong style="color:#fff;">' + escapeHtml(who) + ':</strong> ' + escapeHtml(c.body);
+wrap.appendChild(line);
+});
+if(myUid){
+var form = document.createElement('div');
+form.style.cssText = 'display:flex;gap:6px;margin-top:8px;';
+var input = document.createElement('input');
+input.type = 'text';
+input.placeholder = 'Add a comment…';
+input.className = 'input';
+input.style.cssText = 'flex:1;font-size:12px;';
+var send = document.createElement('button');
+send.type = 'button';
+send.textContent = 'Post';
+send.className = 'btn-primary';
+send.style.cssText = 'padding:6px 12px;font-size:12px;';
+send.addEventListener('click', function(){
+var body = input.value.trim();
+if(!body) return;
+send.disabled = true;
+fetch(SUPABASE_URL + '/rest/v1/claim_comments', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' },
+body: JSON.stringify({ claim_id: claimId, user_id: myUid, body: body })
+}).then(function(r){
+send.disabled = false;
+if(r.ok){ input.value = ''; loadClaimComments(wrap, claimId, myUid); }
+}).catch(function(){ send.disabled = false; });
+});
+form.appendChild(input);
+form.appendChild(send);
+wrap.appendChild(form);
+}
+}).catch(function(){
+wrap.textContent = 'Could not load comments.';
+});
+}
+
+function buildPublicClaimCard(row, myUid){
+var card = document.createElement('div');
+card.className = 'card';
+card.style.cssText = 'padding:14px;';
+var coin = row.coins || {};
+var img = document.createElement('img');
+img.src = coin.image_url || '';
+img.alt = coin.name || row.sku || '';
+img.style.cssText = 'width:100%;aspect-ratio:1;object-fit:contain;background:#1b1c26;border-radius:8px;margin-bottom:8px;';
+if(row.sku) wireCoinInfoClick(img, row.sku, 'zoom-in');
+card.appendChild(img);
+var name = document.createElement('div');
+name.style.cssText = 'font-weight:700;margin-bottom:8px;';
+name.textContent = coin.name || row.sku || 'Coin';
+card.appendChild(name);
+
+var likeBtn = document.createElement('button');
+likeBtn.type = 'button';
+likeBtn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:4px 12px;font-size:12px;color:#fff;cursor:pointer;margin-bottom:10px;';
+likeBtn.textContent = '♡ …';
+card.appendChild(likeBtn);
+wireLikeButton(likeBtn, row.id, myUid);
+
+var commentsWrap = document.createElement('div');
+commentsWrap.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;';
+commentsWrap.textContent = 'Loading comments…';
+card.appendChild(commentsWrap);
+loadClaimComments(commentsWrap, row.id, myUid);
+
+return card;
+}
+
+function renderPublicProfile(container, profile){
+var myToken = getAdminAccessToken();
+var myUid = myToken ? decodeJwtSub(myToken) : null;
+var isMe = myUid === profile.id;
+
+container.innerHTML = '';
+
+var header = document.createElement('div');
+header.style.cssText = 'width:100%;height:160px;border-radius:16px;overflow:hidden;background:rgba(255,255,255,0.06);margin-bottom:16px;';
+if(profile.header_url){
+var himg = document.createElement('img');
+himg.src = profile.header_url;
+himg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+header.appendChild(himg);
+}
+container.appendChild(header);
+
+var topRow = document.createElement('div');
+topRow.style.cssText = 'display:flex;align-items:center;gap:16px;padding:0 16px;margin-bottom:16px;flex-wrap:wrap;';
+var avatar = document.createElement('div');
+avatar.style.cssText = 'width:88px;height:88px;border-radius:50%;overflow:hidden;background:#1b1c26;border:3px solid #05070d;flex:0 0 auto;';
+if(profile.avatar_url){
+var aimg = document.createElement('img');
+aimg.src = profile.avatar_url;
+aimg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+avatar.appendChild(aimg);
+}
+topRow.appendChild(avatar);
+
+var nameWrap = document.createElement('div');
+nameWrap.style.cssText = 'flex:1;min-width:160px;';
+nameWrap.innerHTML = '<h2 style="font-size:22px;font-weight:800;margin:0;color:#fff;">' + escapeHtml(profile.display_name || 'Collector') + '</h2>' +
+'<div style="font-size:13px;color:rgba(255,255,255,0.5);">@' + escapeHtml(profile.public_slug) + '</div>';
+topRow.appendChild(nameWrap);
+
+var countsWrap = document.createElement('div');
+countsWrap.style.cssText = 'display:flex;gap:16px;font-size:13px;color:rgba(255,255,255,0.6);';
+topRow.appendChild(countsWrap);
+
+if(!isMe && myUid){
+var followBtn = document.createElement('button');
+followBtn.type = 'button';
+followBtn.className = 'btn-primary';
+followBtn.textContent = 'Loading…';
+followBtn.style.cssText = 'flex:0 0 auto;';
+topRow.appendChild(followBtn);
+wireFollowButton(followBtn, myUid, profile.id);
+
+var messageBtn = document.createElement('button');
+messageBtn.type = 'button';
+messageBtn.className = 'btn-primary';
+messageBtn.textContent = 'Message';
+messageBtn.style.cssText = 'flex:0 0 auto;display:none;';
+topRow.appendChild(messageBtn);
+checkMutualFollow(myUid, profile.id, function(isMutual){
+if(!isMutual) return;
+messageBtn.style.display = '';
+messageBtn.addEventListener('click', function(){
+messageBtn.disabled = true;
+findOrCreateConversation(myUid, profile.id).then(function(cid){
+if(cid){ window.location.href = '/messages/' + cid; }
+else { messageBtn.disabled = false; }
+});
+});
+});
+} else if(!myUid){
+var loginHint = document.createElement('a');
+loginHint.href = '/login';
+loginHint.className = 'btn-primary';
+loginHint.textContent = 'Log in to Follow';
+topRow.appendChild(loginHint);
+}
+
+container.appendChild(topRow);
+
+if(profile.bio){
+var bio = document.createElement('p');
+bio.style.cssText = 'padding:0 16px;color:rgba(255,255,255,0.7);margin-bottom:20px;';
+bio.textContent = profile.bio;
+container.appendChild(bio);
+}
+
+refreshFollowCounts(countsWrap, profile.id);
+
+var claimsHeading = document.createElement('h3');
+claimsHeading.style.cssText = 'padding:0 16px;font-size:16px;font-weight:700;color:#fff;margin-bottom:10px;';
+claimsHeading.textContent = 'Collection';
+container.appendChild(claimsHeading);
+
+var grid = document.createElement('div');
+grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding:0 16px 40px;';
+grid.textContent = 'Loading…';
+container.appendChild(grid);
+
+fetch(SUPABASE_URL + '/rest/v1/claims?select=id,sku,claimed_at,coins(name,image_url)&user_id=eq.' + profile.id + '&is_public=eq.true&order=claimed_at.desc', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (myToken || SUPABASE_ANON_KEY) }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+grid.innerHTML = '';
+if(!rows.length){
+grid.style.display = 'block';
+grid.textContent = 'No public collection items yet.';
+return;
+}
+rows.forEach(function(row){
+grid.appendChild(buildPublicClaimCard(row, myUid));
+});
+}).catch(function(){
+grid.textContent = 'Could not load this collection.';
+});
+}
+
+/* ---------- Messaging between mutual followers ---------- */
+
+function checkMutualFollow(myUid, otherUid, cb){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+Promise.all([
+fetch(SUPABASE_URL + '/rest/v1/follows?select=status&follower_id=eq.' + myUid + '&followee_id=eq.' + otherUid + '&status=eq.accepted', { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+fetch(SUPABASE_URL + '/rest/v1/follows?select=status&follower_id=eq.' + otherUid + '&followee_id=eq.' + myUid + '&status=eq.accepted', { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+]).then(function(results){
+cb(results[0].length > 0 && results[1].length > 0);
+}).catch(function(){ cb(false); });
+}
+
+function findOrCreateConversation(myUid, otherUid){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' };
+return fetch(SUPABASE_URL + '/rest/v1/conversations?select=id&or=(and(user_a.eq.' + myUid + ',user_b.eq.' + otherUid + '),and(user_a.eq.' + otherUid + ',user_b.eq.' + myUid + '))', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; })
+.then(function(rows){
+if(rows[0]) return rows[0].id;
+return fetch(SUPABASE_URL + '/rest/v1/conversations', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+body: JSON.stringify({ user_a: myUid, user_b: otherUid })
+}).then(function(r){ return r.ok ? r.json() : null; }).then(function(rowsRes){
+return rowsRes && rowsRes[0] && rowsRes[0].id;
+});
+});
+}
+
+function buildMessageBubble(msg, myUid){
+var row = document.createElement('div');
+var mine = msg.sender_id === myUid;
+row.style.cssText = 'display:flex;justify-content:' + (mine ? 'flex-end' : 'flex-start') + ';margin-bottom:8px;';
+var bubble = document.createElement('div');
+bubble.style.cssText = 'max-width:70%;padding:8px 12px;border-radius:14px;font-size:13px;word-break:break-word;' + (mine ? 'background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;' : 'background:rgba(255,255,255,0.08);color:#fff;');
+bubble.textContent = msg.body;
+row.appendChild(bubble);
+return row;
+}
+
+function renderConversationThread(container, conversationId, myUid, otherProfile){
+container.innerHTML = '';
+var backLink = document.createElement('a');
+backLink.href = '/messages';
+backLink.textContent = '← All messages';
+backLink.style.cssText = 'display:inline-block;margin-bottom:12px;color:var(--cyan);font-size:13px;';
+container.appendChild(backLink);
+
+var heading = document.createElement('h2');
+heading.style.cssText = 'font-size:18px;font-weight:800;color:#fff;margin-bottom:12px;';
+heading.textContent = otherProfile ? (otherProfile.display_name || 'Conversation') : 'Conversation';
+container.appendChild(heading);
+
+var thread = document.createElement('div');
+thread.style.cssText = 'max-height:50vh;overflow-y:auto;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:12px;margin-bottom:12px;';
+thread.textContent = 'Loading…';
+container.appendChild(thread);
+
+var form = document.createElement('div');
+form.style.cssText = 'display:flex;gap:8px;';
+var input = document.createElement('input');
+input.type = 'text';
+input.placeholder = 'Type a message…';
+input.className = 'input';
+input.style.cssText = 'flex:1;';
+var send = document.createElement('button');
+send.type = 'button';
+send.className = 'btn-primary';
+send.textContent = 'Send';
+form.appendChild(input);
+form.appendChild(send);
+container.appendChild(form);
+
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' };
+
+function loadMessages(){
+fetch(SUPABASE_URL + '/rest/v1/messages?select=id,sender_id,body,created_at,read_at&conversation_id=eq.' + conversationId + '&order=created_at.asc', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+thread.innerHTML = '';
+if(!rows.length){
+thread.textContent = 'No messages yet — say hi!';
+} else {
+rows.forEach(function(m){ thread.appendChild(buildMessageBubble(m, myUid)); });
+thread.scrollTop = thread.scrollHeight;
+}
+var unreadFromOther = rows.filter(function(m){ return m.sender_id !== myUid && !m.read_at; });
+unreadFromOther.forEach(function(m){
+fetch(SUPABASE_URL + '/rest/v1/messages?id=eq.' + m.id, { method: 'PATCH', headers: headers, body: JSON.stringify({ read_at: new Date().toISOString() }) }).catch(function(){});
+});
+}).catch(function(){
+thread.textContent = 'Could not load messages.';
+});
+}
+loadMessages();
+
+send.addEventListener('click', function(){
+var body = input.value.trim();
+if(!body) return;
+send.disabled = true;
+fetch(SUPABASE_URL + '/rest/v1/messages', {
+method: 'POST', headers: headers,
+body: JSON.stringify({ conversation_id: conversationId, sender_id: myUid, body: body })
+}).then(function(r){
+send.disabled = false;
+if(r.ok){ input.value = ''; loadMessages(); }
+}).catch(function(){ send.disabled = false; });
+});
+input.addEventListener('keydown', function(e){ if(e.key === 'Enter') send.click(); });
+}
+
+function renderConversationList(container, myUid){
+container.innerHTML = '';
+var heading = document.createElement('h2');
+heading.style.cssText = 'font-size:20px;font-weight:800;color:#fff;margin-bottom:16px;';
+heading.textContent = 'Messages';
+container.appendChild(heading);
+
+var list = document.createElement('div');
+list.textContent = 'Loading…';
+container.appendChild(list);
+
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+fetch(SUPABASE_URL + '/rest/v1/conversations?select=id,user_a,user_b,created_at&or=(user_a.eq.' + myUid + ',user_b.eq.' + myUid + ')&order=created_at.desc', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+if(!rows.length){
+list.textContent = 'No conversations yet. Message someone from their public profile once you follow each other.';
+return;
+}
+var otherIds = rows.map(function(c){ return c.user_a === myUid ? c.user_b : c.user_a; });
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,avatar_url&id=in.(' + otherIds.join(',') + ')', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(profiles){
+var byId = {};
+profiles.forEach(function(p){ byId[p.id] = p; });
+list.innerHTML = '';
+rows.forEach(function(c){
+var otherId = c.user_a === myUid ? c.user_b : c.user_a;
+var other = byId[otherId] || {};
+var item = document.createElement('a');
+item.href = '/messages/' + c.id;
+item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);margin-bottom:8px;text-decoration:none;';
+var av = document.createElement('div');
+av.style.cssText = 'width:36px;height:36px;border-radius:50%;overflow:hidden;background:#1b1c26;flex:0 0 auto;';
+if(other.avatar_url){
+var img = document.createElement('img');
+img.src = other.avatar_url;
+img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+av.appendChild(img);
+}
+item.appendChild(av);
+var name = document.createElement('div');
+name.style.cssText = 'color:#fff;font-weight:600;font-size:14px;';
+name.textContent = other.display_name || 'Collector';
+item.appendChild(name);
+list.appendChild(item);
+});
+}).catch(function(){
+list.textContent = 'Could not load conversations.';
+});
+}).catch(function(){
+list.textContent = 'Could not load conversations.';
+});
+}
+
+function patchMessagesPage(){
+var path = window.location.pathname;
+var listMatch = path === '/messages';
+var threadMatch = /^\/messages\/([0-9a-fA-F-]{36})$/.exec(path);
+if(!listMatch && !threadMatch) return;
+var token = getAdminAccessToken();
+if(!token) return;
+var uid = decodeJwtSub(token);
+if(!uid) return;
+
+var key = listMatch ? 'list' : ('thread:' + threadMatch[1]);
+var existing = document.getElementById('ms-messages-page');
+if(existing && existing.dataset.key === key) return;
+
+var main = document.querySelector('main');
+if(!main) return;
+var container = document.createElement('div');
+container.id = 'ms-messages-page';
+container.dataset.key = key;
+container.style.cssText = 'max-width:640px;margin:0 auto;padding-top:20px;';
+main.innerHTML = '';
+main.appendChild(container);
+
+if(listMatch){
+renderConversationList(container, uid);
+} else {
+var conversationId = threadMatch[1];
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token };
+fetch(SUPABASE_URL + '/rest/v1/conversations?select=id,user_a,user_b&id=eq.' + conversationId, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var convo = rows[0];
+if(!convo){
+container.innerHTML = '<p style="color:rgba(255,255,255,0.6);">Conversation not found.</p>';
+return;
+}
+var otherId = convo.user_a === uid ? convo.user_b : convo.user_a;
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=display_name,avatar_url&id=eq.' + otherId, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(profRows){
+renderConversationThread(container, conversationId, uid, profRows[0]);
+});
+}).catch(function(){
+container.textContent = 'Could not load this conversation.';
+});
+}
+}
+
+function ensureMessagesNavLink(){
+var token = getAdminAccessToken();
+if(!token) return;
+var accountLink = document.querySelector('header a[href="/account"]');
+if(!accountLink || document.getElementById('ms-messages-navlink')) return;
+var link = document.createElement('a');
+link.id = 'ms-messages-navlink';
+link.href = '/messages';
+link.textContent = 'Messages';
+link.className = accountLink.className;
+accountLink.parentNode.insertBefore(link, accountLink);
+}
+
+function patchPublicProfilePage(){
+var m = /^\/u\/([A-Za-z0-9_]+)$/.exec(window.location.pathname);
+if(!m) return;
+var slug = m[1];
+var existing = document.getElementById('ms-public-profile');
+if(existing && existing.dataset.slug === slug) return;
+var main = document.querySelector('main');
+if(!main) return;
+
+var container = document.createElement('div');
+container.id = 'ms-public-profile';
+container.dataset.slug = slug;
+container.style.cssText = 'max-width:900px;margin:0 auto;padding-top:20px;';
+container.textContent = 'Loading profile…';
+main.innerHTML = '';
+main.appendChild(container);
+
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,bio,avatar_url,header_url,public_slug&public_slug=eq.' + encodeURIComponent(slug), {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var profile = rows[0];
+if(!profile){
+container.innerHTML = '<div style="max-width:520px;margin:60px auto;text-align:center;color:rgba(255,255,255,0.6);"><h2 style="color:#fff;">Profile not found</h2><p>This profile doesn\'t exist or is private.</p></div>';
+return;
+}
+renderPublicProfile(container, profile);
+}).catch(function(){
+container.textContent = 'Could not load this profile.';
 });
 }
 
@@ -2180,6 +2709,7 @@ trackLookupInputs(root);
 patchLookupCardStyle();
 patchClaimSellback();
 patchResalePage();
+patchPublicProfilePage();
 patchMyCollection();
 patchProfilePhotos();
 patchCoinDetail();
