@@ -1478,7 +1478,8 @@ function close(){
 overlay.style.display = 'none';
 document.body.style.overflow = '';
 }
-paymentsPanelEl = { open: open, close: close };
+function isOpen(){ return overlay.style.display !== 'none'; }
+paymentsPanelEl = { open: open, close: close, isOpen: isOpen };
 return paymentsPanelEl;
 }
 function openPaymentsPanel(){ buildPaymentsPanel().open(); }
@@ -1486,7 +1487,8 @@ function openPaymentsPanel(){ buildPaymentsPanel().open(); }
 function patchAdminPaymentsPage(){
 if(!isAdminPage()) return;
 if(window.location.pathname === '/admin/payments'){
-buildPaymentsPanel().open();
+var panel = buildPaymentsPanel();
+if(!panel.isOpen()) panel.open();
 } else if(paymentsPanelEl){
 paymentsPanelEl.close();
 }
