@@ -2352,6 +2352,20 @@ if(controls.children.length) card.appendChild(controls);
 });
 }
 
+function ensureCollectorHeader(profile){
+if(!profile) return;
+if(document.getElementById('ms-collector-augment')) return;
+var label = Array.prototype.filter.call(document.querySelectorAll('main p'), function(p){
+return (p.textContent || '').trim() === 'Collector profile';
+})[0];
+var h1 = label && label.nextElementSibling;
+if(!h1 || h1.tagName !== 'H1') return;
+var container = document.createElement('div');
+container.id = 'ms-collector-augment';
+h1.parentNode.insertBefore(container, h1.nextSibling);
+buildCollectorHeader(container, profile);
+}
+
 function loadCollectorProfileData(slug){
 fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,is_public&public_slug=eq.' + encodeURIComponent(slug), {
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) }
@@ -2360,21 +2374,13 @@ var profile = rows[0];
 window.__msCollectorProfile = profile || null;
 if(!profile){ window.__msCollectorClaims = []; return; }
 
-var label = Array.prototype.filter.call(document.querySelectorAll('main p'), function(p){
-return (p.textContent || '').trim() === 'Collector profile';
-})[0];
-var h1 = label && label.nextElementSibling;
-if(h1 && h1.tagName === 'H1' && !document.getElementById('ms-collector-augment')){
-var container = document.createElement('div');
-container.id = 'ms-collector-augment';
-h1.parentNode.insertBefore(container, h1.nextSibling);
-buildCollectorHeader(container, profile);
-}
+ensureCollectorHeader(profile);
 
 return fetch(SUPABASE_URL + '/rest/v1/claims?select=id,sku,claimed_at,coins(name)&user_id=eq.' + profile.id + '&is_public=eq.true&order=claimed_at.desc', {
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) }
 }).then(function(r2){ return r2.ok ? r2.json() : []; }).then(function(claimsRows){
 window.__msCollectorClaims = claimsRows || [];
+ensureCollectorHeader(profile);
 wireCollectorCards(profile, window.__msCollectorClaims);
 });
 }).catch(function(){});
@@ -2395,8 +2401,11 @@ loadCollectorProfileData(slug);
 return;
 }
 
-if(window.__msCollectorProfile && window.__msCollectorClaims){
+if(window.__msCollectorProfile){
+ensureCollectorHeader(window.__msCollectorProfile);
+if(window.__msCollectorClaims){
 wireCollectorCards(window.__msCollectorProfile, window.__msCollectorClaims);
+}
 }
 }
 
