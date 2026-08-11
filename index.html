@@ -1431,6 +1431,10 @@ var profile = rows[0] || {};
 body.innerHTML = '';
 body.appendChild(buildProfileImageUploadRow('Avatar', profile.avatar_url, 'avatar', uid));
 body.appendChild(buildProfileImageUploadRow('Header image', profile.header_url, 'header', uid));
+var countsWrap = document.createElement('div');
+countsWrap.style.cssText = 'display:flex;gap:16px;font-size:13px;color:rgba(255,255,255,0.6);margin:8px 0 4px;';
+body.appendChild(countsWrap);
+refreshFollowCounts(countsWrap, uid);
 if(profile.public_slug){
 var linkWrap = document.createElement('div');
 linkWrap.style.cssText = 'margin-top:4px;font-size:12px;color:rgba(255,255,255,0.5);';
