@@ -1339,14 +1339,29 @@ return fetch(SUPABASE_URL + '/rest/v1/' + path, fetchOpts);
 
 var paymentsPanelEl = null;
 
+function ensureTopAdminBadge(){
+var link = document.querySelector('header a[href="/admin"]');
+if(!link) return null;
+var badge = document.getElementById('ms-admin-topbadge');
+if(badge) return badge;
+link.style.position = 'relative';
+badge = document.createElement('span');
+badge.id = 'ms-admin-topbadge';
+badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;font-size:10px;font-weight:800;line-height:1;position:absolute;top:-8px;right:-14px;pointer-events:none;';
+link.appendChild(badge);
+return badge;
+}
+
 function refreshPaymentsBadge(){
-if(!isAdminPage()) return;
+var topBadge = ensureTopAdminBadge();
+var sideBadge = document.getElementById('ms-payments-badge');
+if(!topBadge && !sideBadge) return;
 Promise.all([
 adminRest('sellback_submissions?select=id&status=eq.approved').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
 adminRest('resale_offers?select=id&status=eq.accepted').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
 ]).then(function(results){
 var count = (results[0] || []).length + (results[1] || []).length;
-var badge = document.getElementById('ms-payments-badge');
+[topBadge, sideBadge].forEach(function(badge){
 if(!badge) return;
 if(count > 0){
 badge.textContent = String(count);
@@ -1355,33 +1370,37 @@ badge.style.display = 'inline-flex';
 badge.style.display = 'none';
 }
 });
+});
+}
+
+function goToAdminRoute(path){
+history.pushState({}, '', path);
+patchAdminPaymentsPage();
 }
 
 function buildPaymentsPanel(){
 if(paymentsPanelEl) return paymentsPanelEl;
 var overlay = document.createElement('div');
-overlay.id = 'ms-payments-modal';
-overlay.style.cssText = 'position:fixed;inset:0;z-index:999997;background:rgba(0,0,0,0.75);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;';
+overlay.id = 'ms-payments-page';
+overlay.style.cssText = 'position:fixed;top:64px;left:0;right:0;bottom:0;z-index:9998;background:var(--bg);display:none;overflow:auto;';
 var box = document.createElement('div');
-box.style.cssText = 'background:#12131c;color:#fff;max-width:720px;width:100%;border-radius:14px;padding:26px;position:relative;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
-var closeBtn = document.createElement('button');
-closeBtn.type = 'button';
-closeBtn.textContent = '✕';
-closeBtn.title = 'Close';
-closeBtn.style.cssText = 'position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;font-size:16px;cursor:pointer;line-height:1;';
-closeBtn.addEventListener('click', function(){ close(); });
-var heading = document.createElement('h2');
+box.style.cssText = 'max-width:800px;width:100%;margin:0 auto;padding:40px 24px 80px;color:var(--text);font-family:inherit;box-sizing:border-box;';
+var backLink = document.createElement('a');
+backLink.href = '/admin';
+backLink.textContent = '← Back to Admin';
+backLink.style.cssText = 'display:inline-block;margin-bottom:20px;color:var(--cyan);font-size:14px;text-decoration:none;';
+backLink.addEventListener('click', function(e){ e.preventDefault(); goToAdminRoute('/admin'); });
+var heading = document.createElement('h1');
 heading.textContent = 'Payments Due';
-heading.style.cssText = 'font-size:20px;font-weight:800;margin:0 0 16px;padding-right:40px;';
+heading.style.cssText = 'font-size:28px;font-weight:800;margin:0 0 24px;color:var(--text-bright);';
 var content = document.createElement('div');
 content.id = 'ms-payments-content';
-box.appendChild(closeBtn);
+box.appendChild(backLink);
 box.appendChild(heading);
 box.appendChild(content);
 overlay.appendChild(box);
 document.body.appendChild(overlay);
-overlay.addEventListener('click', function(e){ if(e.target === overlay) close(); });
-document.addEventListener('keydown', function(e){ if(overlay.style.display !== 'none' && e.key === 'Escape') close(); });
+document.addEventListener('keydown', function(e){ if(overlay.style.display !== 'none' && e.key === 'Escape') goToAdminRoute('/admin'); });
 
 function renderRow(kind, item){
 var row = document.createElement('div');
@@ -1464,6 +1483,15 @@ return paymentsPanelEl;
 }
 function openPaymentsPanel(){ buildPaymentsPanel().open(); }
 
+function patchAdminPaymentsPage(){
+if(!isAdminPage()) return;
+if(window.location.pathname === '/admin/payments'){
+buildPaymentsPanel().open();
+} else if(paymentsPanelEl){
+paymentsPanelEl.close();
+}
+}
+
 function patchAdminSidebar(){
 if(!isAdminPage()) return;
 if(document.getElementById('ms-payments-navitem')){ refreshPaymentsBadge(); return; }
@@ -1474,7 +1502,7 @@ var nav = ordersLink.parentElement;
 if(!nav) return;
 
 var item = sourceLink.cloneNode(true);
-item.removeAttribute('href');
+item.setAttribute('href', '/admin/payments');
 item.id = 'ms-payments-navitem';
 item.style.cursor = 'pointer';
 item.innerHTML = '';
@@ -1495,11 +1523,16 @@ item.appendChild(badge);
 item.addEventListener('click', function(e){
 e.preventDefault();
 e.stopPropagation();
-openPaymentsPanel();
+goToAdminRoute('/admin/payments');
 });
 
 nav.insertBefore(item, ordersLink);
 refreshPaymentsBadge();
+
+if(!window.__msPopstateWired){
+window.__msPopstateWired = true;
+window.addEventListener('popstate', function(){ patchAdminPaymentsPage(); });
+}
 }
 
 /* ---------- Admin: Delete buttons on Sell-Back Requests / Resale Offers lists ---------- */
@@ -1540,6 +1573,108 @@ var anchorBtn = Array.prototype.find.call(card.querySelectorAll('button'), funct
 var btnRow = anchorBtn ? anchorBtn.parentElement : card;
 btnRow.appendChild(delBtn);
 });
+});
+}
+
+/* ---------- Coin detail page: bulleted fields, OG grader, for-sale/whereabouts status ---------- */
+
+function patchCoinDetail(){
+var m = /^\/coins\/([^/]+)\/?$/.exec(window.location.pathname);
+if(!m) return;
+var sku = decodeURIComponent(m[1]);
+var main = document.querySelector('main');
+if(!main) return;
+var infoCol = main.querySelector('.grid > div:nth-child(2)');
+if(!infoCol) return;
+var h1 = infoCol.children[0];
+if(!h1 || h1.tagName !== 'H1') return;
+if(infoCol.dataset.msDetailSku === sku) return;
+infoCol.dataset.msDetailSku = sku;
+
+var restHeaders = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY };
+var restGet = function(path){
+return fetch(SUPABASE_URL + '/rest/v1/' + path, { headers: restHeaders }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; });
+};
+
+Promise.all([
+restGet('coins?select=*&sku=eq.' + encodeURIComponent(sku)),
+restGet('shop_items?select=id&sku=eq.' + encodeURIComponent(sku) + '&active=eq.true'),
+restGet('claims?select=id,is_public&sku=eq.' + encodeURIComponent(sku))
+]).then(function(results){
+if(infoCol.dataset.msDetailSku !== sku || !document.body.contains(infoCol)) return;
+var coin = (results[0] && results[0][0]) || null;
+var shopRows = results[1] || [];
+var claimRows = results[2] || [];
+
+if(coin){
+var summaryRow = infoCol.children[1];
+if(summaryRow && summaryRow.tagName === 'DIV' && !summaryRow.dataset.msBulletsDone){
+var fields = [
+['SKU', coin.sku],
+['Tier', coin.level],
+['Year', coin.year],
+['Mint', coin.mint],
+['Country', coin.country],
+['Denomination', coin.denomination],
+['Description', coin.description],
+['OG Grader', coin.og_grader],
+['Grade', coin.grade],
+['Color', coin.color],
+['Weight', coin.weight],
+['Fine Weight', coin.fine_weight],
+['Metal', coin.metal],
+['Size', coin.size ? (coin.size + ' mm') : null],
+['Note', coin.note]
+];
+var ul = document.createElement('ul');
+ul.dataset.msBulletsDone = '1';
+ul.style.cssText = 'list-style:none;padding:0;margin:0 0 1.5rem;display:flex;flex-direction:column;gap:6px;';
+fields.forEach(function(f){
+var label = f[0], val = f[1];
+if(val === null || val === undefined || val === '') return;
+var li = document.createElement('li');
+li.style.cssText = 'font-size:0.9rem;color:var(--text-dim);display:flex;gap:6px;';
+li.innerHTML = '<span style="color:var(--text);opacity:0.6">&bull;</span><span><strong style="color:var(--text)">' + escapeHtml(label) + ':</strong> ' + escapeHtml(String(val)) + '</span>';
+ul.appendChild(li);
+});
+summaryRow.replaceWith(ul);
+}
+}
+
+var statusLine = Array.prototype.find.call(infoCol.children, function(el){
+return el.tagName === 'P' && /Currently in our warehouse|Whereabouts unknown|For sale in our Shop|Listed for resale/.test(el.textContent || '');
+});
+var card = infoCol.querySelector('.card.p-4');
+if(!statusLine) return;
+
+var shopRow = shopRows[0];
+var resaleRow = claimRows.filter(function(c){ return c.is_public; })[0];
+var claimedRow = claimRows[0];
+
+if(shopRow){
+statusLine.textContent = 'For sale in our Shop';
+statusLine.className = 'text-sm font-semibold mb-6 text-emerald-300';
+if(card){
+card.innerHTML = '<p class="text-sm text-[var(--text)] mb-3">This coin is currently available as a purchasable item in our Shop.</p>' +
+'<div class="flex gap-3 flex-wrap"><a class="btn-primary" href="/shop/' + encodeURIComponent(shopRow.id) + '" data-discover="true">Buy in Shop</a></div>';
+}
+} else if(resaleRow){
+statusLine.textContent = 'Listed for resale by its owner';
+statusLine.className = 'text-sm font-semibold mb-6 text-emerald-300';
+if(card){
+card.innerHTML = '<p class="text-sm text-[var(--text)] mb-3">This coin has been claimed and its owner has listed it for resale.</p>' +
+'<div class="flex gap-3 flex-wrap"><a class="btn-primary" href="/resale" data-discover="true">View in Resale</a></div>';
+}
+} else if(claimedRow){
+/* claimed but not currently listed anywhere -- leave the default warehouse copy as-is */
+} else {
+statusLine.textContent = 'Whereabouts unknown — If you have it, claim it!';
+statusLine.className = 'text-sm font-semibold mb-6 text-amber-300';
+if(card){
+card.innerHTML = '<p class="text-sm text-[var(--text)] mb-3">This coin hasn’t been claimed yet. If you have this Mini Slab in hand, claim it to add it to your collection.</p>' +
+'<div class="flex gap-3 flex-wrap"><a class="btn-primary" href="/claim" data-discover="true">Claim This Coin</a></div>';
+}
+}
 });
 }
 
@@ -1603,6 +1738,63 @@ nav.appendChild(item);
 });
 }
 
+/* ---------- Admin: image upload for Add to Shop form ---------- */
+
+function patchShopItemImageUpload(){
+if(!isAdminPage()) return;
+var urlInput = document.querySelector('input[placeholder="Image URL (optional)"]');
+if(!urlInput || urlInput.dataset.msUploadWired) return;
+urlInput.dataset.msUploadWired = '1';
+
+var wrap = document.createElement('div');
+wrap.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:6px;';
+
+var fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = 'image/*';
+fileInput.style.cssText = 'font-size:12px;color:var(--text-dim);flex:1;';
+
+var status = document.createElement('span');
+status.style.cssText = 'font-size:12px;color:var(--text-dim);white-space:nowrap;';
+
+fileInput.addEventListener('click', function(e){ e.stopPropagation(); });
+
+fileInput.addEventListener('change', function(){
+var file = fileInput.files && fileInput.files[0];
+if(!file) return;
+status.textContent = 'Uploading…';
+status.style.color = 'var(--text-dim)';
+var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+var path = 'shop-items/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+var token = getAdminAccessToken();
+fetch(SUPABASE_URL + '/storage/v1/object/site-assets/' + path, {
+method: 'POST',
+headers: {
+apikey: SUPABASE_ANON_KEY,
+Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY),
+'x-upsert': 'true',
+'Content-Type': file.type || 'application/octet-stream'
+},
+body: file
+}).then(function(r){
+if(!r.ok) throw new Error('upload failed');
+var publicUrl = SUPABASE_URL + '/storage/v1/object/public/site-assets/' + path;
+var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+setter.call(urlInput, publicUrl);
+urlInput.dispatchEvent(new Event('input', { bubbles: true }));
+status.textContent = 'Uploaded ✓';
+status.style.color = '#34D399';
+}).catch(function(){
+status.textContent = 'Upload failed — paste a URL instead';
+status.style.color = '#ff9a9a';
+});
+});
+
+wrap.appendChild(fileInput);
+wrap.appendChild(status);
+urlInput.insertAdjacentElement('afterend', wrap);
+}
+
 function runAll(root){
 patchHomeHero();
 patchCoinDbLight();
@@ -1617,11 +1809,15 @@ patchLookupCardStyle();
 patchClaimSellback();
 patchResalePage();
 patchMyCollection();
+patchCoinDetail();
+refreshPaymentsBadge();
 if(isAdminPage()){
 patchAdminSidebar();
 patchAdminListDeletes();
 patchAdminSyncLabel();
 patchAdminToolLinks();
+patchAdminPaymentsPage();
+patchShopItemImageUpload();
 }
 if(isCoinInputTool()){
 patchToolHeader();
