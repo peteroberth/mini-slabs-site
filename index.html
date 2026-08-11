@@ -993,9 +993,9 @@ return '<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08)
 var buybackHtml = '';
 var bbNum = (buybackPrice !== null && buybackPrice !== undefined && buybackPrice !== '') ? Number(buybackPrice) : null;
 if(bbNum !== null && isFinite(bbNum)){
-buybackHtml = '<div id="ms-buyback-hero" style="margin-top:18px;padding:22px 16px;border-radius:14px;background:linear-gradient(135deg, rgba(46,230,255,0.14), rgba(255,51,224,0.14));border:1px solid rgba(46,230,255,0.35);text-align:center;position:relative;">' +
+buybackHtml = '<div id="ms-buyback-hero" style="margin-top:18px;padding:22px 16px;border-radius:14px;background:linear-gradient(135deg, rgba(255,214,57,0.14), rgba(255,138,61,0.14));border:1px solid rgba(255,214,57,0.35);text-align:center;position:relative;">' +
 '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;">Buyback Offer</div>' +
-'<div id="ms-buyback-amount" data-target="' + bbNum.toFixed(2) + '" style="font-size:48px;font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(90deg,#2ee6ff,#ff33e0);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;">$0.00</div>' +
+'<div id="ms-buyback-amount" data-target="' + bbNum.toFixed(2) + '" style="font-size:48px;font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;">$0.00</div>' +
 '</div>';
 }
 
@@ -1025,7 +1025,7 @@ injectBuybackAnimStyles();
 var rect = anchorEl.getBoundingClientRect();
 var cx = rect.left + rect.width / 2;
 var cy = rect.top + rect.height / 2;
-var colors = ['#2ee6ff', '#ff33e0', '#ffffff', '#7CE0FF', '#FF7EEA'];
+var colors = ['#FFD639', '#FF8A3D', '#ffffff', '#FFE580', '#FFB366'];
 var count = 34;
 for(var i = 0; i < count; i++){
 var el = document.createElement('div');
@@ -1165,9 +1165,9 @@ topRow.appendChild(summary);
 var revealBtn = document.createElement('button');
 revealBtn.type = 'button';
 revealBtn.textContent = 'Reveal Your Offer';
-revealBtn.style.cssText = 'flex:0 0 auto;padding:12px 20px;border-radius:10px;border:none;font-weight:800;font-size:14px;letter-spacing:.02em;cursor:pointer;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;box-shadow:0 0 0 rgba(46,230,255,0);transition:transform .15s,box-shadow .15s;';
-revealBtn.addEventListener('mouseenter', function(){ revealBtn.style.transform = 'translateY(-1px)'; revealBtn.style.boxShadow = '0 6px 24px -6px #2ee6ff66'; });
-revealBtn.addEventListener('mouseleave', function(){ revealBtn.style.transform = ''; revealBtn.style.boxShadow = '0 0 0 rgba(46,230,255,0)'; });
+revealBtn.style.cssText = 'flex:0 0 auto;padding:12px 20px;border-radius:10px;border:none;font-weight:800;font-size:14px;letter-spacing:.02em;cursor:pointer;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;box-shadow:0 0 0 rgba(255,214,57,0);transition:transform .15s,box-shadow .15s;';
+revealBtn.addEventListener('mouseenter', function(){ revealBtn.style.transform = 'translateY(-1px)'; revealBtn.style.boxShadow = '0 6px 24px -6px #FFD63966'; });
+revealBtn.addEventListener('mouseleave', function(){ revealBtn.style.transform = ''; revealBtn.style.boxShadow = '0 0 0 rgba(255,214,57,0)'; });
 revealBtn.addEventListener('click', function(){
 var wrap = document.createElement('div');
 wrap.style.cssText = 'text-align:right;';
@@ -1176,7 +1176,7 @@ label.textContent = 'Your Buyback Offer';
 label.style.cssText = 'font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:2px;';
 var amountEl = document.createElement('div');
 amountEl.id = 'ms-buyback-amount-' + sku;
-amountEl.style.cssText = 'font-size:34px;font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(90deg,#2ee6ff,#ff33e0);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;';
+amountEl.style.cssText = 'font-size:34px;font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;';
 amountEl.textContent = '$0.00';
 wrap.appendChild(label);
 wrap.appendChild(amountEl);
@@ -1228,7 +1228,7 @@ var img = coin.image_url ? '<img src="' + escapeHtml(coin.image_url) + '" style=
 var price = fmtMoney(row.asking_price);
 card.innerHTML = img +
 '<div style="font-weight:700;margin-bottom:4px;">' + escapeHtml(coin.name || row.sku) + '</div>' +
-(price ? '<div style="color:#2ee6ff;font-weight:800;margin-bottom:10px;">' + price + '</div>' : '') +
+(price ? '<div style="color:var(--cyan);font-weight:800;margin-bottom:10px;">' + price + '</div>' : '') +
 '<button type="button" class="btn-primary" style="width:100%;">Make an Offer</button>';
 var btn = card.querySelector('button');
 btn.addEventListener('click', function(){
@@ -1284,7 +1284,10 @@ var cards = [];
 document.querySelectorAll('.card').forEach(function(c){
 if(c.dataset.msSellbackChecked) return;
 var t = c.textContent || '';
-if(t.indexOf('SKU') !== -1 && t.indexOf('Claimed') !== -1) cards.push(c);
+if(t.indexOf('SKU') !== -1 && t.indexOf('Claimed') !== -1){
+c.dataset.msSellbackChecked = '1';
+cards.push(c);
+}
 });
 if(!cards.length) return;
 
@@ -1326,7 +1329,7 @@ if(resaleBox) resaleBox.style.display = 'none';
 
 var badge = document.createElement('div');
 badge.textContent = status === 'approved' ? 'SELLING BACK · APPROVED' : 'SELLING BACK · PENDING REVIEW';
-badge.style.cssText = 'display:inline-block;margin:0 0 12px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;';
+badge.style.cssText = 'display:inline-block;margin:0 0 12px;padding:4px 10px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;';
 var anchor = link || resaleBox;
 if(anchor) card.insertBefore(badge, anchor);
 else card.appendChild(badge);
@@ -1863,7 +1866,7 @@ row.style.cssText = 'display:flex;flex-direction:column;align-items:' + (mine ? 
 var bubbleRow = document.createElement('div');
 bubbleRow.style.cssText = 'display:flex;align-items:center;gap:6px;max-width:100%;';
 var bubble = document.createElement('div');
-bubble.style.cssText = 'max-width:100%;padding:8px 12px;border-radius:14px;font-size:13px;word-break:break-word;' + (mine ? 'background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;' : 'background:rgba(255,255,255,0.08);color:#fff;');
+bubble.style.cssText = 'max-width:100%;padding:8px 12px;border-radius:14px;font-size:13px;word-break:break-word;' + (mine ? 'background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;' : 'background:rgba(255,255,255,0.08);color:#fff;');
 bubble.textContent = msg.body;
 bubbleRow.appendChild(bubble);
 if(!mine){
@@ -1879,6 +1882,7 @@ return row;
 }
 
 function renderConversationThread(container, conversationId, myUid, otherProfile){
+if(window.__msThreadPollId){ clearInterval(window.__msThreadPollId); window.__msThreadPollId = null; }
 container.innerHTML = '';
 var backLink = document.createElement('a');
 backLink.href = '/messages';
@@ -1913,9 +1917,15 @@ container.appendChild(form);
 
 var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' };
 
+var lastSignature = null;
 function loadMessages(){
 fetch(SUPABASE_URL + '/rest/v1/messages?select=id,sender_id,body,created_at,read_at&conversation_id=eq.' + conversationId + '&order=created_at.asc', { headers: headers })
 .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var unreadFromOther = rows.filter(function(m){ return m.sender_id !== myUid && !m.read_at; });
+var signature = rows.length + ':' + (rows.length ? rows[rows.length - 1].id : '') + ':' + unreadFromOther.length;
+if(signature === lastSignature) return;
+lastSignature = signature;
+
 thread.innerHTML = '';
 if(!rows.length){
 thread.textContent = 'No messages yet — say hi!';
@@ -1923,15 +1933,15 @@ thread.textContent = 'No messages yet — say hi!';
 rows.forEach(function(m){ thread.appendChild(buildMessageBubble(m, myUid)); });
 thread.scrollTop = thread.scrollHeight;
 }
-var unreadFromOther = rows.filter(function(m){ return m.sender_id !== myUid && !m.read_at; });
 unreadFromOther.forEach(function(m){
-fetch(SUPABASE_URL + '/rest/v1/messages?id=eq.' + m.id, { method: 'PATCH', headers: headers, body: JSON.stringify({ read_at: new Date().toISOString() }) }).catch(function(){});
+fetch(SUPABASE_URL + '/rest/v1/messages?id=eq.' + m.id, { method: 'PATCH', headers: headers, body: JSON.stringify({ read_at: new Date().toISOString() }) }).then(function(){ refreshMessagesBadge(); }).catch(function(){});
 });
 }).catch(function(){
 thread.textContent = 'Could not load messages.';
 });
 }
 loadMessages();
+window.__msThreadPollId = setInterval(loadMessages, 3000);
 
 send.addEventListener('click', function(){
 var body = input.value.trim();
@@ -2005,6 +2015,7 @@ function patchMessagesPage(){
 var path = window.location.pathname;
 var listMatch = path === '/messages';
 var threadMatch = /^\/messages\/([0-9a-fA-F-]{36})$/.exec(path);
+if(!threadMatch && window.__msThreadPollId){ clearInterval(window.__msThreadPollId); window.__msThreadPollId = null; }
 if(!listMatch && !threadMatch) return;
 var token = getAdminAccessToken();
 if(!token) return;
@@ -2119,6 +2130,39 @@ link.href = '/messages';
 link.textContent = 'Messages';
 link.className = accountLink.className;
 accountLink.parentNode.insertBefore(link, accountLink);
+}
+
+function ensureMessagesBadge(){
+var link = document.getElementById('ms-messages-navlink');
+if(!link) return null;
+var badge = document.getElementById('ms-messages-badge');
+if(badge) return badge;
+link.style.position = 'relative';
+badge = document.createElement('span');
+badge.id = 'ms-messages-badge';
+badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;font-size:10px;font-weight:800;line-height:1;position:absolute;top:-8px;right:-14px;pointer-events:none;';
+link.appendChild(badge);
+return badge;
+}
+
+function refreshMessagesBadge(){
+var badge = ensureMessagesBadge();
+if(!badge) return;
+var token = getAdminAccessToken();
+if(!token) return;
+var uid = decodeJwtSub(token);
+if(!uid) return;
+fetch(SUPABASE_URL + '/rest/v1/messages?select=id,sender_id&read_at=is.null', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var count = rows.filter(function(m){ return m.sender_id !== uid; }).length;
+if(count > 0){
+badge.textContent = String(count);
+badge.style.display = 'inline-flex';
+} else {
+badge.style.display = 'none';
+}
+}).catch(function(){});
 }
 
 /* ---------- Private accounts: "interested" one-time ping on a public claim ---------- */
@@ -2488,7 +2532,7 @@ if(badge) return badge;
 link.style.position = 'relative';
 badge = document.createElement('span');
 badge.id = 'ms-admin-topbadge';
-badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;font-size:10px;font-weight:800;line-height:1;position:absolute;top:-8px;right:-14px;pointer-events:none;';
+badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;font-size:10px;font-weight:800;line-height:1;position:absolute;top:-8px;right:-14px;pointer-events:none;';
 link.appendChild(badge);
 return badge;
 }
@@ -2655,6 +2699,19 @@ return adminRest('sellback_submissions?id=eq.' + item.id, { method: 'PATCH', bod
 }).catch(function(){});
 }
 
+function handoffToShopItems(sku){
+adminRest('shop_items?select=id&sku=eq.' + encodeURIComponent(sku) + '&active=eq.true').then(function(r){ return r.ok ? r.json() : []; }).then(function(existing){
+if(existing && existing.length) return;
+fetchCoinBySku(sku).then(function(coin){
+if(!coin) return;
+adminRest('shop_items', {
+method: 'POST',
+body: JSON.stringify({ sku: coin.sku, name: coin.name || sku, description: coin.description || null, price: coin.price || 0, image_url: coin.image_url || null, active: true })
+}).catch(function(){});
+});
+}).catch(function(){});
+}
+
 function renderRow(kind, item){
 var row = document.createElement('div');
 row.style.cssText = 'padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.08);';
@@ -2697,11 +2754,14 @@ right.style.cssText = 'display:flex;gap:8px;flex:0 0 auto;';
 var paidBtn = document.createElement('button');
 paidBtn.type = 'button';
 paidBtn.textContent = 'Mark Paid';
-paidBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:none;font-weight:700;font-size:13px;cursor:pointer;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;';
+paidBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:none;font-weight:700;font-size:13px;cursor:pointer;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;';
 paidBtn.addEventListener('click', function(){
 paidBtn.disabled = true;
 adminRest(table + '?id=eq.' + item.id, { method: 'PATCH', body: JSON.stringify({ status: 'paid' }) }).then(function(r){
-if(r.ok){ loadPayments(); refreshPaymentsBadge(); }
+if(r.ok){
+if(kind === 'sellback' && item.sku) handoffToShopItems(item.sku);
+loadPayments(); refreshPaymentsBadge();
+}
 else { paidBtn.disabled = false; window.alert('Could not mark as paid.'); }
 });
 });
@@ -2808,7 +2868,7 @@ item.appendChild(labelSpan);
 
 var badge = document.createElement('span');
 badge.id = 'ms-payments-badge';
-badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;font-size:11px;font-weight:800;line-height:1;';
+badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;font-size:11px;font-weight:800;line-height:1;';
 item.appendChild(badge);
 
 item.addEventListener('click', function(e){
@@ -3100,7 +3160,7 @@ btn.title = 'Notifications';
 btn.style.cssText = 'width:48px;height:48px;border-radius:50%;background:#13131A;border:1px solid rgba(255,255,255,0.15);color:#FAFAFA;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.4);position:relative;display:flex;align-items:center;justify-content:center;';
 btn.innerHTML = '🔔';
 var badge = document.createElement('span');
-badge.style.cssText = 'display:none;align-items:center;justify-content:center;position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;font-size:10px;font-weight:800;line-height:1;';
+badge.style.cssText = 'display:none;align-items:center;justify-content:center;position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;font-size:10px;font-weight:800;line-height:1;';
 btn.appendChild(badge);
 var panel = document.createElement('div');
 panel.style.cssText = 'display:none;position:absolute;bottom:56px;right:0;width:320px;max-height:400px;overflow:auto;background:#13131A;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:8px;box-shadow:0 12px 40px rgba(0,0,0,0.5);color:#FAFAFA;';
@@ -3192,7 +3252,7 @@ buildNotifBell();
 if(isNew) notifBellEl.refresh();
 if(!window.__msNotifPollWired){
 window.__msNotifPollWired = true;
-setInterval(function(){ if(notifBellEl) notifBellEl.refresh(); }, 30000);
+setInterval(function(){ if(notifBellEl) notifBellEl.refresh(); refreshMessagesBadge(); }, 30000);
 }
 }
 
@@ -3213,6 +3273,7 @@ patchCollectorProfilePage();
 patchPublicProfilePage();
 patchMessagesPage();
 ensureMessagesNavLink();
+refreshMessagesBadge();
 ensureContactAdminsLink();
 patchMyCollection();
 patchProfilePhotos();
