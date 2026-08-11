@@ -1438,7 +1438,7 @@ refreshFollowCounts(countsWrap, uid);
 if(profile.public_slug){
 var linkWrap = document.createElement('div');
 linkWrap.style.cssText = 'margin-top:4px;font-size:12px;color:rgba(255,255,255,0.5);';
-var linkHref = '/u/' + profile.public_slug;
+var linkHref = '/collector/' + profile.public_slug;
 if(profile.is_public){
 linkWrap.innerHTML = 'Your public profile: <a href="' + linkHref + '" style="color:var(--cyan);">mini-slabs.netlify.app' + linkHref + '</a>';
 } else {
@@ -2243,6 +2243,163 @@ grid.textContent = 'Could not load this collection.';
 });
 }
 
+/* ---------- Native /collector/:slug page — augment with follow/message/report/likes/comments/interested ---------- */
+
+function buildCollectorHeader(container, profile){
+var topRow = document.createElement('div');
+topRow.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;';
+
+var countsWrap = document.createElement('div');
+countsWrap.style.cssText = 'display:flex;gap:16px;font-size:13px;color:rgba(255,255,255,0.6);';
+topRow.appendChild(countsWrap);
+refreshFollowCounts(countsWrap, profile.id);
+
+var myToken = getAdminAccessToken();
+var myUid = myToken ? decodeJwtSub(myToken) : null;
+var isMe = myUid === profile.id;
+
+if(!isMe && myUid){
+var followBtn = document.createElement('button');
+followBtn.type = 'button';
+followBtn.className = 'btn-primary';
+followBtn.textContent = 'Loading…';
+followBtn.style.cssText = 'flex:0 0 auto;padding:8px 16px;font-size:13px;';
+topRow.appendChild(followBtn);
+wireFollowButton(followBtn, myUid, profile.id);
+
+var messageBtn = document.createElement('button');
+messageBtn.type = 'button';
+messageBtn.className = 'btn-primary';
+messageBtn.textContent = 'Message';
+messageBtn.style.cssText = 'flex:0 0 auto;padding:8px 16px;font-size:13px;display:none;';
+topRow.appendChild(messageBtn);
+checkMutualFollow(myUid, profile.id, function(isMutual){
+if(!isMutual) return;
+messageBtn.style.display = '';
+messageBtn.addEventListener('click', function(){
+messageBtn.disabled = true;
+findOrCreateConversation(myUid, profile.id).then(function(cid){
+if(cid){ window.location.href = '/messages/' + cid; }
+else { messageBtn.disabled = false; }
+});
+});
+});
+
+var reportBtn = document.createElement('button');
+reportBtn.type = 'button';
+reportBtn.textContent = 'Report';
+reportBtn.style.cssText = 'flex:0 0 auto;background:none;border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:7px 14px;font-size:12px;color:rgba(255,255,255,0.55);cursor:pointer;';
+reportBtn.addEventListener('click', function(){ promptAndReport('user', profile.id, 'this user'); });
+topRow.appendChild(reportBtn);
+} else if(!myUid){
+var loginHint = document.createElement('a');
+loginHint.href = '/login';
+loginHint.className = 'btn-primary';
+loginHint.textContent = 'Log in to Follow';
+loginHint.style.cssText = 'padding:8px 16px;font-size:13px;';
+topRow.appendChild(loginHint);
+}
+
+container.appendChild(topRow);
+}
+
+function wireCollectorCards(profile, claimsRows){
+if(!profile) return;
+var myToken = getAdminAccessToken();
+var myUid = myToken ? decodeJwtSub(myToken) : null;
+var isMe = myUid === profile.id;
+var cards = Array.prototype.slice.call(document.querySelectorAll('main .grid > div.card'));
+cards.forEach(function(card, idx){
+if(card.dataset.msCollectorWired) return;
+var nameEl = card.querySelector('p');
+var nameText = nameEl ? (nameEl.textContent || '').trim() : '';
+var match = claimsRows.filter(function(r){ return ((r.coins && r.coins.name) || r.sku) === nameText; })[0] || claimsRows[idx];
+if(!match) return;
+card.dataset.msCollectorWired = '1';
+
+var controls = document.createElement('div');
+controls.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);';
+
+if(profile.is_public){
+var likeBtn = document.createElement('button');
+likeBtn.type = 'button';
+likeBtn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:4px 12px;font-size:12px;color:#fff;cursor:pointer;margin-bottom:8px;';
+likeBtn.textContent = '♡ …';
+controls.appendChild(likeBtn);
+wireLikeButton(likeBtn, match.id, myUid);
+
+var commentsWrap = document.createElement('div');
+commentsWrap.textContent = 'Loading comments…';
+commentsWrap.style.cssText = 'font-size:12px;';
+controls.appendChild(commentsWrap);
+loadClaimComments(commentsWrap, match.id, myUid);
+} else if(!isMe){
+var interestBtn = document.createElement('button');
+interestBtn.type = 'button';
+interestBtn.className = 'btn-primary';
+interestBtn.style.cssText = 'width:100%;font-size:12px;padding:8px;';
+if(!myUid){
+interestBtn.textContent = 'Log in to express interest';
+interestBtn.addEventListener('click', function(){ window.location.href = '/login'; });
+} else {
+interestBtn.textContent = "I'm interested";
+interestBtn.addEventListener('click', function(){ submitClaimInterest(match, profile.id, interestBtn); });
+}
+controls.appendChild(interestBtn);
+}
+
+if(controls.children.length) card.appendChild(controls);
+});
+}
+
+function loadCollectorProfileData(slug){
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,is_public&public_slug=eq.' + encodeURIComponent(slug), {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var profile = rows[0];
+window.__msCollectorProfile = profile || null;
+if(!profile){ window.__msCollectorClaims = []; return; }
+
+var label = Array.prototype.filter.call(document.querySelectorAll('main p'), function(p){
+return (p.textContent || '').trim() === 'Collector profile';
+})[0];
+var h1 = label && label.nextElementSibling;
+if(h1 && h1.tagName === 'H1' && !document.getElementById('ms-collector-augment')){
+var container = document.createElement('div');
+container.id = 'ms-collector-augment';
+h1.parentNode.insertBefore(container, h1.nextSibling);
+buildCollectorHeader(container, profile);
+}
+
+return fetch(SUPABASE_URL + '/rest/v1/claims?select=id,sku,claimed_at,coins(name)&user_id=eq.' + profile.id + '&is_public=eq.true&order=claimed_at.desc', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) }
+}).then(function(r2){ return r2.ok ? r2.json() : []; }).then(function(claimsRows){
+window.__msCollectorClaims = claimsRows || [];
+wireCollectorCards(profile, window.__msCollectorClaims);
+});
+}).catch(function(){});
+}
+
+function patchCollectorProfilePage(){
+var m = /^\/collector\/([A-Za-z0-9_]+)$/.exec(window.location.pathname);
+if(!m) return;
+var slug = m[1];
+
+if(window.__msCollectorSlug !== slug){
+window.__msCollectorSlug = slug;
+window.__msCollectorProfile = null;
+window.__msCollectorClaims = null;
+var oldMarker = document.getElementById('ms-collector-augment');
+if(oldMarker) oldMarker.remove();
+loadCollectorProfileData(slug);
+return;
+}
+
+if(window.__msCollectorProfile && window.__msCollectorClaims){
+wireCollectorCards(window.__msCollectorProfile, window.__msCollectorClaims);
+}
+}
+
 function patchPublicProfilePage(){
 var m = /^\/u\/([A-Za-z0-9_]+)$/.exec(window.location.pathname);
 if(!m) return;
@@ -3043,6 +3200,7 @@ trackLookupInputs(root);
 patchLookupCardStyle();
 patchClaimSellback();
 patchResalePage();
+patchCollectorProfilePage();
 patchPublicProfilePage();
 patchMessagesPage();
 ensureMessagesNavLink();
