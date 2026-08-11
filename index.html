@@ -1447,6 +1447,99 @@ body.textContent = 'Could not load profile photos.';
 });
 }
 
+/* ---------- Account: pending follow-request approvals (private accounts) ---------- */
+
+function loadFollowRequests(body, uid){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+fetch(SUPABASE_URL + '/rest/v1/follows?select=follower_id,created_at,profiles!follows_follower_id_profiles_fkey(display_name,avatar_url)&followee_id=eq.' + uid + '&status=eq.pending&order=created_at.desc', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+body.innerHTML = '';
+if(!rows.length){
+body.textContent = 'No pending follow requests.';
+return;
+}
+rows.forEach(function(row){
+var who = row.profiles || {};
+var line = document.createElement('div');
+line.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);';
+var av = document.createElement('div');
+av.style.cssText = 'width:32px;height:32px;border-radius:50%;overflow:hidden;background:#1b1c26;flex:0 0 auto;';
+if(who.avatar_url){
+var img = document.createElement('img');
+img.src = who.avatar_url;
+img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+av.appendChild(img);
+}
+line.appendChild(av);
+var name = document.createElement('div');
+name.style.cssText = 'flex:1;color:#fff;font-size:13px;';
+name.textContent = who.display_name || 'Someone';
+line.appendChild(name);
+
+var approveBtn = document.createElement('button');
+approveBtn.type = 'button';
+approveBtn.className = 'btn-primary';
+approveBtn.textContent = 'Approve';
+approveBtn.style.cssText = 'padding:6px 12px;font-size:12px;';
+approveBtn.addEventListener('click', function(){
+approveBtn.disabled = true;
+fetch(SUPABASE_URL + '/rest/v1/follows?follower_id=eq.' + row.follower_id + '&followee_id=eq.' + uid, {
+method: 'PATCH',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' },
+body: JSON.stringify({ status: 'accepted' })
+}).then(function(){ line.remove(); }).catch(function(){ approveBtn.disabled = false; });
+});
+line.appendChild(approveBtn);
+
+var denyBtn = document.createElement('button');
+denyBtn.type = 'button';
+denyBtn.textContent = 'Deny';
+denyBtn.style.cssText = 'padding:6px 12px;font-size:12px;background:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:rgba(255,255,255,0.6);cursor:pointer;';
+denyBtn.addEventListener('click', function(){
+denyBtn.disabled = true;
+fetch(SUPABASE_URL + '/rest/v1/follows?follower_id=eq.' + row.follower_id + '&followee_id=eq.' + uid, {
+method: 'DELETE',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() }
+}).then(function(){ line.remove(); }).catch(function(){ denyBtn.disabled = false; });
+});
+line.appendChild(denyBtn);
+
+body.appendChild(line);
+});
+}).catch(function(){
+body.textContent = 'Could not load follow requests.';
+});
+}
+
+function patchFollowRequests(){
+if(window.location.pathname !== '/account') return;
+if(document.getElementById('ms-follow-requests')) return;
+var token = getAdminAccessToken();
+if(!token) return;
+var uid = decodeJwtSub(token);
+if(!uid) return;
+var heading = Array.prototype.filter.call(document.querySelectorAll('h2,h3,h4'), function(h){
+return (h.textContent || '').trim() === 'Profile settings';
+})[0];
+var form = heading && heading.closest('form');
+if(!form) return;
+
+var card = document.createElement('div');
+card.id = 'ms-follow-requests';
+card.className = 'card p-5';
+card.style.cssText = 'margin-bottom:16px;';
+var h2 = document.createElement('h2');
+h2.className = 'text-white font-semibold mb-3';
+h2.textContent = 'Follow Requests';
+card.appendChild(h2);
+var body = document.createElement('div');
+body.textContent = 'Loading…';
+card.appendChild(body);
+form.parentNode.insertBefore(card, form);
+
+loadFollowRequests(body, uid);
+}
+
 /* ---------- Public profile pages: /u/:slug — follow, likes, comments ---------- */
 
 function wireFollowButton(btn, myUid, followeeId){
@@ -1472,6 +1565,17 @@ body: JSON.stringify({ follower_id: myUid, followee_id: followeeId })
 existing = (rowsRes && rowsRes[0]) || { status: 'pending' };
 render();
 btn.disabled = false;
+if(existing.status === 'pending'){
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=display_name&id=eq.' + myUid, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(myRows){
+var myName = (myRows[0] && myRows[0].display_name) || 'Someone';
+fetch(SUPABASE_URL + '/rest/v1/notifications', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' },
+body: JSON.stringify({ user_id: followeeId, type: 'follow_request', title: myName + ' wants to follow you', body: 'Review and approve or deny this request from your Account page.', link: '/account' })
+}).catch(function(){});
+}).catch(function(){});
+}
 }).catch(function(){ btn.disabled = false; });
 } else {
 fetch(SUPABASE_URL + '/rest/v1/follows?follower_id=eq.' + myUid + '&followee_id=eq.' + followeeId, { method: 'DELETE', headers: headers })
@@ -1667,6 +1771,13 @@ else { messageBtn.disabled = false; }
 });
 });
 });
+
+var reportUserBtn = document.createElement('button');
+reportUserBtn.type = 'button';
+reportUserBtn.textContent = 'Report';
+reportUserBtn.style.cssText = 'flex:0 0 auto;background:none;border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:8px 14px;font-size:12px;color:rgba(255,255,255,0.55);cursor:pointer;';
+reportUserBtn.addEventListener('click', function(){ promptAndReport('user', profile.id, 'this user'); });
+topRow.appendChild(reportUserBtn);
 } else if(!myUid){
 var loginHint = document.createElement('a');
 loginHint.href = '/login';
@@ -1744,11 +1855,22 @@ return rowsRes && rowsRes[0] && rowsRes[0].id;
 function buildMessageBubble(msg, myUid){
 var row = document.createElement('div');
 var mine = msg.sender_id === myUid;
-row.style.cssText = 'display:flex;justify-content:' + (mine ? 'flex-end' : 'flex-start') + ';margin-bottom:8px;';
+row.style.cssText = 'display:flex;flex-direction:column;align-items:' + (mine ? 'flex-end' : 'flex-start') + ';margin-bottom:8px;';
+var bubbleRow = document.createElement('div');
+bubbleRow.style.cssText = 'display:flex;align-items:center;gap:6px;max-width:100%;';
 var bubble = document.createElement('div');
-bubble.style.cssText = 'max-width:70%;padding:8px 12px;border-radius:14px;font-size:13px;word-break:break-word;' + (mine ? 'background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;' : 'background:rgba(255,255,255,0.08);color:#fff;');
+bubble.style.cssText = 'max-width:100%;padding:8px 12px;border-radius:14px;font-size:13px;word-break:break-word;' + (mine ? 'background:linear-gradient(90deg,#2ee6ff,#ff33e0);color:#05070d;' : 'background:rgba(255,255,255,0.08);color:#fff;');
 bubble.textContent = msg.body;
-row.appendChild(bubble);
+bubbleRow.appendChild(bubble);
+if(!mine){
+var reportLink = document.createElement('button');
+reportLink.type = 'button';
+reportLink.textContent = 'Report';
+reportLink.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.3);font-size:10px;cursor:pointer;padding:0;flex:0 0 auto;';
+reportLink.addEventListener('click', function(){ promptAndReport('message', msg.id, 'this message'); });
+bubbleRow.appendChild(reportLink);
+}
+row.appendChild(bubbleRow);
 return row;
 }
 
@@ -1921,6 +2043,67 @@ container.textContent = 'Could not load this conversation.';
 }
 }
 
+/* ---------- Contact admins + report users/messages ---------- */
+
+function submitReport(targetType, targetId, reason, cb){
+var myToken = getAdminAccessToken();
+if(!myToken){ window.location.href = '/login'; return; }
+var myUid = decodeJwtSub(myToken);
+fetch(SUPABASE_URL + '/rest/v1/reports', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + myToken, 'Content-Type': 'application/json' },
+body: JSON.stringify({ reporter_id: myUid, target_type: targetType, target_id: targetId, reason: reason })
+}).then(function(r){ cb(r.ok); }).catch(function(){ cb(false); });
+}
+
+function promptAndReport(targetType, targetId, label){
+var myToken = getAdminAccessToken();
+if(!myToken){ window.location.href = '/login'; return; }
+var reason = window.prompt('Report ' + (label || 'this') + ' — please describe the issue:');
+if(!reason || !reason.trim()) return;
+submitReport(targetType, targetId, reason.trim(), function(ok){
+window.alert(ok ? "Thanks, your report has been sent to our admins." : 'Could not send report. Please try again.');
+});
+}
+
+function openContactAdminsModal(){
+var myToken = getAdminAccessToken();
+if(!myToken){ window.location.href = '/login'; return; }
+var html = '<h2 style="font-size:20px;font-weight:800;margin:0 0 12px;color:#fff;">Contact Admins</h2>' +
+'<p style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:12px;">Send a message directly to the Mini-Slabs team.</p>' +
+'<textarea id="ms-contact-body" rows="5" class="input" style="width:100%;resize:vertical;margin-bottom:12px;" placeholder="How can we help?"></textarea>' +
+'<button type="button" id="ms-contact-send" class="btn-primary" style="width:100%;">Send</button>' +
+'<div id="ms-contact-status" style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:8px;"></div>';
+buildCoinModal().open(html);
+var sendBtn = document.getElementById('ms-contact-send');
+var status = document.getElementById('ms-contact-status');
+sendBtn.addEventListener('click', function(){
+var bodyEl = document.getElementById('ms-contact-body');
+var body = (bodyEl.value || '').trim();
+if(!body) return;
+sendBtn.disabled = true;
+status.textContent = 'Sending…';
+submitReport('contact', null, body, function(ok){
+sendBtn.disabled = false;
+status.textContent = ok ? "Sent! We'll get back to you soon." : 'Something went wrong. Please try again.';
+if(ok) bodyEl.value = '';
+});
+});
+}
+
+function ensureContactAdminsLink(){
+if(document.getElementById('ms-contact-admins-link')) return;
+var footerLink = document.querySelector('footer a[href="/sell-back"]') || document.querySelector('footer a[href="/shop"]');
+if(!footerLink) return;
+var link = document.createElement('a');
+link.id = 'ms-contact-admins-link';
+link.href = '#';
+link.textContent = 'Contact Admins';
+link.className = footerLink.className;
+link.addEventListener('click', function(e){ e.preventDefault(); openContactAdminsModal(); });
+footerLink.parentNode.insertBefore(link, footerLink.nextSibling);
+}
+
 function ensureMessagesNavLink(){
 var token = getAdminAccessToken();
 if(!token) return;
@@ -1932,6 +2115,128 @@ link.href = '/messages';
 link.textContent = 'Messages';
 link.className = accountLink.className;
 accountLink.parentNode.insertBefore(link, accountLink);
+}
+
+/* ---------- Private accounts: "interested" one-time ping on a public claim ---------- */
+
+function submitClaimInterest(claim, ownerUid, btn){
+var myToken = getAdminAccessToken();
+if(!myToken){ window.location.href = '/login'; return; }
+var myUid = decodeJwtSub(myToken);
+if(myUid === ownerUid) return;
+btn.disabled = true;
+btn.textContent = 'Sending…';
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=display_name&id=eq.' + myUid, {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + myToken }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var myName = (rows[0] && rows[0].display_name) || 'Someone';
+var coinName = (claim.coins && claim.coins.name) || claim.sku || 'a coin';
+return fetch(SUPABASE_URL + '/rest/v1/notifications', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + myToken, 'Content-Type': 'application/json' },
+body: JSON.stringify({
+user_id: ownerUid,
+type: 'claim_interest',
+title: myName + ' is interested in your ' + coinName,
+body: 'They asked to be put in touch. Reply below to message them — this is a one-time notice.',
+related_user_id: myUid,
+claim_id: claim.id
+})
+});
+}).then(function(r){
+if(r.ok){
+btn.textContent = 'Interest sent ✓';
+} else {
+btn.textContent = 'Could not send';
+btn.disabled = false;
+}
+}).catch(function(){
+btn.textContent = 'Could not send';
+btn.disabled = false;
+});
+}
+
+function buildMinimalClaimCard(row, ownerUid){
+var card = document.createElement('div');
+card.className = 'card';
+card.style.cssText = 'padding:14px;';
+var coin = row.coins || {};
+var img = document.createElement('img');
+img.src = coin.image_url || '';
+img.alt = coin.name || row.sku || '';
+img.style.cssText = 'width:100%;aspect-ratio:1;object-fit:contain;background:#1b1c26;border-radius:8px;margin-bottom:8px;';
+if(row.sku) wireCoinInfoClick(img, row.sku, 'zoom-in');
+card.appendChild(img);
+var name = document.createElement('div');
+name.style.cssText = 'font-weight:700;margin-bottom:8px;';
+name.textContent = coin.name || row.sku || 'Coin';
+card.appendChild(name);
+
+var myToken = getAdminAccessToken();
+var myUid = myToken ? decodeJwtSub(myToken) : null;
+var interestBtn = document.createElement('button');
+interestBtn.type = 'button';
+interestBtn.className = 'btn-primary';
+interestBtn.style.cssText = 'width:100%;';
+if(!myUid){
+interestBtn.textContent = 'Log in to express interest';
+interestBtn.addEventListener('click', function(){ window.location.href = '/login'; });
+} else if(myUid === ownerUid){
+interestBtn.textContent = 'This is your coin';
+interestBtn.disabled = true;
+interestBtn.style.opacity = '0.5';
+} else {
+interestBtn.textContent = "I'm interested";
+interestBtn.addEventListener('click', function(){ submitClaimInterest(row, ownerUid, interestBtn); });
+}
+card.appendChild(interestBtn);
+return card;
+}
+
+function renderMinimalPrivateProfile(container, profile){
+container.innerHTML = '';
+var topRow = document.createElement('div');
+topRow.style.cssText = 'display:flex;align-items:center;gap:16px;padding:20px 16px;';
+var avatar = document.createElement('div');
+avatar.style.cssText = 'width:64px;height:64px;border-radius:50%;overflow:hidden;background:#1b1c26;flex:0 0 auto;';
+if(profile.avatar_url){
+var aimg = document.createElement('img');
+aimg.src = profile.avatar_url;
+aimg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+avatar.appendChild(aimg);
+}
+topRow.appendChild(avatar);
+var nameWrap = document.createElement('div');
+nameWrap.innerHTML = '<h2 style="font-size:20px;font-weight:800;margin:0;color:#fff;">' + escapeHtml(profile.display_name || 'Collector') + '</h2>' +
+'<div style="font-size:12px;color:rgba(255,255,255,0.4);">This account is private.</div>';
+topRow.appendChild(nameWrap);
+container.appendChild(topRow);
+
+var claimsHeading = document.createElement('h3');
+claimsHeading.style.cssText = 'padding:0 16px;font-size:16px;font-weight:700;color:#fff;margin-bottom:10px;';
+claimsHeading.textContent = 'Public Collection';
+container.appendChild(claimsHeading);
+
+var grid = document.createElement('div');
+grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding:0 16px 40px;';
+grid.textContent = 'Loading…';
+container.appendChild(grid);
+
+fetch(SUPABASE_URL + '/rest/v1/claims?select=id,sku,claimed_at,coins(name,image_url)&user_id=eq.' + profile.id + '&is_public=eq.true&order=claimed_at.desc', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+grid.innerHTML = '';
+if(!rows.length){
+grid.style.display = 'block';
+grid.textContent = 'No public collection items to show.';
+return;
+}
+rows.forEach(function(row){
+grid.appendChild(buildMinimalClaimCard(row, profile.id));
+});
+}).catch(function(){
+grid.textContent = 'Could not load this collection.';
+});
 }
 
 function patchPublicProfilePage(){
@@ -1951,15 +2256,19 @@ container.textContent = 'Loading profile…';
 main.innerHTML = '';
 main.appendChild(container);
 
-fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,bio,avatar_url,header_url,public_slug&public_slug=eq.' + encodeURIComponent(slug), {
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,bio,avatar_url,header_url,public_slug,is_public&public_slug=eq.' + encodeURIComponent(slug), {
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) }
 }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 var profile = rows[0];
 if(!profile){
-container.innerHTML = '<div style="max-width:520px;margin:60px auto;text-align:center;color:rgba(255,255,255,0.6);"><h2 style="color:#fff;">Profile not found</h2><p>This profile doesn\'t exist or is private.</p></div>';
+container.innerHTML = '<div style="max-width:520px;margin:60px auto;text-align:center;color:rgba(255,255,255,0.6);"><h2 style="color:#fff;">Profile not found</h2><p>This profile doesn\'t exist or has nothing public to show.</p></div>';
 return;
 }
+if(profile.is_public){
 renderPublicProfile(container, profile);
+} else {
+renderMinimalPrivateProfile(container, profile);
+}
 }).catch(function(){
 container.textContent = 'Could not load this profile.';
 });
@@ -2649,6 +2958,27 @@ panel.appendChild(empty);
 return;
 }
 rows.forEach(function(n){
+if(n.type === 'claim_interest' && n.related_user_id){
+var iw = document.createElement('div');
+iw.style.cssText = 'display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,0.08);' + (n.read_at ? 'opacity:0.55;' : '');
+iw.innerHTML = '<div style="font-weight:700;font-size:13px;">' + escapeHtml(n.title) + '</div>' +
+(n.body ? '<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px;">' + escapeHtml(n.body) + '</div>' : '');
+var replyBtn = document.createElement('button');
+replyBtn.type = 'button';
+replyBtn.className = 'btn-primary';
+replyBtn.textContent = 'Message them';
+replyBtn.style.cssText = 'margin-top:8px;padding:6px 12px;font-size:12px;';
+replyBtn.addEventListener('click', function(){
+replyBtn.disabled = true;
+findOrCreateConversation(uid, n.related_user_id).then(function(cid){
+if(cid){ window.location.href = '/messages/' + cid; }
+else { replyBtn.disabled = false; }
+});
+});
+iw.appendChild(replyBtn);
+panel.appendChild(iw);
+return;
+}
 var item = document.createElement(n.link ? 'a' : 'div');
 if(n.link){ item.href = n.link; item.target = '_blank'; item.rel = 'noopener'; }
 item.style.cssText = 'display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,0.08);text-decoration:none;color:inherit;' + (n.read_at ? 'opacity:0.55;' : '');
@@ -2710,8 +3040,12 @@ patchLookupCardStyle();
 patchClaimSellback();
 patchResalePage();
 patchPublicProfilePage();
+patchMessagesPage();
+ensureMessagesNavLink();
+ensureContactAdminsLink();
 patchMyCollection();
 patchProfilePhotos();
+patchFollowRequests();
 patchCoinDetail();
 refreshPaymentsBadge();
 patchNotifBell();
