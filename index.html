@@ -1334,6 +1334,108 @@ else card.appendChild(badge);
 });
 }
 
+/* ---------- Account: avatar + header image upload ---------- */
+
+function buildProfileImageUploadRow(labelText, currentUrl, kind, uid){
+var wrap = document.createElement('div');
+wrap.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;';
+var preview = document.createElement('div');
+var isAvatar = kind === 'avatar';
+preview.style.cssText = isAvatar ?
+'width:64px;height:64px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,0.08);flex:0 0 auto;' :
+'width:120px;height:48px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,0.08);flex:0 0 auto;';
+if(currentUrl){
+var img = document.createElement('img');
+img.src = currentUrl;
+img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+preview.appendChild(img);
+}
+var right = document.createElement('div');
+var label = document.createElement('div');
+label.textContent = labelText;
+label.style.cssText = 'font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:4px;';
+var fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = 'image/*';
+fileInput.style.cssText = 'font-size:12px;color:var(--text-dim);display:block;';
+var status = document.createElement('span');
+status.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.5);margin-left:8px;';
+fileInput.addEventListener('change', function(){
+var file = fileInput.files && fileInput.files[0];
+if(!file) return;
+status.textContent = 'Uploading…';
+var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+var path = (kind === 'avatar' ? 'avatars/' : 'headers/') + uid + '-' + Date.now() + '.' + ext;
+var token = getAdminAccessToken();
+fetch(SUPABASE_URL + '/storage/v1/object/site-assets/' + path, {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'x-upsert': 'true', 'Content-Type': file.type || 'application/octet-stream' },
+body: file
+}).then(function(r){
+if(!r.ok) throw new Error('upload failed');
+var publicUrl = SUPABASE_URL + '/storage/v1/object/public/site-assets/' + path;
+var patchBody = {};
+patchBody[kind === 'avatar' ? 'avatar_url' : 'header_url'] = publicUrl;
+return adminRest('profiles?id=eq.' + uid, { method: 'PATCH', body: JSON.stringify(patchBody) }).then(function(r2){
+if(!r2.ok) throw new Error('save failed');
+status.textContent = 'Saved ✓';
+preview.innerHTML = '';
+var img2 = document.createElement('img');
+img2.src = publicUrl;
+img2.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+preview.appendChild(img2);
+});
+}).catch(function(){
+status.textContent = 'Upload failed';
+});
+});
+right.appendChild(label);
+right.appendChild(fileInput);
+right.appendChild(status);
+wrap.appendChild(preview);
+wrap.appendChild(right);
+return wrap;
+}
+
+function patchProfilePhotos(){
+if(window.location.pathname !== '/account') return;
+if(document.getElementById('ms-profile-photos')) return;
+var token = getAdminAccessToken();
+if(!token) return;
+var uid = decodeJwtSub(token);
+if(!uid) return;
+var heading = Array.prototype.filter.call(document.querySelectorAll('h2,h3,h4'), function(h){
+return (h.textContent || '').trim() === 'Profile settings';
+})[0];
+var form = heading && heading.closest('form');
+if(!form) return;
+
+var card = document.createElement('div');
+card.id = 'ms-profile-photos';
+card.className = 'card p-5';
+card.style.cssText = 'margin-bottom:16px;';
+var h2 = document.createElement('h2');
+h2.className = 'text-white font-semibold mb-3';
+h2.textContent = 'Profile Photos';
+card.appendChild(h2);
+var body = document.createElement('div');
+body.textContent = 'Loading…';
+card.appendChild(body);
+
+form.parentNode.insertBefore(card, form);
+
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=avatar_url,header_url&id=eq.' + uid, {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var profile = rows[0] || {};
+body.innerHTML = '';
+body.appendChild(buildProfileImageUploadRow('Avatar', profile.avatar_url, 'avatar', uid));
+body.appendChild(buildProfileImageUploadRow('Header image', profile.header_url, 'header', uid));
+}).catch(function(){
+body.textContent = 'Could not load profile photos.';
+});
+}
+
 /* ---------- Admin: session helpers for privileged REST calls ---------- */
 
 function getAdminAccessToken(){
@@ -2079,6 +2181,7 @@ patchLookupCardStyle();
 patchClaimSellback();
 patchResalePage();
 patchMyCollection();
+patchProfilePhotos();
 patchCoinDetail();
 refreshPaymentsBadge();
 patchNotifBell();
