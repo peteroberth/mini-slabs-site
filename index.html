@@ -4103,6 +4103,14 @@ card.innerHTML = '<p class="text-sm text-[var(--text)] mb-3">This coin hasn’t 
 '<div class="flex gap-3 flex-wrap"><a class="btn-primary" href="/claim" data-discover="true">Claim This Coin</a></div>';
 }
 }
+
+if(!document.getElementById('ms-coin-detail-wishlist')){
+var wishlistHost = document.createElement('div');
+wishlistHost.id = 'ms-coin-detail-wishlist';
+wishlistHost.style.cssText = 'margin-top:20px;';
+infoCol.appendChild(wishlistHost);
+wireCoinWishlistPanel(wishlistHost, sku);
+}
 });
 }
 
