@@ -2321,7 +2321,7 @@ rows.forEach(function(m){ thread.appendChild(buildMessageBubble(m, myUid)); });
 thread.scrollTop = thread.scrollHeight;
 }
 unreadFromOther.forEach(function(m){
-fetch(SUPABASE_URL + '/rest/v1/messages?id=eq.' + m.id, { method: 'PATCH', headers: headers, body: JSON.stringify({ read_at: new Date().toISOString() }) }).then(function(){ refreshMessagesBadge(); }).catch(function(){});
+fetch(SUPABASE_URL + '/rest/v1/messages?id=eq.' + m.id, { method: 'PATCH', headers: headers, body: JSON.stringify({ read_at: new Date().toISOString() }) }).then(function(){ refreshMessagesBadge(true); }).catch(function(){});
 });
 }).catch(function(){
 thread.textContent = 'Could not load messages.';
@@ -2562,24 +2562,28 @@ link.appendChild(badge);
 return badge;
 }
 
-function refreshMessagesBadge(){
+var __msMessagesBadgeLastFetch = 0;
+var __msMessagesBadgeInFlight = false;
+
+function refreshMessagesBadge(force){
 var badge = ensureMessagesBadge();
 if(!badge) return;
+if(__msMessagesBadgeInFlight) return;
+var now = Date.now();
+if(!force && (now - __msMessagesBadgeLastFetch) < 4000) return;
 var token = getAdminAccessToken();
 if(!token) return;
 var uid = decodeJwtSub(token);
 if(!uid) return;
+__msMessagesBadgeLastFetch = now;
+__msMessagesBadgeInFlight = true;
 fetch(SUPABASE_URL + '/rest/v1/messages?select=id,sender_id&read_at=is.null', {
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
 }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+__msMessagesBadgeInFlight = false;
 var count = rows.filter(function(m){ return m.sender_id !== uid; }).length;
-if(count > 0){
-badge.textContent = String(count);
-badge.style.display = 'inline-flex';
-} else {
-badge.style.display = 'none';
-}
-}).catch(function(){});
+setBadgeValue(badge, count);
+}).catch(function(){ __msMessagesBadgeInFlight = false; });
 }
 
 /* ---------- Coin wishlist: like coins you don't own + owner reach-out ---------- */
@@ -3721,26 +3725,52 @@ link.appendChild(badge);
 return badge;
 }
 
-function refreshPaymentsBadge(){
+/* Single source of truth for the top Admin badge + the Payments/Reports sidebar
+badges. Previously refreshPaymentsBadge() and refreshReportsBadge() each wrote
+their own (different) total to the shared top badge independently, and both
+were re-triggered on every DOM mutation via runAll() — the two competing async
+writes landed in whatever order the network returned them, which is what made
+the numbers appear to flash/flicker. Now there's one throttled fetch that
+computes all three counts together and writes each badge at most once. */
+var __msAdminBadgeLastFetch = 0;
+var __msAdminBadgeInFlight = false;
+
+function setBadgeValue(badge, count){
+if(!badge) return;
+if(count > 0){
+var text = String(count);
+if(badge.textContent !== text) badge.textContent = text;
+if(badge.style.display !== 'inline-flex') badge.style.display = 'inline-flex';
+} else {
+if(badge.style.display !== 'none') badge.style.display = 'none';
+}
+}
+
+function refreshAdminBadgeCounts(force){
 var topBadge = ensureTopAdminBadge();
-var sideBadge = document.getElementById('ms-payments-badge');
-if(!topBadge && !sideBadge) return;
+var paymentsBadge = document.getElementById('ms-payments-badge');
+var reportsBadge = document.getElementById('ms-reports-badge');
+if(!topBadge && !paymentsBadge && !reportsBadge) return;
+if(__msAdminBadgeInFlight) return;
+var now = Date.now();
+if(!force && (now - __msAdminBadgeLastFetch) < 4000) return;
+__msAdminBadgeLastFetch = now;
+__msAdminBadgeInFlight = true;
 Promise.all([
+adminRest('reports?select=id&status=eq.open').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
 adminRest('sellback_submissions?select=id&status=eq.approved').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
 adminRest('resale_offers?select=id&status=eq.accepted').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
 ]).then(function(results){
-var count = (results[0] || []).length + (results[1] || []).length;
-[topBadge, sideBadge].forEach(function(badge){
-if(!badge) return;
-if(count > 0){
-badge.textContent = String(count);
-badge.style.display = 'inline-flex';
-} else {
-badge.style.display = 'none';
+__msAdminBadgeInFlight = false;
+var reportsCount = (results[0] || []).length;
+var paymentsCount = (results[1] || []).length + (results[2] || []).length;
+setBadgeValue(reportsBadge, reportsCount);
+setBadgeValue(paymentsBadge, paymentsCount);
+setBadgeValue(topBadge, reportsCount + paymentsCount);
+}).catch(function(){ __msAdminBadgeInFlight = false; });
 }
-});
-});
-}
+
+function refreshPaymentsBadge(force){ refreshAdminBadgeCounts(force); }
 
 function goToAdminRoute(path){
 history.pushState({}, '', path);
@@ -3944,7 +3974,7 @@ paidBtn.disabled = true;
 adminRest(table + '?id=eq.' + item.id, { method: 'PATCH', body: JSON.stringify({ status: 'paid' }) }).then(function(r){
 if(r.ok){
 if(kind === 'sellback' && item.sku) handoffToShopItems(item.sku);
-loadPayments(); refreshPaymentsBadge();
+loadPayments(); refreshPaymentsBadge(true);
 }
 else { paidBtn.disabled = false; window.alert('Could not mark as paid.'); }
 });
@@ -3957,7 +3987,7 @@ delBtn.addEventListener('click', function(){
 if(!window.confirm('Delete this record permanently?')) return;
 delBtn.disabled = true;
 adminRest(table + '?id=eq.' + item.id, { method: 'DELETE' }).then(function(r){
-if(r.ok){ loadPayments(); refreshPaymentsBadge(); }
+if(r.ok){ loadPayments(); refreshPaymentsBadge(true); }
 else { delBtn.disabled = false; window.alert('Could not delete.'); }
 });
 });
@@ -4074,28 +4104,7 @@ window.addEventListener('popstate', function(){ patchAdminPaymentsPage(); });
 
 var reportsPanelEl = null;
 
-function refreshReportsBadge(){
-var topBadge = ensureTopAdminBadge();
-var sideBadge = document.getElementById('ms-reports-badge');
-if(!topBadge && !sideBadge) return;
-Promise.all([
-adminRest('reports?select=id&status=eq.open').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
-adminRest('sellback_submissions?select=id&status=eq.approved').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
-adminRest('resale_offers?select=id&status=eq.accepted').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
-]).then(function(results){
-var reportsCount = (results[0] || []).length;
-var paymentsCount = (results[1] || []).length + (results[2] || []).length;
-if(sideBadge){
-if(reportsCount > 0){ sideBadge.textContent = String(reportsCount); sideBadge.style.display = 'inline-flex'; }
-else { sideBadge.style.display = 'none'; }
-}
-if(topBadge){
-var total = reportsCount + paymentsCount;
-if(total > 0){ topBadge.textContent = String(total); topBadge.style.display = 'inline-flex'; }
-else { topBadge.style.display = 'none'; }
-}
-});
-}
+function refreshReportsBadge(force){ refreshAdminBadgeCounts(force); }
 
 function deleteReportedContent(report, btn){
 if(!window.confirm('Permanently delete this content?')) return;
@@ -4154,7 +4163,7 @@ reviewBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:none;font-w
 reviewBtn.addEventListener('click', function(){
 reviewBtn.disabled = true;
 adminRest('reports?id=eq.' + report.id, { method: 'PATCH', body: JSON.stringify({ status: 'reviewed' }) }).then(function(r){
-if(r.ok){ loadReports(); refreshReportsBadge(); } else { reviewBtn.disabled = false; }
+if(r.ok){ loadReports(); refreshReportsBadge(true); } else { reviewBtn.disabled = false; }
 });
 });
 var dismissBtn = document.createElement('button');
@@ -4164,7 +4173,7 @@ dismissBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid 
 dismissBtn.addEventListener('click', function(){
 dismissBtn.disabled = true;
 adminRest('reports?id=eq.' + report.id, { method: 'PATCH', body: JSON.stringify({ status: 'dismissed' }) }).then(function(r){
-if(r.ok){ loadReports(); refreshReportsBadge(); } else { dismissBtn.disabled = false; }
+if(r.ok){ loadReports(); refreshReportsBadge(true); } else { dismissBtn.disabled = false; }
 });
 });
 right.appendChild(reviewBtn);
@@ -4775,7 +4784,7 @@ e.preventDefault();
 if(!window.confirm('Delete this record permanently?')) return;
 delBtn.disabled = true;
 adminRest(table + '?id=eq.' + row.id, { method: 'DELETE' }).then(function(resp){
-if(resp.ok){ card.remove(); refreshPaymentsBadge(); }
+if(resp.ok){ card.remove(); refreshPaymentsBadge(true); }
 else { delBtn.disabled = false; window.alert('Could not delete.'); }
 });
 });
