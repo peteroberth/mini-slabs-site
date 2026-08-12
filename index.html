@@ -4577,17 +4577,92 @@ var searchInput = document.createElement('input');
 searchInput.type = 'text';
 searchInput.placeholder = 'Search by name or email…';
 searchInput.className = 'input';
-searchInput.style.cssText = 'width:100%;margin-bottom:16px;';
+searchInput.style.cssText = 'width:100%;margin-bottom:12px;';
+
+var controlsRow = document.createElement('div');
+controlsRow.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;';
+
+var sortSelect = document.createElement('select');
+sortSelect.className = 'input';
+sortSelect.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;';
+[['joined_desc','Date Joined (Newest)'],['joined_asc','Date Joined (Oldest)'],['name_asc','Username (A–Z)'],['name_desc','Username (Z–A)']].forEach(function(opt){
+var o = document.createElement('option'); o.value = opt[0]; o.textContent = opt[1]; sortSelect.appendChild(o);
+});
+controlsRow.appendChild(sortSelect);
+
+var filterWrap = document.createElement('div');
+filterWrap.style.cssText = 'display:flex;gap:6px;';
+controlsRow.appendChild(filterWrap);
+
 var listWrap = document.createElement('div');
 listWrap.id = 'ms-users-list';
 var listStatus = document.createElement('div');
-listStatus.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);padding:10px 0;';
+listStatus.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);padding:0 0 10px;';
 allUsersPane.appendChild(searchInput);
+allUsersPane.appendChild(controlsRow);
 allUsersPane.appendChild(listStatus);
 allUsersPane.appendChild(listWrap);
 
 var myUid = decodeJwtSub(getAdminAccessToken());
 var searchTimer = null;
+var usersCache = [];
+var usersSort = 'joined_desc';
+var usersFilter = 'all';
+
+function sortUsers(list){
+var arr = list.slice();
+if(usersSort === 'joined_desc') arr.sort(function(a,b){ return new Date(b.created_at) - new Date(a.created_at); });
+else if(usersSort === 'joined_asc') arr.sort(function(a,b){ return new Date(a.created_at) - new Date(b.created_at); });
+else if(usersSort === 'name_asc') arr.sort(function(a,b){ return (a.display_name || a.email || '').toLowerCase().localeCompare((b.display_name || b.email || '').toLowerCase()); });
+else if(usersSort === 'name_desc') arr.sort(function(a,b){ return (b.display_name || b.email || '').toLowerCase().localeCompare((a.display_name || a.email || '').toLowerCase()); });
+return arr;
+}
+
+function filterUsers(list){
+if(usersFilter === 'confirmed') return list.filter(function(u){ return u.email_confirmed; });
+if(usersFilter === 'unconfirmed') return list.filter(function(u){ return !u.email_confirmed; });
+return list;
+}
+
+function renderUserList(){
+listWrap.innerHTML = '';
+var visible = sortUsers(filterUsers(usersCache));
+var suffix = usersFilter === 'all' ? '' : (' · ' + (usersFilter === 'confirmed' ? 'confirmed only' : 'unconfirmed only'));
+listStatus.textContent = visible.length + ' user' + (visible.length === 1 ? '' : 's') + suffix;
+if(!visible.length){
+var empty = document.createElement('div');
+empty.style.cssText = 'font-size:13px;color:rgba(255,255,255,0.4);padding:12px 0;';
+empty.textContent = 'No users match this view.';
+listWrap.appendChild(empty);
+return;
+}
+visible.forEach(function(u){
+listWrap.appendChild(buildUserRow(u, myUid, loadUsers));
+});
+}
+
+function mkFilterBtn(value, label){
+var b = document.createElement('button');
+b.type = 'button'; b.textContent = label;
+b.dataset.value = value;
+function paint(){
+var active = value === usersFilter;
+b.style.cssText = 'padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid ' + (active ? 'var(--cyan)' : 'rgba(255,255,255,0.15)') + ';background:' + (active ? 'rgba(255,214,57,0.15)' : 'none') + ';color:#fff;';
+}
+paint();
+b.addEventListener('click', function(){
+usersFilter = value;
+Array.prototype.forEach.call(filterWrap.children, function(btn){ btn.__msPaint && btn.__msPaint(); });
+renderUserList();
+});
+b.__msPaint = paint;
+return b;
+}
+filterWrap.appendChild(mkFilterBtn('all', 'All'));
+filterWrap.appendChild(mkFilterBtn('confirmed', 'Confirmed'));
+filterWrap.appendChild(mkFilterBtn('unconfirmed', 'Unconfirmed'));
+
+sortSelect.addEventListener('change', function(){ usersSort = sortSelect.value; renderUserList(); });
 
 function loadUsers(){
 listStatus.textContent = 'Loading…';
@@ -4597,10 +4672,8 @@ if(!res.ok || !res.data || !res.data.users){
 listStatus.textContent = (res.data && res.data.error) || 'Could not load users.';
 return;
 }
-listStatus.textContent = res.data.users.length + ' user' + (res.data.users.length === 1 ? '' : 's');
-res.data.users.forEach(function(u){
-listWrap.appendChild(buildUserRow(u, myUid, loadUsers));
-});
+usersCache = res.data.users;
+renderUserList();
 }).catch(function(){ listStatus.textContent = 'Could not load users.'; });
 }
 searchInput.addEventListener('input', function(){
