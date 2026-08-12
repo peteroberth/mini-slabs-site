@@ -1641,6 +1641,138 @@ body.textContent = 'Could not load profile photos.';
 });
 }
 
+/* ---------- Account: change your own password ---------- */
+
+function patchChangePassword(){
+if(window.location.pathname !== '/account') return;
+if(document.getElementById('ms-change-password')) return;
+var token = getAdminAccessToken();
+if(!token) return;
+var heading = Array.prototype.filter.call(document.querySelectorAll('h2,h3,h4'), function(h){
+return (h.textContent || '').trim() === 'Profile settings';
+})[0];
+var form = heading && heading.closest('form');
+if(!form) return;
+
+var card = document.createElement('div');
+card.id = 'ms-change-password';
+card.className = 'card p-5';
+card.style.cssText = 'margin-bottom:16px;';
+var h2 = document.createElement('h2');
+h2.className = 'text-white font-semibold mb-3';
+h2.textContent = 'Change Password';
+card.appendChild(h2);
+
+var pw1 = document.createElement('input');
+pw1.type = 'password';
+pw1.placeholder = 'New password';
+pw1.className = 'input';
+pw1.style.cssText = 'width:100%;margin-bottom:8px;';
+var pw2 = document.createElement('input');
+pw2.type = 'password';
+pw2.placeholder = 'Confirm new password';
+pw2.className = 'input';
+pw2.style.cssText = 'width:100%;margin-bottom:10px;';
+var status = document.createElement('div');
+status.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:8px;';
+var saveBtn = document.createElement('button');
+saveBtn.type = 'button';
+saveBtn.className = 'btn-primary';
+saveBtn.textContent = 'Update Password';
+saveBtn.style.cssText = 'padding:9px 18px;font-size:13px;';
+saveBtn.addEventListener('click', function(){
+var p1 = pw1.value, p2 = pw2.value;
+if(!p1 || p1.length < 6){ status.textContent = 'Password must be at least 6 characters.'; return; }
+if(p1 !== p2){ status.textContent = 'Passwords do not match.'; return; }
+saveBtn.disabled = true;
+status.textContent = 'Updating…';
+fetch(SUPABASE_URL + '/auth/v1/user', {
+method: 'PUT',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' },
+body: JSON.stringify({ password: p1 })
+}).then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); }).then(function(res){
+saveBtn.disabled = false;
+if(res.ok){
+status.textContent = 'Password updated ✓';
+pw1.value = ''; pw2.value = '';
+} else {
+status.textContent = (res.data && res.data.msg) || (res.data && res.data.error_description) || 'Could not update password.';
+}
+}).catch(function(){ saveBtn.disabled = false; status.textContent = 'Could not update password.'; });
+});
+
+card.appendChild(pw1);
+card.appendChild(pw2);
+card.appendChild(status);
+card.appendChild(saveBtn);
+form.parentNode.insertBefore(card, form);
+}
+
+/* ---------- Site-wide banner: prompt unconfirmed users to confirm their email ---------- */
+
+var __msEmailConfirmedCache = null;
+function checkEmailConfirmedOrAdmin(cb){
+if(__msEmailConfirmedCache !== null){ cb(__msEmailConfirmedCache); return; }
+var token = getAdminAccessToken();
+if(!token){ cb(true); return; }
+var uid = decodeJwtSub(token);
+Promise.all([
+fetch(SUPABASE_URL + '/rest/v1/rpc/am_i_email_confirmed', { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: '{}' }).then(function(r){ return r.ok ? r.json() : false; }).catch(function(){ return false; }),
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + uid, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token } }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+]).then(function(results){
+var ok = results[0] === true || !!(results[1] && results[1][0] && results[1][0].is_admin);
+__msEmailConfirmedCache = ok;
+cb(ok);
+});
+}
+
+function ensureUnconfirmedEmailBanner(){
+var token = getAdminAccessToken();
+if(!token) return;
+if(document.getElementById('ms-unconfirmed-banner')) return;
+if(window.__msUnconfirmedBannerDismissed) return;
+checkEmailConfirmedOrAdmin(function(ok){
+if(ok) return;
+if(document.getElementById('ms-unconfirmed-banner')) return;
+var uid = decodeJwtSub(token);
+var bar = document.createElement('div');
+bar.id = 'ms-unconfirmed-banner';
+bar.style.cssText = 'position:sticky;top:0;z-index:9989;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;font-size:13px;font-weight:700;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;text-align:center;';
+var msg = document.createElement('span');
+msg.textContent = 'Confirm your email to claim coins, sell back items, and use posts, likes, follows & messages.';
+bar.appendChild(msg);
+var resendBtn = document.createElement('button');
+resendBtn.type = 'button';
+resendBtn.textContent = 'Resend confirmation email';
+resendBtn.style.cssText = 'background:#05070d;color:#fff;border:none;border-radius:999px;padding:6px 14px;font-size:12px;cursor:pointer;';
+resendBtn.addEventListener('click', function(){
+resendBtn.disabled = true;
+resendBtn.textContent = 'Sending…';
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=email&id=eq.' + uid, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token } })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var email = rows[0] && rows[0].email;
+if(!email){ resendBtn.textContent = 'Could not resend'; return; }
+return fetch(SUPABASE_URL + '/auth/v1/resend', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+body: JSON.stringify({ type: 'signup', email: email })
+}).then(function(r2){
+resendBtn.disabled = false;
+resendBtn.textContent = r2.ok ? 'Sent ✓' : 'Could not resend';
+});
+}).catch(function(){ resendBtn.disabled = false; resendBtn.textContent = 'Could not resend'; });
+});
+bar.appendChild(resendBtn);
+var closeBtn = document.createElement('button');
+closeBtn.type = 'button';
+closeBtn.textContent = '✕';
+closeBtn.style.cssText = 'background:none;border:none;color:#05070d;font-size:14px;cursor:pointer;opacity:0.7;';
+closeBtn.addEventListener('click', function(){ window.__msUnconfirmedBannerDismissed = true; bar.remove(); });
+bar.appendChild(closeBtn);
+document.body.insertBefore(bar, document.body.firstChild);
+});
+}
+
 /* ---------- Account: pending follow-request approvals (private accounts) ---------- */
 
 function loadFollowRequests(body, uid){
@@ -4114,6 +4246,151 @@ window.addEventListener('popstate', function(){ patchAdminReportsPage(); });
 }
 }
 
+/* ---------- Admin: Add User panel ---------- */
+
+var usersPanelEl = null;
+
+function callAdminUsersFn(payload){
+var token = getAdminAccessToken();
+return fetch(SUPABASE_URL + '/functions/v1/admin-users', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
+}).then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); });
+}
+
+function buildUsersPanel(){
+if(usersPanelEl) return usersPanelEl;
+var box = document.createElement('div');
+box.id = 'ms-users-page';
+box.style.cssText = 'display:none;width:100%;box-sizing:border-box;color:var(--text);font-family:inherit;max-width:520px;';
+var heading = document.createElement('h1');
+heading.textContent = 'Add User';
+heading.style.cssText = 'font-size:24px;font-weight:800;margin:0 0 8px;color:var(--text-bright);';
+box.appendChild(heading);
+var subtext = document.createElement('p');
+subtext.style.cssText = 'font-size:13px;color:rgba(255,255,255,0.5);margin:0 0 20px;';
+subtext.textContent = 'Create a new account directly. The account is created email-confirmed, so it can claim, sell back, and use social features immediately.';
+box.appendChild(subtext);
+
+var emailInput = document.createElement('input');
+emailInput.type = 'email';
+emailInput.placeholder = 'Email address';
+emailInput.className = 'input';
+emailInput.style.cssText = 'width:100%;margin-bottom:10px;';
+var nameInput = document.createElement('input');
+nameInput.type = 'text';
+nameInput.placeholder = 'Display name (optional)';
+nameInput.className = 'input';
+nameInput.style.cssText = 'width:100%;margin-bottom:10px;';
+var pwInput = document.createElement('input');
+pwInput.type = 'text';
+pwInput.placeholder = 'Temporary password (min 6 characters)';
+pwInput.className = 'input';
+pwInput.style.cssText = 'width:100%;margin-bottom:10px;';
+var adminRow = document.createElement('label');
+adminRow.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:14px;cursor:pointer;';
+var adminCheck = document.createElement('input');
+adminCheck.type = 'checkbox';
+adminRow.appendChild(adminCheck);
+adminRow.appendChild(document.createTextNode('Make this user an admin'));
+
+var status = document.createElement('div');
+status.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:10px;';
+var createBtn = document.createElement('button');
+createBtn.type = 'button';
+createBtn.className = 'btn-primary';
+createBtn.textContent = 'Create User';
+createBtn.style.cssText = 'padding:10px 20px;font-size:13px;';
+createBtn.addEventListener('click', function(){
+var email = emailInput.value.trim();
+var password = pwInput.value;
+if(!email){ status.textContent = 'Email is required.'; return; }
+if(!password || password.length < 6){ status.textContent = 'Password must be at least 6 characters.'; return; }
+createBtn.disabled = true;
+status.textContent = 'Creating…';
+callAdminUsersFn({ action: 'invite', email: email, password: password, display_name: nameInput.value.trim() || undefined, make_admin: adminCheck.checked }).then(function(res){
+createBtn.disabled = false;
+if(res.ok && res.data && res.data.ok){
+status.textContent = 'User created ✓';
+emailInput.value = ''; nameInput.value = ''; pwInput.value = ''; adminCheck.checked = false;
+} else {
+status.textContent = (res.data && res.data.error) || 'Could not create user.';
+}
+}).catch(function(){ createBtn.disabled = false; status.textContent = 'Could not create user.'; });
+});
+
+box.appendChild(emailInput);
+box.appendChild(nameInput);
+box.appendChild(pwInput);
+box.appendChild(adminRow);
+box.appendChild(status);
+box.appendChild(createBtn);
+
+function open(){
+var area = findAdminContentArea();
+if(area && box.parentElement !== area){ area.appendChild(box); }
+if(box.parentElement){
+Array.prototype.forEach.call(box.parentElement.children, function(child){
+if(child !== box) child.style.display = 'none';
+});
+}
+box.style.display = 'block';
+}
+function close(){
+box.style.display = 'none';
+if(box.parentElement){
+Array.prototype.forEach.call(box.parentElement.children, function(child){
+if(child !== box) child.style.removeProperty('display');
+});
+}
+}
+function isOpen(){ return box.style.display !== 'none'; }
+usersPanelEl = { open: open, close: close, isOpen: isOpen };
+return usersPanelEl;
+}
+
+function patchAdminUsersPage(){
+if(!isAdminPage()) return;
+if(window.location.pathname === '/admin/users'){
+var panel = buildUsersPanel();
+if(!panel.isOpen()) panel.open();
+} else if(usersPanelEl){
+usersPanelEl.close();
+}
+}
+
+function patchAdminUsersSidebar(){
+if(!isAdminPage()) return;
+if(document.getElementById('ms-users-navitem')) return;
+var ordersLink = document.querySelector('a[href="/admin/orders"]');
+var sourceLink = document.querySelector('a[href="/admin/submissions"]') || ordersLink;
+if(!ordersLink || !sourceLink) return;
+var nav = ordersLink.parentElement;
+if(!nav) return;
+
+var item = sourceLink.cloneNode(true);
+item.setAttribute('href', '/admin/users');
+item.id = 'ms-users-navitem';
+item.style.cursor = 'pointer';
+item.innerHTML = '';
+item.textContent = 'Add User';
+
+item.addEventListener('click', function(e){
+e.preventDefault();
+e.stopPropagation();
+history.pushState({}, '', '/admin/users');
+patchAdminUsersPage();
+});
+
+nav.insertBefore(item, ordersLink);
+
+if(!window.__msUsersPopstateWired){
+window.__msUsersPopstateWired = true;
+window.addEventListener('popstate', function(){ patchAdminUsersPage(); });
+}
+}
+
 /* ---------- Admin: Delete buttons on Sell-Back Requests / Resale Offers lists ---------- */
 
 function patchDeleteForList(anchorBtnText, table, buildQuery){
@@ -4513,7 +4790,9 @@ refreshMessagesBadge();
 ensureContactAdminsLink();
 patchMyCollection();
 patchProfilePhotos();
+patchChangePassword();
 patchFollowRequests();
+ensureUnconfirmedEmailBanner();
 patchCoinDetail();
 refreshPaymentsBadge();
 patchNotifBell();
@@ -4526,6 +4805,8 @@ patchAdminPaymentsPage();
 patchShopItemImageUpload();
 patchAdminReportsSidebar();
 patchAdminReportsPage();
+patchAdminUsersSidebar();
+patchAdminUsersPage();
 }
 if(isCoinInputTool()){
 patchToolHeader();
