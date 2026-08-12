@@ -2018,6 +2018,7 @@ listEl.style.cssText = 'font-size:13px;color:rgba(255,255,255,0.5);overflow-y:au
 listEl.textContent = 'Loading…';
 card.appendChild(listEl);
 
+overlay.appendChild(card);
 overlay.addEventListener('click', function(e){ if(e.target === overlay) overlay.remove(); });
 document.body.appendChild(overlay);
 
