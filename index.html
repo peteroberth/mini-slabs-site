@@ -1334,9 +1334,9 @@ topRow.appendChild(summary);
 var revealBtn = document.createElement('button');
 revealBtn.type = 'button';
 revealBtn.textContent = 'Reveal Your Offer';
-revealBtn.style.cssText = 'flex:0 0 auto;padding:12px 20px;border-radius:10px;border:none;font-weight:800;font-size:14px;letter-spacing:.02em;cursor:pointer;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;box-shadow:0 0 0 rgba(255,214,57,0);transition:transform .15s,box-shadow .15s;';
-revealBtn.addEventListener('mouseenter', function(){ revealBtn.style.transform = 'translateY(-1px)'; revealBtn.style.boxShadow = '0 6px 24px -6px #FFD63966'; });
-revealBtn.addEventListener('mouseleave', function(){ revealBtn.style.transform = ''; revealBtn.style.boxShadow = '0 0 0 rgba(255,214,57,0)'; });
+revealBtn.style.cssText = 'flex:0 0 auto;padding:18px 32px;border-radius:12px;border:none;font-weight:900;font-size:18px;letter-spacing:.02em;cursor:pointer;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;box-shadow:0 6px 24px -6px #FFD63966;transition:transform .15s,box-shadow .15s;';
+revealBtn.addEventListener('mouseenter', function(){ revealBtn.style.transform = 'translateY(-1px)'; revealBtn.style.boxShadow = '0 10px 32px -6px #FFD639aa'; });
+revealBtn.addEventListener('mouseleave', function(){ revealBtn.style.transform = ''; revealBtn.style.boxShadow = '0 6px 24px -6px #FFD63966'; });
 revealBtn.addEventListener('click', function(){
 var wrap = document.createElement('div');
 wrap.style.cssText = 'text-align:right;';
@@ -1359,6 +1359,73 @@ card.insertBefore(topRow, nameP);
 });
 }
 
+/* ---------- Shop page: bigger empty state + repositioned resale link ---------- */
+
+function patchShopPage(){
+if(window.location.pathname !== '/shop') return;
+var main = document.querySelector('main');
+if(!main) return;
+var wrap = main.firstElementChild;
+if(!wrap) return;
+
+var paras = wrap.querySelectorAll('p');
+var subtitleP = null, emptyP = null;
+for(var i = 0; i < paras.length; i++){
+var t = paras[i].textContent || '';
+if(t.indexOf('Hand-picked drops') !== -1) subtitleP = paras[i];
+if(t.indexOf('No drops available') !== -1) emptyP = paras[i];
+}
+if(!subtitleP && !emptyP) return;
+if(wrap.dataset.msShopDone) return;
+wrap.dataset.msShopDone = '1';
+
+// Drop the inline resale mention from the subtitle — it gets its own line below.
+if(subtitleP){ subtitleP.textContent = 'Hand-picked drops available to buy right now.'; }
+
+// Make the empty-drops message big, bold, and centered.
+if(emptyP){
+emptyP.style.cssText = 'font-size:22px;font-weight:800;color:var(--text-dim);text-align:center;margin:56px 0 24px;';
+}
+
+var resaleLine = document.createElement('p');
+resaleLine.style.cssText = 'text-align:center;color:var(--text-dim);font-size:14px;margin-top:4px;';
+resaleLine.innerHTML = 'Want to buy from another collector? <a href="/resale" style="color:var(--magenta);font-weight:700;text-decoration:underline;">Check Resales &rarr;</a>';
+wrap.appendChild(resaleLine);
+}
+
+/* ---------- Sell Back: require login before showing the page at all ---------- */
+
+function patchSellBackLoginGate(){
+if(window.location.pathname !== '/sell-back') return;
+var main = document.querySelector('main');
+if(!main) return;
+var token = getAdminAccessToken();
+if(token){
+if(main.dataset.msSellbackGated === '1'){ window.location.reload(); }
+return;
+}
+if(main.dataset.msSellbackGated === '1') return;
+main.dataset.msSellbackGated = '1';
+main.innerHTML = '';
+var wrap = document.createElement('div');
+wrap.style.cssText = 'max-width:440px;margin:0 auto;padding:80px 20px;text-align:center;';
+var h1 = document.createElement('h1');
+h1.textContent = 'Sell an Item Back';
+h1.style.cssText = 'font-size:28px;font-weight:900;color:#fff;margin-bottom:12px;';
+wrap.appendChild(h1);
+var p = document.createElement('p');
+p.textContent = 'Please log in to submit an item for buyback review.';
+p.style.cssText = 'color:var(--text-dim);font-size:15px;margin-bottom:24px;';
+wrap.appendChild(p);
+var loginLink = document.createElement('a');
+loginLink.href = '/login';
+loginLink.className = 'btn-primary';
+loginLink.textContent = 'Log In';
+loginLink.style.cssText = 'display:inline-block;padding:12px 28px;font-size:15px;';
+wrap.appendChild(loginLink);
+main.appendChild(wrap);
+}
+
 /* ---------- Resale marketplace: render live listings ---------- */
 
 function patchResalePage(){
@@ -1372,6 +1439,22 @@ if((paras[i].textContent || '').indexOf('No resale listings right now') !== -1){
 }
 if(!placeholder || placeholder.dataset.msResaleDone) return;
 placeholder.dataset.msResaleDone = '1';
+
+// Drop the redundant "Claimed an item? List it from your account." and make the headline stand out.
+placeholder.textContent = 'No Resale Listings Right Now.';
+placeholder.style.cssText = 'font-size:19px;font-weight:700;color:var(--text-dim);text-align:center;margin:24px 0;';
+
+// Enlarge the "resell from your collection" line and make its link visibly clickable.
+var resellPara = null;
+var allParas = document.querySelectorAll('p');
+for(var j = 0; j < allParas.length; j++){
+if((allParas[j].textContent || '').indexOf('Have a claimed item') !== -1){ resellPara = allParas[j]; break; }
+}
+if(resellPara){
+resellPara.style.cssText = 'font-size:15px;color:var(--text-dim);margin-top:16px;';
+var resellLink = resellPara.querySelector('a');
+if(resellLink){ resellLink.style.cssText = 'color:var(--cyan);font-weight:700;text-decoration:underline;'; }
+}
 
 var container = document.createElement('div');
 container.id = 'ms-resale-list';
@@ -2105,7 +2188,7 @@ function refresh(){
 fetch(SUPABASE_URL + '/rest/v1/claim_likes?select=user_id&claim_id=eq.' + claimId, { headers: headers })
 .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 var liked = !!(myUid && rows.some(function(r){ return r.user_id === myUid; }));
-btn.textContent = (liked ? '♥ ' : '♡ ') + rows.length;
+btn.textContent = (liked ? '💛 On Wishlist' : '🤍 Add to Wishlist') + ' · ' + rows.length;
 btn.dataset.liked = liked ? '1' : '';
 });
 }
@@ -2193,7 +2276,7 @@ card.appendChild(name);
 var likeBtn = document.createElement('button');
 likeBtn.type = 'button';
 likeBtn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:4px 12px;font-size:12px;color:#fff;cursor:pointer;margin-bottom:10px;';
-likeBtn.textContent = '♡ …';
+likeBtn.textContent = '🤍 Add to Wishlist · …';
 card.appendChild(likeBtn);
 wireLikeButton(likeBtn, row.id, myUid);
 
@@ -3035,13 +3118,12 @@ var myUid = myToken ? decodeJwtSub(myToken) : null;
 var isMe = myUid === profile.id;
 
 var banner = document.createElement('div');
-banner.style.cssText = 'width:100%;height:180px;border-radius:16px;overflow:hidden;background:linear-gradient(135deg, rgba(255,214,57,0.18), rgba(255,138,61,0.18));position:relative;' + (profile.header_url ? 'cursor:pointer;' : '');
+banner.style.cssText = 'width:100%;height:180px;border-radius:16px;overflow:hidden;background:linear-gradient(135deg, rgba(255,214,57,0.18), rgba(255,138,61,0.18));position:relative;';
 if(profile.header_url){
 var himg = document.createElement('img');
 himg.src = profile.header_url;
 himg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
 banner.appendChild(himg);
-banner.addEventListener('click', function(){ openImageLightbox(profile.header_url); });
 }
 container.appendChild(banner);
 
@@ -3049,13 +3131,12 @@ var identityRow = document.createElement('div');
 identityRow.style.cssText = 'display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:-64px;padding:0 16px;margin-bottom:12px;position:relative;z-index:1;';
 
 var avatarWrap = document.createElement('div');
-avatarWrap.style.cssText = 'width:128px;height:128px;border-radius:50%;overflow:hidden;background:#1b1c26;border:4px solid var(--bg,#0A0A0F);flex:0 0 auto;box-shadow:0 4px 16px rgba(0,0,0,0.4);cursor:' + (profile.avatar_url ? 'pointer' : 'default') + ';';
+avatarWrap.style.cssText = 'width:128px;height:128px;border-radius:50%;overflow:hidden;background:#1b1c26;border:4px solid var(--bg,#0A0A0F);flex:0 0 auto;box-shadow:0 4px 16px rgba(0,0,0,0.4);';
 if(profile.avatar_url){
 var aimg = document.createElement('img');
 aimg.src = profile.avatar_url;
 aimg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
 avatarWrap.appendChild(aimg);
-avatarWrap.addEventListener('click', function(){ openImageLightbox(profile.avatar_url); });
 }
 identityRow.appendChild(avatarWrap);
 
@@ -3132,7 +3213,7 @@ statsRow.style.cssText = 'display:flex;gap:20px;padding:0 16px;margin-bottom:18p
 container.appendChild(statsRow);
 refreshFollowCounts(statsRow, profile.id);
 
-var tabDefs = [['posts', 'Posts'], ['collection', 'Collection'], ['likes', 'Likes'], ['info', 'Info']];
+var tabDefs = [['posts', 'Posts'], ['collection', 'Collection'], ['likes', 'Wishlist'], ['info', 'Info']];
 var tabBar = document.createElement('div');
 tabBar.style.cssText = 'display:flex;gap:4px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:18px;overflow-x:auto;';
 tabDefs.forEach(function(t){
@@ -3652,7 +3733,7 @@ panel.innerHTML = '';
 if(!rows.length){
 var empty = document.createElement('p');
 empty.style.cssText = 'color:rgba(255,255,255,0.4);font-size:13px;';
-empty.textContent = 'No liked coins yet.';
+empty.textContent = 'Nothing on the wishlist yet.';
 panel.appendChild(empty);
 return;
 }
@@ -3676,7 +3757,7 @@ card.appendChild(name);
 grid.appendChild(card);
 });
 panel.appendChild(grid);
-}).catch(function(){ panel.textContent = 'Could not load likes.'; });
+}).catch(function(){ panel.textContent = 'Could not load wishlist.'; });
 }
 
 function buildCollectorInfoPanel(panel, profile){
@@ -3720,7 +3801,7 @@ if(profile.is_public){
 var likeBtn = document.createElement('button');
 likeBtn.type = 'button';
 likeBtn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:4px 12px;font-size:12px;color:#fff;cursor:pointer;margin-bottom:8px;';
-likeBtn.textContent = '♡ …';
+likeBtn.textContent = '🤍 Add to Wishlist · …';
 controls.appendChild(likeBtn);
 wireLikeButton(likeBtn, match.id, myUid);
 
@@ -5586,6 +5667,8 @@ patchCoinViewToggle();
 trackLookupInputs(root);
 patchLookupCardStyle();
 patchClaimSellback();
+patchShopPage();
+patchSellBackLoginGate();
 patchResalePage();
 patchCollectorProfilePage();
 patchPublicProfilePage();
