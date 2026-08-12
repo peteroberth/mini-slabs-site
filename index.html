@@ -3806,52 +3806,7 @@ wireCollectorCards(profile, window.__msCollectorClaims);
 
 var followSuggestSidebarEl = null;
 
-function buildFollowSuggestionsSidebar(){
-if(followSuggestSidebarEl) return followSuggestSidebarEl;
-var box = document.createElement('div');
-box.id = 'ms-follow-suggestions';
-box.style.cssText = 'position:fixed;top:110px;right:24px;width:260px;max-height:66vh;overflow-y:auto;background:#14151d;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;z-index:40;box-shadow:0 10px 30px rgba(0,0,0,0.35);display:none;';
-var title = document.createElement('div');
-title.textContent = 'Who to Follow';
-title.style.cssText = 'font-size:14px;font-weight:800;color:#fff;margin-bottom:2px;';
-box.appendChild(title);
-var subtitle = document.createElement('div');
-subtitle.textContent = 'Collectors with similar coins';
-subtitle.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:10px;';
-box.appendChild(subtitle);
-var list = document.createElement('div');
-list.id = 'ms-follow-suggestions-list';
-box.appendChild(list);
-document.body.appendChild(box);
-if(!document.getElementById('ms-follow-suggestions-style')){
-var styleTag = document.createElement('style');
-styleTag.id = 'ms-follow-suggestions-style';
-styleTag.textContent = '@media (max-width: 1180px){ #ms-follow-suggestions{ display:none !important; } }';
-document.head.appendChild(styleTag);
-}
-followSuggestSidebarEl = { box: box, list: list };
-return followSuggestSidebarEl;
-}
-
-function loadFollowSuggestions(excludeProfileId){
-var el = buildFollowSuggestionsSidebar();
-var token = getAdminAccessToken();
-var myUid = token ? decodeJwtSub(token) : null;
-el.list.innerHTML = '';
-el.box.style.display = 'block';
-var loading = document.createElement('div');
-loading.textContent = 'Loading…';
-loading.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);';
-el.list.appendChild(loading);
-fetch(SUPABASE_URL + '/rest/v1/rpc/get_follow_recommendations', {
-method: 'POST',
-headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
-body: JSON.stringify({ p_viewer_id: myUid, p_limit: 8 })
-}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
-rows = (rows || []).filter(function(r){ return r.id !== excludeProfileId; }).slice(0, 6);
-el.list.innerHTML = '';
-if(!rows.length){ el.box.style.display = 'none'; return; }
-rows.forEach(function(u){
+function buildFollowSuggestionRow(u, myUid){
 var row = document.createElement('div');
 row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);';
 
@@ -3889,12 +3844,117 @@ wireFollowButton(followBtn, myUid, u.id);
 row.appendChild(followBtn);
 }
 
-el.list.appendChild(row);
+return row;
+}
+
+function buildFollowSuggestionsSidebar(){
+if(followSuggestSidebarEl) return followSuggestSidebarEl;
+var box = document.createElement('div');
+box.id = 'ms-follow-suggestions';
+box.style.cssText = 'position:fixed;top:110px;right:24px;width:260px;max-height:70vh;overflow-y:auto;background:#14151d;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;z-index:40;box-shadow:0 10px 30px rgba(0,0,0,0.35);display:none;';
+var title = document.createElement('div');
+title.textContent = 'Who to Follow';
+title.style.cssText = 'font-size:14px;font-weight:800;color:#fff;margin-bottom:2px;';
+box.appendChild(title);
+var subtitle = document.createElement('div');
+subtitle.id = 'ms-follow-suggestions-subtitle';
+subtitle.textContent = 'Collectors with similar coins';
+subtitle.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:10px;';
+box.appendChild(subtitle);
+
+var searchInput = document.createElement('input');
+searchInput.type = 'text';
+searchInput.placeholder = 'Search users…';
+searchInput.className = 'input';
+searchInput.style.cssText = 'width:100%;box-sizing:border-box;margin-bottom:10px;font-size:12px;padding:7px 10px;';
+box.appendChild(searchInput);
+
+var list = document.createElement('div');
+list.id = 'ms-follow-suggestions-list';
+box.appendChild(list);
+document.body.appendChild(box);
+if(!document.getElementById('ms-follow-suggestions-style')){
+var styleTag = document.createElement('style');
+styleTag.id = 'ms-follow-suggestions-style';
+styleTag.textContent = '@media (max-width: 1180px){ #ms-follow-suggestions{ display:none !important; } }';
+document.head.appendChild(styleTag);
+}
+followSuggestSidebarEl = { box: box, list: list, subtitle: subtitle, searchInput: searchInput };
+
+var searchTimer = null;
+searchInput.addEventListener('input', function(){
+clearTimeout(searchTimer);
+searchTimer = setTimeout(function(){
+var q = searchInput.value.trim();
+if(q){ runFollowSuggestionSearch(q); }
+else { loadFollowSuggestions(window.__msFollowSuggestExclude); }
+}, 300);
 });
+
+return followSuggestSidebarEl;
+}
+
+function renderFollowSuggestionRows(rows, emptyMessage){
+var el = buildFollowSuggestionsSidebar();
+var token = getAdminAccessToken();
+var myUid = token ? decodeJwtSub(token) : null;
+el.list.innerHTML = '';
+if(!rows.length){
+var empty = document.createElement('div');
+empty.textContent = emptyMessage;
+empty.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);padding:8px 0;';
+el.list.appendChild(empty);
+return;
+}
+rows.forEach(function(u){ el.list.appendChild(buildFollowSuggestionRow(u, myUid)); });
+}
+
+function runFollowSuggestionSearch(query){
+var el = buildFollowSuggestionsSidebar();
+el.box.style.display = 'block';
+el.subtitle.textContent = 'Search results';
+var token = getAdminAccessToken();
+var myUid = token ? decodeJwtSub(token) : null;
+el.list.innerHTML = '';
+var loading = document.createElement('div');
+loading.textContent = 'Searching…';
+loading.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);';
+el.list.appendChild(loading);
+fetch(SUPABASE_URL + '/rest/v1/rpc/search_public_profiles', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
+body: JSON.stringify({ p_search: query, p_viewer_id: myUid, p_limit: 20 })
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+rows = (rows || []).filter(function(r){ return r.id !== window.__msFollowSuggestExclude; });
+renderFollowSuggestionRows(rows, 'No public users match "' + query + '".');
+}).catch(function(){ renderFollowSuggestionRows([], 'Could not search right now.'); });
+}
+
+function loadFollowSuggestions(excludeProfileId){
+var el = buildFollowSuggestionsSidebar();
+el.subtitle.textContent = 'Collectors with similar coins';
+el.searchInput.value = '';
+var token = getAdminAccessToken();
+var myUid = token ? decodeJwtSub(token) : null;
+el.list.innerHTML = '';
+el.box.style.display = 'block';
+var loading = document.createElement('div');
+loading.textContent = 'Loading…';
+loading.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);';
+el.list.appendChild(loading);
+fetch(SUPABASE_URL + '/rest/v1/rpc/get_follow_recommendations', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
+body: JSON.stringify({ p_viewer_id: myUid, p_limit: 8 })
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+rows = (rows || []).filter(function(r){ return r.id !== excludeProfileId; }).slice(0, 6);
+if(!rows.length){ el.box.style.display = 'none'; return; }
+renderFollowSuggestionRows(rows, 'No suggestions right now.');
 }).catch(function(){ el.box.style.display = 'none'; });
 }
 
 function ensureFollowSuggestionsSidebar(excludeProfileId){
+window.__msFollowSuggestExclude = excludeProfileId;
 if(window.__msFollowSuggestLoadedFor === excludeProfileId){
 if(followSuggestSidebarEl) followSuggestSidebarEl.box.style.display = 'block';
 return;
