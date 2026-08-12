@@ -2267,7 +2267,7 @@ messageBtn.addEventListener('click', function(){
 messageBtn.disabled = true;
 findOrCreateConversation(myUid, profile.id).then(function(cid){
 if(cid){ window.location.href = '/messages/' + cid; }
-else { messageBtn.disabled = false; }
+else { messageBtn.disabled = false; alert('Could not start this conversation. Please try again.'); }
 });
 });
 });
@@ -2343,10 +2343,14 @@ return fetch(SUPABASE_URL + '/rest/v1/conversations?select=id&or=(and(user_a.eq.
 .then(function(r){ return r.ok ? r.json() : []; })
 .then(function(rows){
 if(rows[0]) return rows[0].id;
+// conversations has a CHECK(user_a < user_b) constraint to prevent duplicate rows
+// for the same pair in either order — the two ids must be sorted before insert.
+var ua = myUid < otherUid ? myUid : otherUid;
+var ub = myUid < otherUid ? otherUid : myUid;
 return fetch(SUPABASE_URL + '/rest/v1/conversations', {
 method: 'POST',
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-body: JSON.stringify({ user_a: myUid, user_b: otherUid })
+body: JSON.stringify({ user_a: ua, user_b: ub })
 }).then(function(r){ return r.ok ? r.json() : null; }).then(function(rowsRes){
 return rowsRes && rowsRes[0] && rowsRes[0].id;
 });
@@ -2764,10 +2768,14 @@ return fetch(SUPABASE_URL + '/rest/v1/conversations?select=id&or=(and(user_a.eq.
 .then(function(r){ return r.ok ? r.json() : []; })
 .then(function(rows){
 if(rows[0]) return rows[0].id;
+// conversations has a CHECK(user_a < user_b) constraint — sort ids before insert.
+// hidden_party_id still refers to myUid regardless of which column it lands in.
+var ua = myUid < otherUid ? myUid : otherUid;
+var ub = myUid < otherUid ? otherUid : myUid;
 return fetch(SUPABASE_URL + '/rest/v1/conversations', {
 method: 'POST',
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-body: JSON.stringify({ user_a: myUid, user_b: otherUid, hidden_party_id: myUid })
+body: JSON.stringify({ user_a: ua, user_b: ub, hidden_party_id: myUid })
 }).then(function(r){ return r.ok ? r.json() : null; }).then(function(rowsRes){
 return rowsRes && rowsRes[0] && rowsRes[0].id;
 });
@@ -3085,7 +3093,7 @@ messageBtn.addEventListener('click', function(){
 messageBtn.disabled = true;
 findOrCreateConversation(myUid, profile.id).then(function(cid){
 if(cid){ window.location.href = '/messages/' + cid; }
-else { messageBtn.disabled = false; }
+else { messageBtn.disabled = false; alert('Could not start this conversation. Please try again.'); }
 });
 });
 });
