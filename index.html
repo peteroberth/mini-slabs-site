@@ -4723,6 +4723,30 @@ history.pushState({}, '', path);
 patchAdminReportsPage();
 }
 
+// "/admin/reports" isn't a real React Router route — it only works when reached via
+// client-side navigation from inside an already-rendered admin dashboard shell (which is
+// how the sidebar link works). A fresh full page load of that URL (e.g. a notification
+// opened directly) hits the app's native not-found page instead. This routes around that:
+// if we're already inside the admin shell, jump straight there client-side; otherwise land
+// on the real "/admin" route first and open Reports once that shell has mounted.
+function navigateToAdminReports(){
+if(isAdminPage() && document.querySelector('a[href="/admin/orders"]')){
+if(window.location.pathname !== '/admin/reports'){ goToAdminReportsRoute('/admin/reports'); }
+return;
+}
+try{ sessionStorage.setItem('ms-open-admin-reports', '1'); }catch(e){}
+window.location.href = '/admin';
+}
+
+function consumePendingAdminReportsOpen(){
+var pending;
+try{ pending = sessionStorage.getItem('ms-open-admin-reports'); }catch(e){ pending = null; }
+if(!pending) return;
+if(!document.querySelector('a[href="/admin/orders"]')) return;
+try{ sessionStorage.removeItem('ms-open-admin-reports'); }catch(e){}
+goToAdminReportsRoute('/admin/reports');
+}
+
 function patchAdminReportsPage(){
 if(!isAdminPage()) return;
 if(window.location.pathname === '/admin/reports'){
@@ -5627,9 +5651,16 @@ iw.appendChild(replyBtn);
 panel.appendChild(iw);
 return;
 }
-var item = document.createElement(n.link ? 'a' : 'div');
+var isAdminReportLink = n.type === 'admin_report' && n.link === '/admin/reports';
+var item = document.createElement((n.link && !isAdminReportLink) ? 'a' : (isAdminReportLink ? 'button' : 'div'));
+if(isAdminReportLink){
+item.type = 'button';
+item.style.cssText = 'display:block;width:100%;text-align:left;background:none;border:none;padding:10px;border-bottom:1px solid rgba(255,255,255,0.08);text-decoration:none;color:inherit;cursor:pointer;font:inherit;' + (n.read_at ? 'opacity:0.55;' : '');
+item.addEventListener('click', function(){ panel.style.display = 'none'; navigateToAdminReports(); });
+} else {
 if(n.link){ item.href = n.link; item.target = '_blank'; item.rel = 'noopener'; }
 item.style.cssText = 'display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,0.08);text-decoration:none;color:inherit;' + (n.read_at ? 'opacity:0.55;' : '');
+}
 item.innerHTML = '<div style="font-weight:700;font-size:13px;">' + escapeHtml(n.title) + '</div>' +
 (n.body ? '<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px;">' + escapeHtml(n.body) + '</div>' : '');
 panel.appendChild(item);
@@ -5716,6 +5747,7 @@ patchAdminReportsSidebar();
 patchAdminReportsPage();
 patchAdminUsersSidebar();
 patchAdminUsersPage();
+consumePendingAdminReportsOpen();
 }
 if(isCoinInputTool()){
 patchToolHeader();
