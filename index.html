@@ -893,6 +893,170 @@ if(!isFinite(n)) return null;
 return '$' + n.toFixed(2);
 }
 
+/* ---------- Generic full-size image lightbox (avatar/header/etc) ---------- */
+
+function openImageLightbox(url){
+if(!url) return;
+var overlay = document.getElementById('ms-img-lightbox');
+if(!overlay){
+overlay = document.createElement('div');
+overlay.id = 'ms-img-lightbox';
+overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.88);display:none;align-items:center;justify-content:center;padding:40px;';
+var img = document.createElement('img');
+img.id = 'ms-img-lightbox-img';
+img.style.cssText = 'max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);';
+var closeBtn = document.createElement('button');
+closeBtn.type = 'button';
+closeBtn.textContent = '✕';
+closeBtn.title = 'Close';
+closeBtn.style.cssText = 'position:fixed;top:20px;right:24px;width:40px;height:40px;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#fff;font-size:18px;cursor:pointer;';
+closeBtn.addEventListener('click', function(){ overlay.style.display = 'none'; });
+overlay.appendChild(img);
+overlay.appendChild(closeBtn);
+overlay.addEventListener('click', function(e){ if(e.target === overlay) overlay.style.display = 'none'; });
+document.addEventListener('keydown', function(e){ if(overlay.style.display !== 'none' && e.key === 'Escape') overlay.style.display = 'none'; });
+document.body.appendChild(overlay);
+}
+document.getElementById('ms-img-lightbox-img').src = url;
+overlay.style.display = 'flex';
+}
+
+/* ---------- Reusable image crop/reposition tool for avatar + header uploads ---------- */
+
+function buildCropperUI(img, opts, onDone){
+var overlay = document.createElement('div');
+overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:20px;';
+var box = document.createElement('div');
+box.style.cssText = 'background:#12131c;color:#fff;border-radius:14px;padding:22px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5);font-family:inherit;';
+var title = document.createElement('h3');
+title.style.cssText = 'font-size:16px;font-weight:800;margin:0 0 4px;';
+title.textContent = opts.label;
+box.appendChild(title);
+var hint = document.createElement('div');
+hint.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:14px;';
+hint.textContent = opts.hint;
+box.appendChild(hint);
+
+var vw = Math.min(480, opts.outW);
+var vh = vw / opts.aspect;
+var viewport = document.createElement('div');
+viewport.style.cssText = 'position:relative;width:' + vw + 'px;height:' + vh + 'px;overflow:hidden;border-radius:' + (opts.round ? '50%' : '10px') + ';background:#000;margin:0 auto 14px;cursor:grab;user-select:none;border:1px solid rgba(255,255,255,0.15);';
+box.appendChild(viewport);
+
+var nw = img.naturalWidth, nh = img.naturalHeight;
+var minScale = Math.max(vw / nw, vh / nh);
+var scale = minScale;
+var offsetX = (vw - nw * scale) / 2;
+var offsetY = (vh - nh * scale) / 2;
+
+img.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;';
+viewport.appendChild(img);
+
+function render(){
+img.style.width = (nw * scale) + 'px';
+img.style.height = (nh * scale) + 'px';
+img.style.left = offsetX + 'px';
+img.style.top = offsetY + 'px';
+}
+function clamp(){
+var minX = vw - nw * scale, minY = vh - nh * scale;
+if(offsetX > 0) offsetX = 0;
+if(offsetX < minX) offsetX = minX;
+if(offsetY > 0) offsetY = 0;
+if(offsetY < minY) offsetY = minY;
+}
+clamp(); render();
+
+var dragging = false, lastX = 0, lastY = 0;
+viewport.addEventListener('mousedown', function(e){ dragging = true; lastX = e.clientX; lastY = e.clientY; viewport.style.cursor = 'grabbing'; });
+window.addEventListener('mousemove', function(e){
+if(!dragging) return;
+offsetX += e.clientX - lastX;
+offsetY += e.clientY - lastY;
+lastX = e.clientX; lastY = e.clientY;
+clamp(); render();
+});
+window.addEventListener('mouseup', function(){ dragging = false; viewport.style.cursor = 'grab'; });
+viewport.addEventListener('touchstart', function(e){
+if(e.touches.length !== 1) return;
+dragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+}, { passive: true });
+viewport.addEventListener('touchmove', function(e){
+if(!dragging || e.touches.length !== 1) return;
+offsetX += e.touches[0].clientX - lastX;
+offsetY += e.touches[0].clientY - lastY;
+lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+clamp(); render();
+}, { passive: true });
+viewport.addEventListener('touchend', function(){ dragging = false; });
+
+var zoomRow = document.createElement('div');
+zoomRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:16px;';
+var zoomLabel = document.createElement('span');
+zoomLabel.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.5);';
+zoomLabel.textContent = 'Zoom';
+var zoomSlider = document.createElement('input');
+zoomSlider.type = 'range';
+zoomSlider.min = String(minScale);
+zoomSlider.max = String(minScale * 3);
+zoomSlider.step = String(minScale / 100);
+zoomSlider.value = String(scale);
+zoomSlider.style.cssText = 'flex:1;';
+zoomSlider.addEventListener('input', function(){
+var newScale = parseFloat(zoomSlider.value);
+var cx = (vw / 2 - offsetX) / scale;
+var cy = (vh / 2 - offsetY) / scale;
+scale = newScale;
+offsetX = vw / 2 - cx * scale;
+offsetY = vh / 2 - cy * scale;
+clamp(); render();
+});
+zoomRow.appendChild(zoomLabel);
+zoomRow.appendChild(zoomSlider);
+box.appendChild(zoomRow);
+
+var btnRow = document.createElement('div');
+btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;';
+var cancelBtn = document.createElement('button');
+cancelBtn.type = 'button';
+cancelBtn.textContent = 'Cancel';
+cancelBtn.style.cssText = 'padding:9px 18px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:none;color:#fff;font-size:13px;cursor:pointer;';
+cancelBtn.addEventListener('click', function(){ overlay.remove(); });
+var useBtn = document.createElement('button');
+useBtn.type = 'button';
+useBtn.className = 'btn-primary';
+useBtn.textContent = 'Use Photo';
+useBtn.style.cssText = 'padding:9px 18px;font-size:13px;';
+useBtn.addEventListener('click', function(){
+var canvas = document.createElement('canvas');
+canvas.width = opts.outW;
+canvas.height = opts.outH;
+var ctx = canvas.getContext('2d');
+var k = opts.outW / vw;
+ctx.drawImage(img, offsetX * k, offsetY * k, nw * scale * k, nh * scale * k);
+canvas.toBlob(function(blob){
+overlay.remove();
+if(blob) onDone(blob);
+}, 'image/jpeg', 0.92);
+});
+btnRow.appendChild(cancelBtn);
+btnRow.appendChild(useBtn);
+box.appendChild(btnRow);
+
+overlay.appendChild(box);
+document.body.appendChild(overlay);
+}
+
+function openImageCropper(file, opts, onDone){
+var reader = new FileReader();
+reader.onload = function(){
+var img = new Image();
+img.onload = function(){ buildCropperUI(img, opts, onDone); };
+img.src = reader.result;
+};
+reader.readAsDataURL(file);
+}
+
 var coinModalEl = null;
 function buildCoinModal(){
 if(coinModalEl) return coinModalEl;
@@ -1368,17 +1532,23 @@ fileInput.accept = 'image/*';
 fileInput.style.cssText = 'font-size:12px;color:var(--text-dim);display:block;';
 var status = document.createElement('span');
 status.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.5);margin-left:8px;';
+var sizeHint = document.createElement('div');
+sizeHint.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;';
+sizeHint.textContent = isAvatar ? 'Square photo, at least 400×400px recommended.' : 'Banner photo, recommended 1500×500px (3:1).';
 fileInput.addEventListener('change', function(){
 var file = fileInput.files && fileInput.files[0];
 if(!file) return;
+var cropOpts = isAvatar ?
+{ label: 'Crop your avatar', hint: 'Square image, at least 400×400px recommended.', aspect: 1, outW: 500, outH: 500, round: true } :
+{ label: 'Crop your header image', hint: 'Recommended size: 1500×500px (3:1 banner).', aspect: 3, outW: 1500, outH: 500, round: false };
+openImageCropper(file, cropOpts, function(blob){
 status.textContent = 'Uploading…';
-var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-var path = (kind === 'avatar' ? 'avatars/' : 'headers/') + uid + '-' + Date.now() + '.' + ext;
+var path = (kind === 'avatar' ? 'avatars/' : 'headers/') + uid + '-' + Date.now() + '.jpg';
 var token = getAdminAccessToken();
 fetch(SUPABASE_URL + '/storage/v1/object/site-assets/' + path, {
 method: 'POST',
-headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'x-upsert': 'true', 'Content-Type': file.type || 'application/octet-stream' },
-body: file
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'x-upsert': 'true', 'Content-Type': 'image/jpeg' },
+body: blob
 }).then(function(r){
 if(!r.ok) throw new Error('upload failed');
 var publicUrl = SUPABASE_URL + '/storage/v1/object/public/site-assets/' + path;
@@ -1397,9 +1567,12 @@ preview.appendChild(img2);
 status.textContent = 'Upload failed';
 });
 });
+fileInput.value = '';
+});
 right.appendChild(label);
 right.appendChild(fileInput);
 right.appendChild(status);
+right.appendChild(sizeHint);
 wrap.appendChild(preview);
 wrap.appendChild(right);
 return wrap;
@@ -2466,25 +2639,27 @@ var myUid = myToken ? decodeJwtSub(myToken) : null;
 var isMe = myUid === profile.id;
 
 var banner = document.createElement('div');
-banner.style.cssText = 'width:100%;height:180px;border-radius:16px;overflow:hidden;background:linear-gradient(135deg, rgba(255,214,57,0.18), rgba(255,138,61,0.18));position:relative;';
+banner.style.cssText = 'width:100%;height:180px;border-radius:16px;overflow:hidden;background:linear-gradient(135deg, rgba(255,214,57,0.18), rgba(255,138,61,0.18));position:relative;' + (profile.header_url ? 'cursor:pointer;' : '');
 if(profile.header_url){
 var himg = document.createElement('img');
 himg.src = profile.header_url;
 himg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
 banner.appendChild(himg);
+banner.addEventListener('click', function(){ openImageLightbox(profile.header_url); });
 }
 container.appendChild(banner);
 
 var identityRow = document.createElement('div');
-identityRow.style.cssText = 'display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:-44px;padding:0 16px;margin-bottom:12px;';
+identityRow.style.cssText = 'display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:-64px;padding:0 16px;margin-bottom:12px;position:relative;z-index:1;';
 
 var avatarWrap = document.createElement('div');
-avatarWrap.style.cssText = 'width:96px;height:96px;border-radius:50%;overflow:hidden;background:#1b1c26;border:4px solid var(--bg,#0A0A0F);flex:0 0 auto;box-shadow:0 4px 16px rgba(0,0,0,0.4);';
+avatarWrap.style.cssText = 'width:128px;height:128px;border-radius:50%;overflow:hidden;background:#1b1c26;border:4px solid var(--bg,#0A0A0F);flex:0 0 auto;box-shadow:0 4px 16px rgba(0,0,0,0.4);cursor:' + (profile.avatar_url ? 'pointer' : 'default') + ';';
 if(profile.avatar_url){
 var aimg = document.createElement('img');
 aimg.src = profile.avatar_url;
 aimg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
 avatarWrap.appendChild(aimg);
+avatarWrap.addEventListener('click', function(){ openImageLightbox(profile.avatar_url); });
 }
 identityRow.appendChild(avatarWrap);
 
@@ -2605,15 +2780,81 @@ setCollectorActiveTab(window.__msCollectorActiveTab || 'posts');
 
 function buildCollectorPostsPanel(panel, profile, myUid, isMe){
 panel.innerHTML = '';
+var feed = document.createElement('div');
+feed.id = 'ms-collector-posts-feed';
+
 if(isMe){
 var composer = document.createElement('div');
 composer.style.cssText = 'border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;margin-bottom:18px;';
 var textarea = document.createElement('textarea');
 textarea.rows = 3;
 textarea.className = 'input';
-textarea.placeholder = "What's new in your collection?";
+textarea.placeholder = 'Share what\'s new!';
 textarea.style.cssText = 'width:100%;resize:vertical;margin-bottom:10px;';
 composer.appendChild(textarea);
+
+var mediaPreviewWrap = document.createElement('div');
+mediaPreviewWrap.style.cssText = 'display:none;align-items:center;gap:8px;margin-bottom:10px;';
+composer.appendChild(mediaPreviewWrap);
+
+var pendingMedia = { blob: null, type: null };
+
+var toolsRow = document.createElement('div');
+toolsRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:10px;';
+var mediaBtn = document.createElement('button');
+mediaBtn.type = 'button';
+mediaBtn.textContent = '📷 Add photo/video';
+mediaBtn.disabled = true;
+mediaBtn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:6px 14px;font-size:12px;color:#fff;cursor:pointer;opacity:0.5;';
+var mediaInput = document.createElement('input');
+mediaInput.type = 'file';
+mediaInput.accept = 'image/*,video/*';
+mediaInput.style.display = 'none';
+var mediaNote = document.createElement('span');
+mediaNote.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);';
+mediaNote.textContent = 'Checking account status…';
+toolsRow.appendChild(mediaBtn);
+toolsRow.appendChild(mediaNote);
+composer.appendChild(mediaInput);
+composer.appendChild(toolsRow);
+
+var authHeaders = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+Promise.all([
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + myUid, { headers: authHeaders }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+fetch(SUPABASE_URL + '/rest/v1/rpc/am_i_email_confirmed', { method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' }, body: '{}' }).then(function(r){ return r.ok ? r.json() : false; }).catch(function(){ return false; })
+]).then(function(results){
+var admin = !!(results[0] && results[0][0] && results[0][0].is_admin);
+var confirmed = results[1] === true;
+if(admin || confirmed){
+mediaBtn.disabled = false;
+mediaBtn.style.opacity = '1';
+mediaNote.textContent = '';
+mediaBtn.addEventListener('click', function(){ mediaInput.click(); });
+} else {
+mediaNote.textContent = 'Confirm your email to add photos or videos.';
+}
+}).catch(function(){ mediaNote.textContent = ''; });
+
+mediaInput.addEventListener('change', function(){
+var file = mediaInput.files && mediaInput.files[0];
+if(!file) return;
+pendingMedia.type = file.type.indexOf('video') === 0 ? 'video' : 'image';
+pendingMedia.blob = file;
+mediaPreviewWrap.innerHTML = '';
+mediaPreviewWrap.style.display = 'flex';
+var previewEl = document.createElement(pendingMedia.type === 'video' ? 'video' : 'img');
+previewEl.src = URL.createObjectURL(file);
+previewEl.style.cssText = 'max-height:120px;border-radius:8px;';
+if(pendingMedia.type === 'video') previewEl.controls = true;
+mediaPreviewWrap.appendChild(previewEl);
+var removeBtn = document.createElement('button');
+removeBtn.type = 'button';
+removeBtn.textContent = 'Remove';
+removeBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;';
+removeBtn.addEventListener('click', function(){ pendingMedia.blob = null; pendingMedia.type = null; mediaPreviewWrap.style.display = 'none'; mediaInput.value = ''; });
+mediaPreviewWrap.appendChild(removeBtn);
+});
+
 var composerBottom = document.createElement('div');
 composerBottom.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;gap:10px;';
 var status = document.createElement('span');
@@ -2625,34 +2866,65 @@ postBtn.textContent = 'Post';
 postBtn.style.cssText = 'padding:8px 20px;font-size:13px;';
 postBtn.addEventListener('click', function(){
 var body = textarea.value.trim();
-if(!body) return;
+if(!body && !pendingMedia.blob) return;
 postBtn.disabled = true;
-status.textContent = 'Posting…';
+status.textContent = pendingMedia.blob ? 'Uploading…' : 'Posting…';
+function doInsert(mediaUrl){
+var payload = { user_id: myUid, body: body || '' };
+if(mediaUrl){
+if(pendingMedia.type === 'video') payload.video_url = mediaUrl; else payload.image_url = mediaUrl;
+}
 fetch(SUPABASE_URL + '/rest/v1/posts', {
 method: 'POST',
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' },
-body: JSON.stringify({ user_id: myUid, body: body })
+body: JSON.stringify(payload)
 }).then(function(r){
 postBtn.disabled = false;
-if(r.ok){ textarea.value = ''; status.textContent = ''; loadCollectorPosts(feed, profile.id, myUid); }
-else { status.textContent = 'Could not post.'; }
+if(r.ok){
+textarea.value = ''; status.textContent = ''; pendingMedia.blob = null; pendingMedia.type = null;
+mediaPreviewWrap.style.display = 'none'; mediaInput.value = '';
+loadCollectorPosts(feed, profile, myUid, isMe, true);
+} else {
+r.json().then(function(err){ status.textContent = (err && err.message) || 'Could not post.'; }).catch(function(){ status.textContent = 'Could not post.'; });
+}
 }).catch(function(){ postBtn.disabled = false; status.textContent = 'Could not post.'; });
+}
+if(pendingMedia.blob){
+var ext = (pendingMedia.blob.name && pendingMedia.blob.name.split('.').pop() || (pendingMedia.type === 'video' ? 'mp4' : 'jpg')).toLowerCase().replace(/[^a-z0-9]/g, '') || (pendingMedia.type === 'video' ? 'mp4' : 'jpg');
+var path = 'posts/' + myUid + '-' + Date.now() + '.' + ext;
+fetch(SUPABASE_URL + '/storage/v1/object/site-assets/' + path, {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'x-upsert': 'true', 'Content-Type': pendingMedia.blob.type || 'application/octet-stream' },
+body: pendingMedia.blob
+}).then(function(r){
+if(!r.ok) throw new Error('upload failed');
+doInsert(SUPABASE_URL + '/storage/v1/object/public/site-assets/' + path);
+}).catch(function(){ postBtn.disabled = false; status.textContent = 'Media upload failed.'; });
+} else {
+doInsert(null);
+}
 });
 composerBottom.appendChild(status);
 composerBottom.appendChild(postBtn);
 composer.appendChild(composerBottom);
 panel.appendChild(composer);
 }
-var feed = document.createElement('div');
-feed.id = 'ms-collector-posts-feed';
+
 panel.appendChild(feed);
-loadCollectorPosts(feed, profile.id, myUid);
+
+if(isMe || profile.is_public){
+loadCollectorPosts(feed, profile, myUid, isMe, true);
+} else if(myUid){
+checkMutualFollow(myUid, profile.id, function(isMutual){ loadCollectorPosts(feed, profile, myUid, isMe, isMutual); });
+} else {
+loadCollectorPosts(feed, profile, myUid, isMe, false);
+}
 }
 
-function loadCollectorPosts(feed, profileId, myUid){
+function loadCollectorPosts(feed, profile, myUid, isMe, canInteract){
 feed.textContent = 'Loading posts…';
 var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
-fetch(SUPABASE_URL + '/rest/v1/posts?select=id,body,image_url,created_at,user_id&user_id=eq.' + profileId + '&order=created_at.desc', { headers: headers })
+fetch(SUPABASE_URL + '/rest/v1/posts?select=id,body,image_url,video_url,created_at,user_id&user_id=eq.' + profile.id + '&order=created_at.desc', { headers: headers })
 .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 feed.innerHTML = '';
 if(!rows.length){
@@ -2662,11 +2934,111 @@ empty.textContent = 'No posts yet.';
 feed.appendChild(empty);
 return;
 }
-rows.forEach(function(post){ feed.appendChild(buildPostCard(post, myUid)); });
+rows.forEach(function(post){ feed.appendChild(buildPostCard(post, myUid, feed, profile, isMe, canInteract)); });
 }).catch(function(){ feed.textContent = 'Could not load posts.'; });
 }
 
-function buildPostCard(post, myUid){
+var POST_REACTIONS = [['like', '👍'], ['love', '❤️'], ['haha', '😂'], ['wow', '😮'], ['sad', '😢']];
+
+function loadPostReactions(bar, postId, myUid, canInteract){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+fetch(SUPABASE_URL + '/rest/v1/post_reactions?select=user_id,reaction&post_id=eq.' + postId, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+bar.innerHTML = '';
+var counts = {};
+var mine = null;
+rows.forEach(function(row){
+counts[row.reaction] = (counts[row.reaction] || 0) + 1;
+if(row.user_id === myUid) mine = row.reaction;
+});
+POST_REACTIONS.forEach(function(def){
+var key = def[0], emoji = def[1];
+var count = counts[key] || 0;
+if(!count && !canInteract) return;
+var btn = document.createElement('button');
+btn.type = 'button';
+var active = mine === key;
+btn.style.cssText = 'background:' + (active ? 'rgba(255,214,57,0.18)' : 'none') + ';border:1px solid ' + (active ? 'var(--cyan)' : 'rgba(255,255,255,0.15)') + ';border-radius:999px;padding:4px 10px;font-size:12px;color:#fff;cursor:' + (canInteract ? 'pointer' : 'default') + ';margin-right:6px;margin-bottom:6px;';
+btn.textContent = emoji + (count ? ' ' + count : '');
+if(canInteract){
+btn.addEventListener('click', function(){
+btn.disabled = true;
+var newReaction = active ? null : key;
+var req;
+if(!newReaction){
+req = fetch(SUPABASE_URL + '/rest/v1/post_reactions?post_id=eq.' + postId + '&user_id=eq.' + myUid, { method: 'DELETE', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() } });
+} else {
+req = fetch(SUPABASE_URL + '/rest/v1/post_reactions', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+body: JSON.stringify({ post_id: postId, user_id: myUid, reaction: newReaction })
+});
+}
+req.then(function(){ loadPostReactions(bar, postId, myUid, canInteract); }).catch(function(){ btn.disabled = false; });
+});
+} else {
+btn.disabled = true;
+btn.style.cursor = 'default';
+}
+bar.appendChild(btn);
+});
+});
+}
+
+function loadPostComments(wrap, postId, myUid, canInteract){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+fetch(SUPABASE_URL + '/rest/v1/post_comments?select=id,body,created_at,user_id,profiles(display_name)&post_id=eq.' + postId + '&order=created_at.asc', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+wrap.innerHTML = '';
+rows.forEach(function(c){
+var line = document.createElement('div');
+line.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:4px;';
+var textSpan = document.createElement('span');
+var who = (c.profiles && c.profiles.display_name) || 'Someone';
+textSpan.innerHTML = '<strong style="color:#fff;">' + escapeHtml(who) + ':</strong> ' + escapeHtml(c.body);
+line.appendChild(textSpan);
+var reportBtn = document.createElement('button');
+reportBtn.type = 'button';
+reportBtn.textContent = 'Report';
+reportBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.3);font-size:10px;cursor:pointer;flex:0 0 auto;';
+reportBtn.addEventListener('click', function(){ promptAndReport('comment', c.id, 'this comment'); });
+line.appendChild(reportBtn);
+wrap.appendChild(line);
+});
+if(canInteract && myUid){
+var form = document.createElement('div');
+form.style.cssText = 'display:flex;gap:6px;margin-top:8px;';
+var input = document.createElement('input');
+input.type = 'text';
+input.placeholder = 'Add a comment…';
+input.className = 'input';
+input.style.cssText = 'flex:1;font-size:12px;';
+var send = document.createElement('button');
+send.type = 'button';
+send.textContent = 'Post';
+send.className = 'btn-primary';
+send.style.cssText = 'padding:6px 12px;font-size:12px;';
+send.addEventListener('click', function(){
+var body = input.value.trim();
+if(!body) return;
+send.disabled = true;
+fetch(SUPABASE_URL + '/rest/v1/post_comments', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' },
+body: JSON.stringify({ post_id: postId, user_id: myUid, body: body })
+}).then(function(r){
+send.disabled = false;
+if(r.ok){ input.value = ''; loadPostComments(wrap, postId, myUid, canInteract); }
+}).catch(function(){ send.disabled = false; });
+});
+form.appendChild(input);
+form.appendChild(send);
+wrap.appendChild(form);
+}
+}).catch(function(){ wrap.textContent = 'Could not load comments.'; });
+}
+
+function buildPostCard(post, myUid, feed, profile, isMe, canInteract){
 var card = document.createElement('div');
 card.className = 'card';
 card.style.cssText = 'padding:16px;margin-bottom:14px;';
@@ -2677,15 +3049,33 @@ card.appendChild(body);
 if(post.image_url){
 var img = document.createElement('img');
 img.src = post.image_url;
-img.style.cssText = 'width:100%;max-height:360px;object-fit:cover;border-radius:10px;margin-bottom:8px;';
+img.style.cssText = 'width:100%;max-height:360px;object-fit:cover;border-radius:10px;margin-bottom:8px;cursor:pointer;';
+img.addEventListener('click', function(){ openImageLightbox(post.image_url); });
 card.appendChild(img);
 }
+if(post.video_url){
+var vid = document.createElement('video');
+vid.src = post.video_url;
+vid.controls = true;
+vid.style.cssText = 'width:100%;max-height:360px;border-radius:10px;margin-bottom:8px;background:#000;';
+card.appendChild(vid);
+}
 var footer = document.createElement('div');
-footer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+footer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
 var time = document.createElement('span');
 time.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);';
 time.textContent = new Date(post.created_at).toLocaleString();
 footer.appendChild(time);
+var footerRight = document.createElement('div');
+footerRight.style.cssText = 'display:flex;gap:10px;align-items:center;';
+if(!(myUid && post.user_id === myUid)){
+var reportPostBtn = document.createElement('button');
+reportPostBtn.type = 'button';
+reportPostBtn.textContent = 'Report';
+reportPostBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.3);font-size:11px;cursor:pointer;';
+reportPostBtn.addEventListener('click', function(){ promptAndReport('post', post.id, 'this post'); });
+footerRight.appendChild(reportPostBtn);
+}
 if(myUid && post.user_id === myUid){
 var delBtn = document.createElement('button');
 delBtn.type = 'button';
@@ -2698,9 +3088,22 @@ method: 'DELETE',
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() }
 }).then(function(){ card.remove(); }).catch(function(){});
 });
-footer.appendChild(delBtn);
+footerRight.appendChild(delBtn);
 }
+footer.appendChild(footerRight);
 card.appendChild(footer);
+
+if(canInteract){
+var reactionBar = document.createElement('div');
+reactionBar.style.cssText = 'display:flex;flex-wrap:wrap;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);margin-bottom:8px;';
+card.appendChild(reactionBar);
+loadPostReactions(reactionBar, post.id, myUid, !!myUid);
+
+var commentsWrap = document.createElement('div');
+commentsWrap.style.cssText = 'font-size:12px;';
+card.appendChild(commentsWrap);
+loadPostComments(commentsWrap, post.id, myUid, !!myUid);
+}
 return card;
 }
 
@@ -3332,6 +3735,234 @@ window.addEventListener('popstate', function(){ patchAdminPaymentsPage(); });
 }
 }
 
+/* ---------- Admin: Reports panel (posts/comments/users/messages reported by users) ---------- */
+
+var reportsPanelEl = null;
+
+function refreshReportsBadge(){
+var topBadge = ensureTopAdminBadge();
+var sideBadge = document.getElementById('ms-reports-badge');
+if(!topBadge && !sideBadge) return;
+Promise.all([
+adminRest('reports?select=id&status=eq.open').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+adminRest('sellback_submissions?select=id&status=eq.approved').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+adminRest('resale_offers?select=id&status=eq.accepted').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+]).then(function(results){
+var reportsCount = (results[0] || []).length;
+var paymentsCount = (results[1] || []).length + (results[2] || []).length;
+if(sideBadge){
+if(reportsCount > 0){ sideBadge.textContent = String(reportsCount); sideBadge.style.display = 'inline-flex'; }
+else { sideBadge.style.display = 'none'; }
+}
+if(topBadge){
+var total = reportsCount + paymentsCount;
+if(total > 0){ topBadge.textContent = String(total); topBadge.style.display = 'inline-flex'; }
+else { topBadge.style.display = 'none'; }
+}
+});
+}
+
+function deleteReportedContent(report, btn){
+if(!window.confirm('Permanently delete this content?')) return;
+btn.disabled = true;
+if(report.target_type === 'post'){
+adminRest('posts?id=eq.' + report.target_id, { method: 'DELETE' }).then(function(r){
+btn.textContent = r.ok ? 'Deleted ✓' : 'Failed';
+}).catch(function(){ btn.disabled = false; });
+return;
+}
+adminRest('post_comments?id=eq.' + report.target_id, { method: 'DELETE', headers: adminHeaders() }).then(function(r){
+if(r.ok) return true;
+return adminRest('claim_comments?id=eq.' + report.target_id, { method: 'DELETE' }).then(function(r2){ return r2.ok; });
+}).then(function(ok){
+btn.textContent = ok ? 'Deleted ✓' : 'Failed';
+}).catch(function(){ btn.disabled = false; });
+}
+
+function buildReportRow(report, reporterName){
+var row = document.createElement('div');
+row.style.cssText = 'padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.08);' + (report.status !== 'open' ? 'opacity:0.55;' : '');
+var top = document.createElement('div');
+top.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;';
+var left = document.createElement('div');
+var typeLabel = document.createElement('span');
+typeLabel.style.cssText = 'display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);margin-right:8px;';
+typeLabel.textContent = report.target_type;
+left.appendChild(typeLabel);
+var statusLabel = document.createElement('span');
+statusLabel.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);';
+statusLabel.textContent = report.status;
+left.appendChild(statusLabel);
+var reporterLine = document.createElement('div');
+reporterLine.style.cssText = 'font-weight:700;margin-top:4px;';
+reporterLine.textContent = 'Reported by ' + (reporterName || 'a user') + ' · ' + new Date(report.created_at).toLocaleString();
+left.appendChild(reporterLine);
+var reasonLine = document.createElement('div');
+reasonLine.style.cssText = 'font-size:13px;color:rgba(255,255,255,0.65);margin-top:4px;max-width:520px;white-space:pre-wrap;';
+reasonLine.textContent = report.reason || '';
+left.appendChild(reasonLine);
+if(report.target_id){
+var idLine = document.createElement('div');
+idLine.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px;';
+idLine.textContent = 'Target ID: ' + report.target_id;
+left.appendChild(idLine);
+}
+top.appendChild(left);
+
+var right = document.createElement('div');
+right.style.cssText = 'display:flex;gap:8px;flex:0 0 auto;flex-wrap:wrap;';
+if(report.status === 'open'){
+var reviewBtn = document.createElement('button');
+reviewBtn.type = 'button';
+reviewBtn.textContent = 'Mark Reviewed';
+reviewBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:none;font-weight:700;font-size:12px;cursor:pointer;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;';
+reviewBtn.addEventListener('click', function(){
+reviewBtn.disabled = true;
+adminRest('reports?id=eq.' + report.id, { method: 'PATCH', body: JSON.stringify({ status: 'reviewed' }) }).then(function(r){
+if(r.ok){ loadReports(); refreshReportsBadge(); } else { reviewBtn.disabled = false; }
+});
+});
+var dismissBtn = document.createElement('button');
+dismissBtn.type = 'button';
+dismissBtn.textContent = 'Dismiss';
+dismissBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.6);font-size:12px;cursor:pointer;';
+dismissBtn.addEventListener('click', function(){
+dismissBtn.disabled = true;
+adminRest('reports?id=eq.' + report.id, { method: 'PATCH', body: JSON.stringify({ status: 'dismissed' }) }).then(function(r){
+if(r.ok){ loadReports(); refreshReportsBadge(); } else { dismissBtn.disabled = false; }
+});
+});
+right.appendChild(reviewBtn);
+right.appendChild(dismissBtn);
+}
+if(report.target_type === 'post' || report.target_type === 'comment'){
+var delContentBtn = document.createElement('button');
+delContentBtn.type = 'button';
+delContentBtn.textContent = 'Delete Content';
+delContentBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid rgba(255,120,120,0.4);background:transparent;color:#ff9a9a;font-size:12px;cursor:pointer;';
+delContentBtn.addEventListener('click', function(){ deleteReportedContent(report, delContentBtn); });
+right.appendChild(delContentBtn);
+}
+top.appendChild(right);
+row.appendChild(top);
+return row;
+}
+
+function loadReports(){
+var content = document.getElementById('ms-reports-content');
+if(!content) return;
+content.textContent = 'Loading…';
+adminRest('reports?select=id,reporter_id,target_type,target_id,reason,status,created_at,profiles!reports_reporter_id_profiles_fkey(display_name)&order=created_at.desc').then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }).then(function(rows){
+content.innerHTML = '';
+if(!rows.length){
+var empty = document.createElement('div');
+empty.textContent = 'No reports.';
+empty.style.cssText = 'color:rgba(255,255,255,0.5);font-size:13px;padding:8px 0;';
+content.appendChild(empty);
+return;
+}
+rows.forEach(function(report){
+var reporterName = report.profiles && report.profiles.display_name;
+content.appendChild(buildReportRow(report, reporterName));
+});
+});
+}
+
+function buildReportsPanel(){
+if(reportsPanelEl) return reportsPanelEl;
+var box = document.createElement('div');
+box.id = 'ms-reports-page';
+box.style.cssText = 'display:none;width:100%;box-sizing:border-box;color:var(--text);font-family:inherit;';
+var heading = document.createElement('h1');
+heading.textContent = 'Reports';
+heading.style.cssText = 'font-size:24px;font-weight:800;margin:0 0 20px;color:var(--text-bright);';
+var content = document.createElement('div');
+content.id = 'ms-reports-content';
+box.appendChild(heading);
+box.appendChild(content);
+
+function open(){
+var area = findAdminContentArea();
+if(area && box.parentElement !== area){ area.appendChild(box); }
+if(box.parentElement){
+Array.prototype.forEach.call(box.parentElement.children, function(child){
+if(child !== box) child.style.display = 'none';
+});
+}
+box.style.display = 'block';
+loadReports();
+}
+function close(){
+box.style.display = 'none';
+if(box.parentElement){
+Array.prototype.forEach.call(box.parentElement.children, function(child){
+if(child !== box) child.style.removeProperty('display');
+});
+}
+}
+function isOpen(){ return box.style.display !== 'none'; }
+reportsPanelEl = { open: open, close: close, isOpen: isOpen };
+return reportsPanelEl;
+}
+
+function goToAdminReportsRoute(path){
+history.pushState({}, '', path);
+patchAdminReportsPage();
+}
+
+function patchAdminReportsPage(){
+if(!isAdminPage()) return;
+if(window.location.pathname === '/admin/reports'){
+var panel = buildReportsPanel();
+if(!panel.isOpen()) panel.open();
+} else if(reportsPanelEl){
+reportsPanelEl.close();
+}
+}
+
+function patchAdminReportsSidebar(){
+if(!isAdminPage()) return;
+if(document.getElementById('ms-reports-navitem')){ refreshReportsBadge(); return; }
+var ordersLink = document.querySelector('a[href="/admin/orders"]');
+var sourceLink = document.querySelector('a[href="/admin/submissions"]') || ordersLink;
+if(!ordersLink || !sourceLink) return;
+var nav = ordersLink.parentElement;
+if(!nav) return;
+
+var item = sourceLink.cloneNode(true);
+item.setAttribute('href', '/admin/reports');
+item.id = 'ms-reports-navitem';
+item.style.cursor = 'pointer';
+item.innerHTML = '';
+item.style.display = 'flex';
+item.style.alignItems = 'center';
+item.style.justifyContent = 'space-between';
+item.style.gap = '8px';
+
+var labelSpan = document.createElement('span');
+labelSpan.textContent = 'Reports';
+item.appendChild(labelSpan);
+
+var badge = document.createElement('span');
+badge.id = 'ms-reports-badge';
+badge.style.cssText = 'display:none;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;font-size:11px;font-weight:800;line-height:1;';
+item.appendChild(badge);
+
+item.addEventListener('click', function(e){
+e.preventDefault();
+e.stopPropagation();
+goToAdminReportsRoute('/admin/reports');
+});
+
+nav.insertBefore(item, ordersLink);
+refreshReportsBadge();
+
+if(!window.__msReportsPopstateWired){
+window.__msReportsPopstateWired = true;
+window.addEventListener('popstate', function(){ patchAdminReportsPage(); });
+}
+}
+
 /* ---------- Admin: Delete buttons on Sell-Back Requests / Resale Offers lists ---------- */
 
 function patchDeleteForList(anchorBtnText, table, buildQuery){
@@ -3698,7 +4329,7 @@ buildNotifBell();
 if(isNew) notifBellEl.refresh();
 if(!window.__msNotifPollWired){
 window.__msNotifPollWired = true;
-setInterval(function(){ if(notifBellEl) notifBellEl.refresh(); refreshMessagesBadge(); }, 30000);
+setInterval(function(){ if(notifBellEl) notifBellEl.refresh(); refreshMessagesBadge(); if(isAdminPage()) refreshReportsBadge(); }, 30000);
 }
 }
 
@@ -3734,6 +4365,8 @@ patchAdminSyncLabel();
 patchAdminToolLinks();
 patchAdminPaymentsPage();
 patchShopItemImageUpload();
+patchAdminReportsSidebar();
+patchAdminReportsPage();
 }
 if(isCoinInputTool()){
 patchToolHeader();
