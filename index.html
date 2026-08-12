@@ -2407,7 +2407,22 @@ return rowsRes && rowsRes[0] && rowsRes[0].id;
 });
 }
 
+function fetchWishlistCount(sku){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' };
+return fetch(SUPABASE_URL + '/rest/v1/rpc/get_wishlist_count', { method: 'POST', headers: headers, body: JSON.stringify({ p_sku: sku }) })
+.then(function(r){ return r.ok ? r.json() : 0; }).then(function(n){ return n || 0; }).catch(function(){ return 0; });
+}
+
 function renderWishlistToggle(panel, sku, myUid){
+var countLine = document.createElement('div');
+countLine.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:8px;';
+countLine.textContent = 'Loading likes…';
+panel.appendChild(countLine);
+function refreshCount(){
+fetchWishlistCount(sku).then(function(n){ countLine.textContent = '🤍 ' + n + (n === 1 ? ' collector likes this coin' : ' collectors like this coin'); });
+}
+refreshCount();
+
 var btn = document.createElement('button');
 btn.type = 'button';
 btn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:6px 14px;font-size:12px;color:#fff;cursor:pointer;';
@@ -2430,6 +2445,7 @@ req.then(function(){
 liked = !liked;
 btn.textContent = liked ? '💛 On Wishlist' : '🤍 Add to Wishlist';
 btn.disabled = false;
+refreshCount();
 }).catch(function(){ btn.disabled = false; });
 });
 }
@@ -2489,6 +2505,11 @@ container.appendChild(panel);
 var myToken = getAdminAccessToken();
 var myUid = myToken ? decodeJwtSub(myToken) : null;
 if(!myUid){
+var countLine = document.createElement('div');
+countLine.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:8px;';
+countLine.textContent = 'Loading likes…';
+panel.appendChild(countLine);
+fetchWishlistCount(sku).then(function(n){ countLine.textContent = '🤍 ' + n + (n === 1 ? ' collector likes this coin' : ' collectors like this coin'); });
 var loginLink = document.createElement('a');
 loginLink.href = '/login';
 loginLink.style.cssText = 'font-size:12px;color:var(--cyan);';
