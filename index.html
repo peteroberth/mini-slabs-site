@@ -928,6 +928,11 @@ if(amountEl){
 var target = parseFloat(amountEl.getAttribute('data-target')) || 0;
 requestAnimationFrame(function(){ requestAnimationFrame(function(){ animateBuybackCountUp(amountEl, target); }); });
 }
+var skuHost = content.querySelector('[data-ms-coin-sku]');
+if(skuHost){
+var hostSku = skuHost.getAttribute('data-ms-coin-sku');
+if(hostSku) wireCoinWishlistPanel(skuHost, hostSku);
+}
 }
 function close(){
 overlay.style.display = 'none';
@@ -999,7 +1004,7 @@ buybackHtml = '<div id="ms-buyback-hero" style="margin-top:18px;padding:22px 16p
 '</div>';
 }
 
-return '<div>' +
+return '<div data-ms-coin-sku="' + escapeHtml(sku) + '">' +
 '<h2 style="font-size:20px;font-weight:800;margin:0 0 4px;padding-right:40px;">' + escapeHtml(name) + '</h2>' +
 '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;">SKU ' + escapeHtml(sku) + '</div>' +
 (photosHtml ? '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">' + photosHtml + '</div>' : '') +
@@ -1881,7 +1886,7 @@ row.appendChild(bubbleRow);
 return row;
 }
 
-function renderConversationThread(container, conversationId, myUid, otherProfile){
+function renderConversationThread(container, conversationId, myUid, otherProfile, otherId, isHiddenInitially){
 if(window.__msThreadPollId){ clearInterval(window.__msThreadPollId); window.__msThreadPollId = null; }
 container.innerHTML = '';
 var backLink = document.createElement('a');
@@ -1891,9 +1896,13 @@ backLink.style.cssText = 'display:inline-block;margin-bottom:12px;color:var(--cy
 container.appendChild(backLink);
 
 var heading = document.createElement('h2');
-heading.style.cssText = 'font-size:18px;font-weight:800;color:#fff;margin-bottom:12px;';
-heading.textContent = otherProfile ? (otherProfile.display_name || 'Conversation') : 'Conversation';
+heading.style.cssText = 'font-size:18px;font-weight:800;color:#fff;margin-bottom:2px;';
 container.appendChild(heading);
+
+var subtitle = document.createElement('div');
+subtitle.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.45);margin-bottom:12px;display:none;';
+subtitle.textContent = 'Their identity will be revealed once you reply.';
+container.appendChild(subtitle);
 
 var thread = document.createElement('div');
 thread.style.cssText = 'max-height:50vh;overflow-y:auto;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:12px;margin-bottom:12px;';
@@ -1916,6 +1925,18 @@ form.appendChild(send);
 container.appendChild(form);
 
 var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' };
+
+var isHidden = !!isHiddenInitially;
+function updateHeading(){
+if(isHidden){
+heading.textContent = 'Anonymous Collector';
+subtitle.style.display = '';
+} else {
+heading.textContent = (otherProfile && otherProfile.display_name) || 'Conversation';
+subtitle.style.display = 'none';
+}
+}
+updateHeading();
 
 var lastSignature = null;
 function loadMessages(){
@@ -1940,8 +1961,27 @@ fetch(SUPABASE_URL + '/rest/v1/messages?id=eq.' + m.id, { method: 'PATCH', heade
 thread.textContent = 'Could not load messages.';
 });
 }
+
+function checkRevealAndLoad(){
+if(isHidden && otherId){
+fetch(SUPABASE_URL + '/rest/v1/conversations?select=hidden_party_id&id=eq.' + conversationId, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var stillHidden = !!(rows[0] && rows[0].hidden_party_id === otherId);
+if(stillHidden !== isHidden){
+isHidden = stillHidden;
+if(!isHidden){
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=display_name,avatar_url&id=eq.' + otherId, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(prows){ otherProfile = prows[0]; updateHeading(); });
+} else { updateHeading(); }
+}
 loadMessages();
-window.__msThreadPollId = setInterval(loadMessages, 3000);
+}).catch(function(){ loadMessages(); });
+} else {
+loadMessages();
+}
+}
+checkRevealAndLoad();
+window.__msThreadPollId = setInterval(checkRevealAndLoad, 3000);
 
 send.addEventListener('click', function(){
 var body = input.value.trim();
@@ -1952,7 +1992,7 @@ method: 'POST', headers: headers,
 body: JSON.stringify({ conversation_id: conversationId, sender_id: myUid, body: body })
 }).then(function(r){
 send.disabled = false;
-if(r.ok){ input.value = ''; loadMessages(); }
+if(r.ok){ input.value = ''; checkRevealAndLoad(); }
 }).catch(function(){ send.disabled = false; });
 });
 input.addEventListener('keydown', function(e){ if(e.key === 'Enter') send.click(); });
@@ -1970,27 +2010,33 @@ list.textContent = 'Loading…';
 container.appendChild(list);
 
 var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
-fetch(SUPABASE_URL + '/rest/v1/conversations?select=id,user_a,user_b,created_at&or=(user_a.eq.' + myUid + ',user_b.eq.' + myUid + ')&order=created_at.desc', { headers: headers })
+fetch(SUPABASE_URL + '/rest/v1/conversations?select=id,user_a,user_b,hidden_party_id,created_at&or=(user_a.eq.' + myUid + ',user_b.eq.' + myUid + ')&order=created_at.desc', { headers: headers })
 .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 if(!rows.length){
 list.textContent = 'No conversations yet. Message someone from their public profile once you follow each other.';
 return;
 }
-var otherIds = rows.map(function(c){ return c.user_a === myUid ? c.user_b : c.user_a; });
-fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,avatar_url&id=in.(' + otherIds.join(',') + ')', { headers: headers })
+rows.forEach(function(c){
+c.__otherId = c.user_a === myUid ? c.user_b : c.user_a;
+c.__hidden = !!(c.hidden_party_id && c.hidden_party_id === c.__otherId);
+});
+var visibleIds = rows.filter(function(c){ return !c.__hidden; }).map(function(c){ return c.__otherId; });
+var idsQuery = visibleIds.length ? ('&id=in.(' + visibleIds.join(',') + ')') : '&id=eq.00000000-0000-0000-0000-000000000000';
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,avatar_url' + idsQuery, { headers: headers })
 .then(function(r){ return r.ok ? r.json() : []; }).then(function(profiles){
 var byId = {};
 profiles.forEach(function(p){ byId[p.id] = p; });
 list.innerHTML = '';
 rows.forEach(function(c){
-var otherId = c.user_a === myUid ? c.user_b : c.user_a;
-var other = byId[otherId] || {};
+var other = c.__hidden ? { display_name: 'Anonymous Collector' } : (byId[c.__otherId] || {});
 var item = document.createElement('a');
 item.href = '/messages/' + c.id;
 item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);margin-bottom:8px;text-decoration:none;';
 var av = document.createElement('div');
-av.style.cssText = 'width:36px;height:36px;border-radius:50%;overflow:hidden;background:#1b1c26;flex:0 0 auto;';
-if(other.avatar_url){
+av.style.cssText = 'width:36px;height:36px;border-radius:50%;overflow:hidden;background:#1b1c26;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:15px;';
+if(c.__hidden){
+av.textContent = '🕵️';
+} else if(other.avatar_url){
 var img = document.createElement('img');
 img.src = other.avatar_url;
 img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
@@ -2040,7 +2086,7 @@ renderConversationList(container, uid);
 } else {
 var conversationId = threadMatch[1];
 var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token };
-fetch(SUPABASE_URL + '/rest/v1/conversations?select=id,user_a,user_b&id=eq.' + conversationId, { headers: headers })
+fetch(SUPABASE_URL + '/rest/v1/conversations?select=id,user_a,user_b,hidden_party_id&id=eq.' + conversationId, { headers: headers })
 .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 var convo = rows[0];
 if(!convo){
@@ -2048,9 +2094,14 @@ container.innerHTML = '<p style="color:rgba(255,255,255,0.6);">Conversation not 
 return;
 }
 var otherId = convo.user_a === uid ? convo.user_b : convo.user_a;
+var isHidden = !!(convo.hidden_party_id && convo.hidden_party_id === otherId);
+if(isHidden){
+renderConversationThread(container, conversationId, uid, null, otherId, true);
+return;
+}
 fetch(SUPABASE_URL + '/rest/v1/profiles?select=display_name,avatar_url&id=eq.' + otherId, { headers: headers })
 .then(function(r){ return r.ok ? r.json() : []; }).then(function(profRows){
-renderConversationThread(container, conversationId, uid, profRows[0]);
+renderConversationThread(container, conversationId, uid, profRows[0], otherId, false);
 });
 }).catch(function(){
 container.textContent = 'Could not load this conversation.';
@@ -2161,6 +2212,124 @@ badge.textContent = String(count);
 badge.style.display = 'inline-flex';
 } else {
 badge.style.display = 'none';
+}
+}).catch(function(){});
+}
+
+/* ---------- Coin wishlist: like coins you don't own + owner reach-out ---------- */
+
+function startAnonymousReachOut(myUid, otherUid){
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+return fetch(SUPABASE_URL + '/rest/v1/conversations?select=id&or=(and(user_a.eq.' + myUid + ',user_b.eq.' + otherUid + '),and(user_a.eq.' + otherUid + ',user_b.eq.' + myUid + '))', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; })
+.then(function(rows){
+if(rows[0]) return rows[0].id;
+return fetch(SUPABASE_URL + '/rest/v1/conversations', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+body: JSON.stringify({ user_a: myUid, user_b: otherUid, hidden_party_id: myUid })
+}).then(function(r){ return r.ok ? r.json() : null; }).then(function(rowsRes){
+return rowsRes && rowsRes[0] && rowsRes[0].id;
+});
+});
+}
+
+function renderWishlistToggle(panel, sku, myUid){
+var btn = document.createElement('button');
+btn.type = 'button';
+btn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:6px 14px;font-size:12px;color:#fff;cursor:pointer;';
+btn.textContent = '🤍 Add to Wishlist';
+panel.appendChild(btn);
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+var liked = false;
+fetch(SUPABASE_URL + '/rest/v1/coin_wishlist?select=id&sku=eq.' + encodeURIComponent(sku) + '&user_id=eq.' + myUid, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+liked = rows.length > 0;
+btn.textContent = liked ? '💛 On Wishlist' : '🤍 Add to Wishlist';
+}).catch(function(){});
+btn.addEventListener('click', function(){
+btn.disabled = true;
+var authHeaders = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' };
+var req = liked ?
+fetch(SUPABASE_URL + '/rest/v1/coin_wishlist?sku=eq.' + encodeURIComponent(sku) + '&user_id=eq.' + myUid, { method: 'DELETE', headers: authHeaders }) :
+fetch(SUPABASE_URL + '/rest/v1/coin_wishlist', { method: 'POST', headers: authHeaders, body: JSON.stringify({ sku: sku, user_id: myUid }) });
+req.then(function(){
+liked = !liked;
+btn.textContent = liked ? '💛 On Wishlist' : '🤍 Add to Wishlist';
+btn.disabled = false;
+}).catch(function(){ btn.disabled = false; });
+});
+}
+
+function renderOwnerWishlistReachout(panel, sku, myUid){
+panel.textContent = 'Loading interested collectors…';
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+fetch(SUPABASE_URL + '/rest/v1/coin_wishlist?select=user_id,profiles(display_name,avatar_url)&sku=eq.' + encodeURIComponent(sku), { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+panel.innerHTML = '';
+var others = rows.filter(function(row){ return row.user_id !== myUid; });
+var heading = document.createElement('div');
+heading.style.cssText = 'font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:8px;';
+heading.textContent = others.length ? (others.length + ' collector' + (others.length === 1 ? '' : 's') + ' want this coin') : 'No one has wishlisted this coin yet.';
+panel.appendChild(heading);
+others.forEach(function(row){
+var who = row.profiles || {};
+var line = document.createElement('div');
+line.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 0;';
+var av = document.createElement('div');
+av.style.cssText = 'width:28px;height:28px;border-radius:50%;overflow:hidden;background:#1b1c26;flex:0 0 auto;';
+if(who.avatar_url){
+var img = document.createElement('img');
+img.src = who.avatar_url;
+img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+av.appendChild(img);
+}
+line.appendChild(av);
+var name = document.createElement('div');
+name.style.cssText = 'flex:1;font-size:13px;color:#fff;';
+name.textContent = who.display_name || 'A collector';
+line.appendChild(name);
+var reachBtn = document.createElement('button');
+reachBtn.type = 'button';
+reachBtn.className = 'btn-primary';
+reachBtn.textContent = 'Reach out';
+reachBtn.style.cssText = 'padding:5px 12px;font-size:12px;';
+reachBtn.addEventListener('click', function(){
+reachBtn.disabled = true;
+startAnonymousReachOut(myUid, row.user_id).then(function(cid){
+if(cid){ window.location.href = '/messages/' + cid; }
+else { reachBtn.disabled = false; }
+});
+});
+line.appendChild(reachBtn);
+panel.appendChild(line);
+});
+}).catch(function(){ panel.textContent = 'Could not load wishlist interest.'; });
+}
+
+function wireCoinWishlistPanel(container, sku){
+if(!sku || container.querySelector('.ms-wishlist-panel')) return;
+var panel = document.createElement('div');
+panel.className = 'ms-wishlist-panel';
+panel.style.cssText = 'margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.1);';
+container.appendChild(panel);
+var myToken = getAdminAccessToken();
+var myUid = myToken ? decodeJwtSub(myToken) : null;
+if(!myUid){
+var loginLink = document.createElement('a');
+loginLink.href = '/login';
+loginLink.style.cssText = 'font-size:12px;color:var(--cyan);';
+loginLink.textContent = 'Log in to like this coin';
+panel.appendChild(loginLink);
+return;
+}
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + myToken };
+fetch(SUPABASE_URL + '/rest/v1/claims?select=id&sku=eq.' + encodeURIComponent(sku) + '&user_id=eq.' + myUid, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(ownRows){
+if(ownRows.length){
+renderOwnerWishlistReachout(panel, sku, myUid);
+} else {
+renderWishlistToggle(panel, sku, myUid);
 }
 }).catch(function(){});
 }
@@ -2290,25 +2459,54 @@ grid.textContent = 'Could not load this collection.';
 /* ---------- Native /collector/:slug page — augment with follow/message/report/likes/comments/interested ---------- */
 
 function buildCollectorHeader(container, profile){
-var topRow = document.createElement('div');
-topRow.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;';
-
-var countsWrap = document.createElement('div');
-countsWrap.style.cssText = 'display:flex;gap:16px;font-size:13px;color:rgba(255,255,255,0.6);';
-topRow.appendChild(countsWrap);
-refreshFollowCounts(countsWrap, profile.id);
+container.innerHTML = '';
 
 var myToken = getAdminAccessToken();
 var myUid = myToken ? decodeJwtSub(myToken) : null;
 var isMe = myUid === profile.id;
 
-if(!isMe && myUid){
+var banner = document.createElement('div');
+banner.style.cssText = 'width:100%;height:180px;border-radius:16px;overflow:hidden;background:linear-gradient(135deg, rgba(255,214,57,0.18), rgba(255,138,61,0.18));position:relative;';
+if(profile.header_url){
+var himg = document.createElement('img');
+himg.src = profile.header_url;
+himg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+banner.appendChild(himg);
+}
+container.appendChild(banner);
+
+var identityRow = document.createElement('div');
+identityRow.style.cssText = 'display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:-44px;padding:0 16px;margin-bottom:12px;';
+
+var avatarWrap = document.createElement('div');
+avatarWrap.style.cssText = 'width:96px;height:96px;border-radius:50%;overflow:hidden;background:#1b1c26;border:4px solid var(--bg,#0A0A0F);flex:0 0 auto;box-shadow:0 4px 16px rgba(0,0,0,0.4);';
+if(profile.avatar_url){
+var aimg = document.createElement('img');
+aimg.src = profile.avatar_url;
+aimg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+avatarWrap.appendChild(aimg);
+}
+identityRow.appendChild(avatarWrap);
+
+var actionsWrap = document.createElement('div');
+actionsWrap.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:6px;';
+identityRow.appendChild(actionsWrap);
+container.appendChild(identityRow);
+
+if(isMe){
+var editLink = document.createElement('a');
+editLink.href = '/account';
+editLink.className = 'btn-primary';
+editLink.textContent = 'Edit Profile';
+editLink.style.cssText = 'padding:8px 16px;font-size:13px;';
+actionsWrap.appendChild(editLink);
+} else if(myUid){
 var followBtn = document.createElement('button');
 followBtn.type = 'button';
 followBtn.className = 'btn-primary';
 followBtn.textContent = 'Loading…';
 followBtn.style.cssText = 'flex:0 0 auto;padding:8px 16px;font-size:13px;';
-topRow.appendChild(followBtn);
+actionsWrap.appendChild(followBtn);
 wireFollowButton(followBtn, myUid, profile.id);
 
 var messageBtn = document.createElement('button');
@@ -2316,7 +2514,7 @@ messageBtn.type = 'button';
 messageBtn.className = 'btn-primary';
 messageBtn.textContent = 'Message';
 messageBtn.style.cssText = 'flex:0 0 auto;padding:8px 16px;font-size:13px;display:none;';
-topRow.appendChild(messageBtn);
+actionsWrap.appendChild(messageBtn);
 checkMutualFollow(myUid, profile.id, function(isMutual){
 if(!isMutual) return;
 messageBtn.style.display = '';
@@ -2334,17 +2532,232 @@ reportBtn.type = 'button';
 reportBtn.textContent = 'Report';
 reportBtn.style.cssText = 'flex:0 0 auto;background:none;border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:7px 14px;font-size:12px;color:rgba(255,255,255,0.55);cursor:pointer;';
 reportBtn.addEventListener('click', function(){ promptAndReport('user', profile.id, 'this user'); });
-topRow.appendChild(reportBtn);
-} else if(!myUid){
+actionsWrap.appendChild(reportBtn);
+} else {
 var loginHint = document.createElement('a');
 loginHint.href = '/login';
 loginHint.className = 'btn-primary';
 loginHint.textContent = 'Log in to Follow';
 loginHint.style.cssText = 'padding:8px 16px;font-size:13px;';
-topRow.appendChild(loginHint);
+actionsWrap.appendChild(loginHint);
 }
 
-container.appendChild(topRow);
+var nameBlock = document.createElement('div');
+nameBlock.style.cssText = 'padding:0 16px;margin-bottom:10px;';
+nameBlock.innerHTML = '<h2 style="font-size:22px;font-weight:800;margin:0 0 2px;color:#fff;">' + escapeHtml(profile.display_name || 'Collector') + '</h2>' +
+(profile.public_slug ? '<div style="font-size:13px;color:rgba(255,255,255,0.45);">@' + escapeHtml(profile.public_slug) + '</div>' : '');
+container.appendChild(nameBlock);
+
+if(profile.bio){
+var bioEl = document.createElement('p');
+bioEl.style.cssText = 'padding:0 16px;color:rgba(255,255,255,0.75);margin:0 0 14px;font-size:14px;line-height:1.5;';
+bioEl.textContent = profile.bio;
+container.appendChild(bioEl);
+}
+
+var statsRow = document.createElement('div');
+statsRow.style.cssText = 'display:flex;gap:20px;padding:0 16px;margin-bottom:18px;font-size:13px;color:rgba(255,255,255,0.6);';
+container.appendChild(statsRow);
+refreshFollowCounts(statsRow, profile.id);
+
+var tabDefs = [['posts', 'Posts'], ['collection', 'Collection'], ['likes', 'Likes'], ['info', 'Info']];
+var tabBar = document.createElement('div');
+tabBar.style.cssText = 'display:flex;gap:4px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:18px;overflow-x:auto;';
+tabDefs.forEach(function(t){
+var btn = document.createElement('button');
+btn.type = 'button';
+btn.id = 'ms-collector-tab-btn-' + t[0];
+btn.textContent = t[1];
+btn.style.cssText = 'background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.5);cursor:pointer;white-space:nowrap;';
+btn.addEventListener('click', function(){ setCollectorActiveTab(t[0]); });
+tabBar.appendChild(btn);
+});
+container.appendChild(tabBar);
+
+var panelsWrap = document.createElement('div');
+panelsWrap.id = 'ms-collector-panels';
+panelsWrap.style.cssText = 'padding:0 16px 30px;';
+container.appendChild(panelsWrap);
+
+var postsPanel = document.createElement('div');
+postsPanel.id = 'ms-collector-panel-posts';
+var collectionPanel = document.createElement('div');
+collectionPanel.id = 'ms-collector-panel-collection';
+collectionPanel.style.display = 'none';
+var likesPanel = document.createElement('div');
+likesPanel.id = 'ms-collector-panel-likes';
+likesPanel.style.display = 'none';
+var infoPanel = document.createElement('div');
+infoPanel.id = 'ms-collector-panel-info';
+infoPanel.style.display = 'none';
+
+panelsWrap.appendChild(postsPanel);
+panelsWrap.appendChild(collectionPanel);
+panelsWrap.appendChild(likesPanel);
+panelsWrap.appendChild(infoPanel);
+
+buildCollectorPostsPanel(postsPanel, profile, myUid, isMe);
+buildCollectorLikesPanel(likesPanel, profile);
+buildCollectorInfoPanel(infoPanel, profile);
+
+setCollectorActiveTab(window.__msCollectorActiveTab || 'posts');
+}
+
+function buildCollectorPostsPanel(panel, profile, myUid, isMe){
+panel.innerHTML = '';
+if(isMe){
+var composer = document.createElement('div');
+composer.style.cssText = 'border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;margin-bottom:18px;';
+var textarea = document.createElement('textarea');
+textarea.rows = 3;
+textarea.className = 'input';
+textarea.placeholder = "What's new in your collection?";
+textarea.style.cssText = 'width:100%;resize:vertical;margin-bottom:10px;';
+composer.appendChild(textarea);
+var composerBottom = document.createElement('div');
+composerBottom.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;gap:10px;';
+var status = document.createElement('span');
+status.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.5);';
+var postBtn = document.createElement('button');
+postBtn.type = 'button';
+postBtn.className = 'btn-primary';
+postBtn.textContent = 'Post';
+postBtn.style.cssText = 'padding:8px 20px;font-size:13px;';
+postBtn.addEventListener('click', function(){
+var body = textarea.value.trim();
+if(!body) return;
+postBtn.disabled = true;
+status.textContent = 'Posting…';
+fetch(SUPABASE_URL + '/rest/v1/posts', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' },
+body: JSON.stringify({ user_id: myUid, body: body })
+}).then(function(r){
+postBtn.disabled = false;
+if(r.ok){ textarea.value = ''; status.textContent = ''; loadCollectorPosts(feed, profile.id, myUid); }
+else { status.textContent = 'Could not post.'; }
+}).catch(function(){ postBtn.disabled = false; status.textContent = 'Could not post.'; });
+});
+composerBottom.appendChild(status);
+composerBottom.appendChild(postBtn);
+composer.appendChild(composerBottom);
+panel.appendChild(composer);
+}
+var feed = document.createElement('div');
+feed.id = 'ms-collector-posts-feed';
+panel.appendChild(feed);
+loadCollectorPosts(feed, profile.id, myUid);
+}
+
+function loadCollectorPosts(feed, profileId, myUid){
+feed.textContent = 'Loading posts…';
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+fetch(SUPABASE_URL + '/rest/v1/posts?select=id,body,image_url,created_at,user_id&user_id=eq.' + profileId + '&order=created_at.desc', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+feed.innerHTML = '';
+if(!rows.length){
+var empty = document.createElement('p');
+empty.style.cssText = 'color:rgba(255,255,255,0.4);font-size:13px;';
+empty.textContent = 'No posts yet.';
+feed.appendChild(empty);
+return;
+}
+rows.forEach(function(post){ feed.appendChild(buildPostCard(post, myUid)); });
+}).catch(function(){ feed.textContent = 'Could not load posts.'; });
+}
+
+function buildPostCard(post, myUid){
+var card = document.createElement('div');
+card.className = 'card';
+card.style.cssText = 'padding:16px;margin-bottom:14px;';
+var body = document.createElement('p');
+body.style.cssText = 'color:#fff;font-size:14px;line-height:1.5;margin:0 0 8px;white-space:pre-wrap;';
+body.textContent = post.body;
+card.appendChild(body);
+if(post.image_url){
+var img = document.createElement('img');
+img.src = post.image_url;
+img.style.cssText = 'width:100%;max-height:360px;object-fit:cover;border-radius:10px;margin-bottom:8px;';
+card.appendChild(img);
+}
+var footer = document.createElement('div');
+footer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+var time = document.createElement('span');
+time.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);';
+time.textContent = new Date(post.created_at).toLocaleString();
+footer.appendChild(time);
+if(myUid && post.user_id === myUid){
+var delBtn = document.createElement('button');
+delBtn.type = 'button';
+delBtn.textContent = 'Delete';
+delBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.35);font-size:11px;cursor:pointer;';
+delBtn.addEventListener('click', function(){
+if(!window.confirm('Delete this post?')) return;
+fetch(SUPABASE_URL + '/rest/v1/posts?id=eq.' + post.id, {
+method: 'DELETE',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() }
+}).then(function(){ card.remove(); }).catch(function(){});
+});
+footer.appendChild(delBtn);
+}
+card.appendChild(footer);
+return card;
+}
+
+function buildCollectorLikesPanel(panel, profile){
+panel.innerHTML = 'Loading…';
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+fetch(SUPABASE_URL + '/rest/v1/coin_wishlist?select=id,sku,created_at,coins(name,image_url)&user_id=eq.' + profile.id + '&order=created_at.desc', { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+panel.innerHTML = '';
+if(!rows.length){
+var empty = document.createElement('p');
+empty.style.cssText = 'color:rgba(255,255,255,0.4);font-size:13px;';
+empty.textContent = 'No liked coins yet.';
+panel.appendChild(empty);
+return;
+}
+var grid = document.createElement('div');
+grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;';
+rows.forEach(function(row){
+var coin = row.coins || {};
+var card = document.createElement('div');
+card.className = 'card';
+card.style.cssText = 'padding:12px;';
+var img = document.createElement('img');
+img.src = coin.image_url || '';
+img.alt = coin.name || row.sku || '';
+img.style.cssText = 'width:100%;aspect-ratio:1;object-fit:contain;background:#1b1c26;border-radius:8px;margin-bottom:8px;';
+if(row.sku) wireCoinInfoClick(img, row.sku, 'zoom-in');
+card.appendChild(img);
+var name = document.createElement('div');
+name.style.cssText = 'font-weight:700;font-size:13px;';
+name.textContent = coin.name || row.sku || 'Coin';
+card.appendChild(name);
+grid.appendChild(card);
+});
+panel.appendChild(grid);
+}).catch(function(){ panel.textContent = 'Could not load likes.'; });
+}
+
+function buildCollectorInfoPanel(panel, profile){
+panel.innerHTML = '';
+var rows = [
+['Name', profile.display_name],
+['Handle', profile.public_slug ? '@' + profile.public_slug : null],
+['Member since', profile.created_at ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : null]
+].filter(function(r){ return !!r[1]; });
+rows.forEach(function(r){
+var line = document.createElement('div');
+line.style.cssText = 'padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;gap:12px;font-size:13px;';
+line.innerHTML = '<span style="color:rgba(255,255,255,0.5);">' + escapeHtml(r[0]) + '</span><span style="color:#fff;text-align:right;">' + escapeHtml(r[1]) + '</span>';
+panel.appendChild(line);
+});
+var bioBlock = document.createElement('div');
+bioBlock.style.cssText = 'margin-top:16px;';
+bioBlock.innerHTML = '<div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:6px;">About</div>' +
+'<p style="font-size:14px;color:rgba(255,255,255,0.75);line-height:1.5;">' + (profile.bio ? escapeHtml(profile.bio) : "This collector hasn't shared anything about themselves yet.") + '</p>';
+panel.appendChild(bioBlock);
 }
 
 function wireCollectorCards(profile, claimsRows){
@@ -2396,9 +2809,34 @@ if(controls.children.length) card.appendChild(controls);
 });
 }
 
+function applyCollectorTabVisibility(){
+var augment = document.getElementById('ms-collector-augment');
+if(!augment) return;
+var native = augment.nextElementSibling;
+if(native) native.style.display = (window.__msCollectorActiveTab === 'collection') ? '' : 'none';
+}
+
+function setCollectorActiveTab(tabName){
+window.__msCollectorActiveTab = tabName;
+['posts', 'collection', 'likes', 'info'].forEach(function(t){
+var btn = document.getElementById('ms-collector-tab-btn-' + t);
+var panel = document.getElementById('ms-collector-panel-' + t);
+var active = t === tabName;
+if(btn){
+btn.style.color = active ? '#fff' : 'rgba(255,255,255,0.5)';
+btn.style.borderBottomColor = active ? 'var(--cyan)' : 'transparent';
+}
+if(panel) panel.style.display = active ? '' : 'none';
+});
+applyCollectorTabVisibility();
+}
+
 function ensureCollectorHeader(profile){
 if(!profile) return;
-if(document.getElementById('ms-collector-augment')) return;
+if(document.getElementById('ms-collector-augment')){
+applyCollectorTabVisibility();
+return;
+}
 var label = Array.prototype.filter.call(document.querySelectorAll('main p'), function(p){
 return (p.textContent || '').trim() === 'Collector profile';
 })[0];
@@ -2407,11 +2845,14 @@ if(!h1 || h1.tagName !== 'H1') return;
 var container = document.createElement('div');
 container.id = 'ms-collector-augment';
 h1.parentNode.insertBefore(container, h1.nextSibling);
+label.style.display = 'none';
+h1.style.display = 'none';
 buildCollectorHeader(container, profile);
+applyCollectorTabVisibility();
 }
 
 function loadCollectorProfileData(slug){
-fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,is_public&public_slug=eq.' + encodeURIComponent(slug), {
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=id,display_name,is_public,avatar_url,header_url,bio,public_slug,created_at&public_slug=eq.' + encodeURIComponent(slug), {
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) }
 }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 var profile = rows[0];
@@ -2439,8 +2880,13 @@ if(window.__msCollectorSlug !== slug){
 window.__msCollectorSlug = slug;
 window.__msCollectorProfile = null;
 window.__msCollectorClaims = null;
+window.__msCollectorActiveTab = 'posts';
 var oldMarker = document.getElementById('ms-collector-augment');
 if(oldMarker) oldMarker.remove();
+var label = Array.prototype.filter.call(document.querySelectorAll('main p'), function(p){
+return (p.textContent || '').trim() === 'Collector profile';
+})[0];
+if(label){ label.style.display = ''; var oh1 = label.nextElementSibling; if(oh1 && oh1.tagName === 'H1') oh1.style.display = ''; }
 loadCollectorProfileData(slug);
 return;
 }
