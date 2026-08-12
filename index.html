@@ -1877,20 +1877,28 @@ document.body.insertBefore(bar, document.body.firstChild);
 
 /* ---------- Site-wide: block suspended users ---------- */
 
+var __msSuspensionLastFetch = 0;
+var __msSuspensionInFlight = false;
 function enforceOwnSuspension(){
 var token = getAdminAccessToken();
 if(!token) return;
 if(document.getElementById('ms-suspended-overlay')) return;
 var uid = decodeJwtSub(token);
 if(!uid) return;
+if(__msSuspensionInFlight) return;
+var now = Date.now();
+if((now - __msSuspensionLastFetch) < 4000) return;
+__msSuspensionLastFetch = now;
+__msSuspensionInFlight = true;
 fetch(SUPABASE_URL + '/rest/v1/profiles?select=suspended_until,suspension_reason,is_permanently_suspended&id=eq.' + uid, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token } })
 .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+__msSuspensionInFlight = false;
 var p = rows[0];
 if(!p) return;
 var isSuspended = p.is_permanently_suspended || (p.suspended_until && new Date(p.suspended_until) > new Date());
 if(!isSuspended) return;
 showSuspensionBlock(p, token);
-}).catch(function(){});
+}).catch(function(){ __msSuspensionInFlight = false; });
 }
 
 function showSuspensionBlock(p, token){
@@ -4726,16 +4734,26 @@ patchAdminReportsPage();
 // "/admin/reports" isn't a real React Router route — it only works when reached via
 // client-side navigation from inside an already-rendered admin dashboard shell (which is
 // how the sidebar link works). A fresh full page load of that URL (e.g. a notification
-// opened directly) hits the app's native not-found page instead. This routes around that:
-// if we're already inside the admin shell, jump straight there client-side; otherwise land
-// on the real "/admin" route first and open Reports once that shell has mounted.
+// opened directly) hits the app's native not-found page instead. Worse, a hard reload of
+// even a *real* admin route like "/admin" itself bounces back to the homepage (the app's
+// own auth check appears to redirect before it finishes hydrating the session) — so
+// window.location.href='/admin' isn't a safe fallback either. The one thing that reliably
+// works is a plain client-side transition, exactly like a real user clicking the header's
+// "Admin" nav link. So: if we're already inside the admin shell, jump straight to Reports;
+// otherwise simulate a click on the real Admin link and open Reports once that shell mounts.
 function navigateToAdminReports(){
 if(isAdminPage() && document.querySelector('a[href="/admin/orders"]')){
 if(window.location.pathname !== '/admin/reports'){ goToAdminReportsRoute('/admin/reports'); }
 return;
 }
+var adminLink = document.querySelector('a[href="/admin"]');
+if(adminLink){
+try{ sessionStorage.setItem('ms-open-admin-reports', '1'); }catch(e){}
+adminLink.click();
+} else {
 try{ sessionStorage.setItem('ms-open-admin-reports', '1'); }catch(e){}
 window.location.href = '/admin';
+}
 }
 
 function consumePendingAdminReportsOpen(){
