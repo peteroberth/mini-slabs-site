@@ -2085,6 +2085,15 @@ else { unfollowBtn.disabled = false; unfollowBtn.textContent = 'Unfollow'; }
 line.appendChild(unfollowBtn);
 }
 
+var rowBlockBtn = buildBlockButton(otherId, myUid, function(){ line.remove(); if(!listEl.children.length){ listEl.textContent = kind === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'; } });
+if(rowBlockBtn.style.display !== 'none'){
+rowBlockBtn.style.padding = '5px 12px';
+rowBlockBtn.style.borderRadius = '999px';
+rowBlockBtn.style.fontSize = '11px';
+rowBlockBtn.style.fontWeight = '700';
+}
+line.appendChild(rowBlockBtn);
+
 listEl.appendChild(line);
 });
 }).catch(function(){ listEl.textContent = 'Could not load list.'; });
@@ -2269,6 +2278,7 @@ reportUserBtn.textContent = 'Report';
 reportUserBtn.style.cssText = 'flex:0 0 auto;background:none;border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:8px 14px;font-size:12px;color:rgba(255,255,255,0.55);cursor:pointer;';
 reportUserBtn.addEventListener('click', function(){ promptAndReport('user', profile.id, 'this user'); });
 topRow.appendChild(reportUserBtn);
+topRow.appendChild(buildBlockButton(profile.id, myUid));
 } else if(!myUid){
 var loginHint = document.createElement('a');
 loginHint.href = '/login';
@@ -2609,6 +2619,53 @@ if(!reason || !reason.trim()) return;
 submitReport(targetType, targetId, reason.trim(), function(ok){
 window.alert(ok ? "Thanks, your report has been sent to our admins." : 'Could not send report. Please try again.');
 });
+}
+
+/* ---------- Block users (from profile, comments, followers/following list) ---------- */
+
+function checkIsBlocked(myUid, otherUid, cb){
+if(!myUid || !otherUid){ cb(false); return; }
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken() };
+fetch(SUPABASE_URL + '/rest/v1/blocks?select=id&blocker_id=eq.' + myUid + '&blocked_id=eq.' + otherUid, { headers: headers })
+.then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){ cb(rows.length > 0); }).catch(function(){ cb(false); });
+}
+
+function setUserBlocked(myUid, otherUid, blocked){
+var authHeaders = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' };
+if(blocked){
+return fetch(SUPABASE_URL + '/rest/v1/blocks', { method: 'POST', headers: authHeaders, body: JSON.stringify({ blocker_id: myUid, blocked_id: otherUid }) });
+}
+return fetch(SUPABASE_URL + '/rest/v1/blocks?blocker_id=eq.' + myUid + '&blocked_id=eq.' + otherUid, { method: 'DELETE', headers: authHeaders });
+}
+
+/* Returns a ready-to-append <button> that toggles between Block/Unblock for
+otherUserId, as seen by myUid. Hidden entirely when logged out or viewing
+yourself. onChanged(nowBlocked) fires after a successful toggle so callers
+can refresh a list/hide content as needed. */
+function buildBlockButton(otherUserId, myUid, onChanged){
+var btn = document.createElement('button');
+btn.type = 'button';
+btn.style.cssText = 'flex:0 0 auto;background:none;border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:7px 14px;font-size:12px;color:rgba(255,255,255,0.55);cursor:pointer;display:none;';
+if(!myUid || !otherUserId || myUid === otherUserId) return btn;
+btn.style.display = '';
+function paint(blocked){
+btn.dataset.blocked = blocked ? '1' : '';
+btn.textContent = blocked ? 'Unblock' : 'Block';
+btn.style.color = blocked ? '#ff8a8a' : 'rgba(255,255,255,0.55)';
+btn.style.borderColor = blocked ? 'rgba(229,72,77,0.4)' : 'rgba(255,255,255,0.15)';
+}
+btn.textContent = '…';
+checkIsBlocked(myUid, otherUserId, paint);
+btn.addEventListener('click', function(){
+var goingTo = btn.dataset.blocked !== '1';
+if(goingTo && !window.confirm('Block this user? They won\'t be able to follow, message, comment, or react to you, and any existing follow between you will be removed.')) return;
+btn.disabled = true;
+setUserBlocked(myUid, otherUserId, goingTo).then(function(r){
+btn.disabled = false;
+if(r.ok){ paint(goingTo); onChanged && onChanged(goingTo); }
+});
+});
+return btn;
 }
 
 function openContactAdminsModal(){
@@ -3039,6 +3096,7 @@ reportBtn.textContent = 'Report';
 reportBtn.style.cssText = 'flex:0 0 auto;background:none;border:1px solid rgba(255,255,255,0.15);border-radius:999px;padding:7px 14px;font-size:12px;color:rgba(255,255,255,0.55);cursor:pointer;';
 reportBtn.addEventListener('click', function(){ promptAndReport('user', profile.id, 'this user'); });
 actionsWrap.appendChild(reportBtn);
+actionsWrap.appendChild(buildBlockButton(profile.id, myUid, function(){ refreshFollowCounts(statsRow, profile.id); }));
 } else {
 var loginHint = document.createElement('a');
 loginHint.href = '/login';
@@ -3383,6 +3441,15 @@ reportBtn.textContent = 'Report';
 reportBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.35);font-size:10px;cursor:pointer;padding:0;';
 reportBtn.addEventListener('click', function(){ promptAndReport('comment', c.id, 'this comment'); });
 metaRow.appendChild(reportBtn);
+var commentBlockBtn = buildBlockButton(c.user_id, myUid);
+if(commentBlockBtn.style.display !== 'none'){
+commentBlockBtn.style.background = 'none';
+commentBlockBtn.style.border = 'none';
+commentBlockBtn.style.color = 'rgba(255,255,255,0.35)';
+commentBlockBtn.style.fontSize = '10px';
+commentBlockBtn.style.padding = '0';
+}
+metaRow.appendChild(commentBlockBtn);
 right.appendChild(metaRow);
 
 row.appendChild(right);
@@ -3527,6 +3594,15 @@ reportPostBtn.textContent = 'Report';
 reportPostBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.3);font-size:11px;cursor:pointer;';
 reportPostBtn.addEventListener('click', function(){ promptAndReport('post', post.id, 'this post'); });
 footerRight.appendChild(reportPostBtn);
+var postBlockBtn = buildBlockButton(post.user_id, myUid);
+if(postBlockBtn.style.display !== 'none'){
+postBlockBtn.style.background = 'none';
+postBlockBtn.style.border = 'none';
+postBlockBtn.style.color = 'rgba(255,255,255,0.3)';
+postBlockBtn.style.fontSize = '11px';
+postBlockBtn.style.padding = '0';
+}
+footerRight.appendChild(postBlockBtn);
 }
 if(myUid && post.user_id === myUid){
 var delBtn = document.createElement('button');
