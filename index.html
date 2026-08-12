@@ -1969,12 +1969,124 @@ btn.disabled = false;
 
 function refreshFollowCounts(el, uid){
 var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+function render(){
 Promise.all([
 fetch(SUPABASE_URL + '/rest/v1/follows?select=follower_id&followee_id=eq.' + uid + '&status=eq.accepted', { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
 fetch(SUPABASE_URL + '/rest/v1/follows?select=followee_id&follower_id=eq.' + uid + '&status=eq.accepted', { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
 ]).then(function(results){
-el.innerHTML = '<span><strong style="color:#fff;">' + results[0].length + '</strong> Followers</span><span><strong style="color:#fff;">' + results[1].length + '</strong> Following</span>';
+el.innerHTML = '';
+var followersSpan = document.createElement('span');
+followersSpan.style.cssText = 'cursor:pointer;';
+followersSpan.innerHTML = '<strong style="color:#fff;">' + results[0].length + '</strong> Followers';
+followersSpan.addEventListener('click', function(){ openFollowListModal(uid, 'followers', render); });
+var followingSpan = document.createElement('span');
+followingSpan.style.cssText = 'cursor:pointer;';
+followingSpan.innerHTML = '<strong style="color:#fff;">' + results[1].length + '</strong> Following';
+followingSpan.addEventListener('click', function(){ openFollowListModal(uid, 'following', render); });
+el.appendChild(followersSpan);
+el.appendChild(followingSpan);
 });
+}
+render();
+}
+
+/* ---------- Followers/Following list modal (click-through + unfollow from own list) ---------- */
+
+function openFollowListModal(profileId, kind, onChanged){
+var myUid = decodeJwtSub(getAdminAccessToken());
+var isOwnList = myUid && myUid === profileId;
+
+var overlay = document.createElement('div');
+overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+var card = document.createElement('div');
+card.style.cssText = 'background:#14151d;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:20px;max-width:400px;width:100%;max-height:78vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
+
+var titleRow = document.createElement('div');
+titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex:0 0 auto;';
+var title = document.createElement('div');
+title.textContent = kind === 'followers' ? 'Followers' : 'Following';
+title.style.cssText = 'font-size:16px;font-weight:800;color:#fff;';
+var closeX = document.createElement('button');
+closeX.type = 'button'; closeX.textContent = '✕';
+closeX.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.6);font-size:16px;cursor:pointer;line-height:1;';
+closeX.addEventListener('click', function(){ overlay.remove(); });
+titleRow.appendChild(title); titleRow.appendChild(closeX);
+card.appendChild(titleRow);
+
+var listEl = document.createElement('div');
+listEl.style.cssText = 'font-size:13px;color:rgba(255,255,255,0.5);overflow-y:auto;flex:1 1 auto;';
+listEl.textContent = 'Loading…';
+card.appendChild(listEl);
+
+overlay.addEventListener('click', function(e){ if(e.target === overlay) overlay.remove(); });
+document.body.appendChild(overlay);
+
+var headers = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (getAdminAccessToken() || SUPABASE_ANON_KEY) };
+var url = kind === 'followers'
+? (SUPABASE_URL + '/rest/v1/follows?select=follower_id,profiles!follows_follower_id_profiles_fkey(id,display_name,avatar_url,public_slug)&followee_id=eq.' + profileId + '&status=eq.accepted&order=created_at.desc')
+: (SUPABASE_URL + '/rest/v1/follows?select=followee_id,profiles!follows_followee_id_profiles_fkey(id,display_name,avatar_url,public_slug)&follower_id=eq.' + profileId + '&status=eq.accepted&order=created_at.desc');
+
+fetch(url, { headers: headers }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+listEl.innerHTML = '';
+if(!rows.length){
+listEl.textContent = kind === 'followers' ? 'No followers yet.' : 'Not following anyone yet.';
+return;
+}
+rows.forEach(function(row){
+var who = row.profiles || {};
+var otherId = kind === 'followers' ? row.follower_id : row.followee_id;
+
+var line = document.createElement('div');
+line.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);';
+
+var link = document.createElement('a');
+link.href = who.public_slug ? ('/collector/' + who.public_slug) : '#';
+link.style.cssText = 'display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;text-decoration:none;color:inherit;';
+link.addEventListener('click', function(){ overlay.remove(); });
+
+var av = document.createElement('div');
+av.style.cssText = 'width:36px;height:36px;border-radius:50%;overflow:hidden;background:#1b1c26;flex:0 0 auto;';
+if(who.avatar_url){
+var img = document.createElement('img'); img.src = who.avatar_url; img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+av.appendChild(img);
+}
+link.appendChild(av);
+
+var nameCol = document.createElement('div');
+nameCol.style.cssText = 'min-width:0;';
+var nameLine = document.createElement('div');
+nameLine.textContent = who.display_name || 'Collector';
+nameLine.style.cssText = 'font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+nameCol.appendChild(nameLine);
+if(who.public_slug){
+var slugLine = document.createElement('div');
+slugLine.textContent = '@' + who.public_slug;
+slugLine.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.45);';
+nameCol.appendChild(slugLine);
+}
+link.appendChild(nameCol);
+line.appendChild(link);
+
+if(kind === 'following' && isOwnList){
+var unfollowBtn = document.createElement('button');
+unfollowBtn.type = 'button';
+unfollowBtn.textContent = 'Unfollow';
+unfollowBtn.style.cssText = 'flex:0 0 auto;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:none;color:#fff;';
+unfollowBtn.addEventListener('click', function(){
+unfollowBtn.disabled = true; unfollowBtn.textContent = 'Removing…';
+var authHeaders = { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + getAdminAccessToken(), 'Content-Type': 'application/json' };
+fetch(SUPABASE_URL + '/rest/v1/follows?follower_id=eq.' + myUid + '&followee_id=eq.' + otherId, { method: 'DELETE', headers: authHeaders })
+.then(function(r){
+if(r.ok){ line.remove(); onChanged && onChanged(); if(!listEl.children.length){ listEl.textContent = 'Not following anyone yet.'; } }
+else { unfollowBtn.disabled = false; unfollowBtn.textContent = 'Unfollow'; }
+}).catch(function(){ unfollowBtn.disabled = false; unfollowBtn.textContent = 'Unfollow'; });
+});
+line.appendChild(unfollowBtn);
+}
+
+listEl.appendChild(line);
+});
+}).catch(function(){ listEl.textContent = 'Could not load list.'; });
 }
 
 function wireLikeButton(btn, claimId, myUid){
