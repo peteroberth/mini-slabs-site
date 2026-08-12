@@ -12,6 +12,7 @@
 <link href="https://db.onlinewebfonts.com/c/401b3afcdd14cf76b92956ecc7f7d8e6?family=Eras+Bold+ITC" rel="stylesheet">
 <style>
 body.ms-sellback-page, body.ms-sellback-page *{ font-family:'Lato',sans-serif !important; }
+body.ms-sellback-page .ms-lookup-card .input, body.ms-sellback-page .ms29-slab-code-input, body.ms-sellback-page textarea.input{ font-family:'Lato',sans-serif !important; letter-spacing:normal !important; font-weight:400 !important; }
 :root{
 --bg:#0A0A0F !important;
 --bg-panel:#13131A !important;
@@ -1363,7 +1364,18 @@ card.insertBefore(topRow, nameP);
 /* ---------- Sell Back page: Lato font ---------- */
 
 function patchSellBackFont(){
-document.body.classList.toggle('ms-sellback-page', window.location.pathname === '/sell-back');
+var onSellBack = window.location.pathname === '/sell-back';
+document.body.classList.toggle('ms-sellback-page', onSellBack);
+if(!onSellBack) return;
+// Some native form fields (the post-lookup name/email/phone/notes inputs) come from a
+// compiled CSS bundle we don't control, whose class-based font rules can out-specificity
+// our stylesheet override. Force it via !important inline styles, which always wins.
+document.querySelectorAll('main input, main textarea, main select, main button, main label').forEach(function(el){
+if(el.dataset.msLatoForced) return;
+el.dataset.msLatoForced = '1';
+el.style.setProperty('font-family', "'Lato', sans-serif", 'important');
+el.style.setProperty('letter-spacing', 'normal', 'important');
+});
 }
 
 /* ---------- Shop page: bigger empty state + repositioned resale link ---------- */
