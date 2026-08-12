@@ -8,9 +8,10 @@
 <script type="module" crossorigin src="/assets/index-DvL4W1wH.js"></script>
 <link rel="stylesheet" crossorigin href="/assets/index-D90Nm3Qs.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
 <link href="https://db.onlinewebfonts.com/c/401b3afcdd14cf76b92956ecc7f7d8e6?family=Eras+Bold+ITC" rel="stylesheet">
 <style>
+body.ms-sellback-page, body.ms-sellback-page *{ font-family:'Lato',sans-serif !important; }
 :root{
 --bg:#0A0A0F !important;
 --bg-panel:#13131A !important;
@@ -1339,7 +1340,7 @@ revealBtn.addEventListener('mouseenter', function(){ revealBtn.style.transform =
 revealBtn.addEventListener('mouseleave', function(){ revealBtn.style.transform = ''; revealBtn.style.boxShadow = '0 6px 24px -6px #FFD63966'; });
 revealBtn.addEventListener('click', function(){
 var wrap = document.createElement('div');
-wrap.style.cssText = 'text-align:right;';
+wrap.style.cssText = 'flex:0 0 auto;text-align:right;min-height:58px;display:flex;flex-direction:column;justify-content:center;';
 var label = document.createElement('div');
 label.textContent = 'Your Buyback Offer';
 label.style.cssText = 'font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:2px;';
@@ -1357,6 +1358,12 @@ topRow.appendChild(revealBtn);
 card.insertBefore(topRow, nameP);
 });
 });
+}
+
+/* ---------- Sell Back page: Lato font ---------- */
+
+function patchSellBackFont(){
+document.body.classList.toggle('ms-sellback-page', window.location.pathname === '/sell-back');
 }
 
 /* ---------- Shop page: bigger empty state + repositioned resale link ---------- */
@@ -5667,6 +5674,7 @@ patchCoinViewToggle();
 trackLookupInputs(root);
 patchLookupCardStyle();
 patchClaimSellback();
+patchSellBackFont();
 patchShopPage();
 patchSellBackLoginGate();
 patchResalePage();
