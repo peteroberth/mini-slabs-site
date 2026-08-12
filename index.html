@@ -3802,9 +3802,119 @@ wireCollectorCards(profile, window.__msCollectorClaims);
 }).catch(function(){});
 }
 
+/* ---------- Floating "Who to Follow" sidebar (shown on the profile section) ---------- */
+
+var followSuggestSidebarEl = null;
+
+function buildFollowSuggestionsSidebar(){
+if(followSuggestSidebarEl) return followSuggestSidebarEl;
+var box = document.createElement('div');
+box.id = 'ms-follow-suggestions';
+box.style.cssText = 'position:fixed;top:110px;right:24px;width:260px;max-height:66vh;overflow-y:auto;background:#14151d;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;z-index:40;box-shadow:0 10px 30px rgba(0,0,0,0.35);display:none;';
+var title = document.createElement('div');
+title.textContent = 'Who to Follow';
+title.style.cssText = 'font-size:14px;font-weight:800;color:#fff;margin-bottom:2px;';
+box.appendChild(title);
+var subtitle = document.createElement('div');
+subtitle.textContent = 'Collectors with similar coins';
+subtitle.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:10px;';
+box.appendChild(subtitle);
+var list = document.createElement('div');
+list.id = 'ms-follow-suggestions-list';
+box.appendChild(list);
+document.body.appendChild(box);
+if(!document.getElementById('ms-follow-suggestions-style')){
+var styleTag = document.createElement('style');
+styleTag.id = 'ms-follow-suggestions-style';
+styleTag.textContent = '@media (max-width: 1180px){ #ms-follow-suggestions{ display:none !important; } }';
+document.head.appendChild(styleTag);
+}
+followSuggestSidebarEl = { box: box, list: list };
+return followSuggestSidebarEl;
+}
+
+function loadFollowSuggestions(excludeProfileId){
+var el = buildFollowSuggestionsSidebar();
+var token = getAdminAccessToken();
+var myUid = token ? decodeJwtSub(token) : null;
+el.list.innerHTML = '';
+el.box.style.display = 'block';
+var loading = document.createElement('div');
+loading.textContent = 'Loading…';
+loading.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.4);';
+el.list.appendChild(loading);
+fetch(SUPABASE_URL + '/rest/v1/rpc/get_follow_recommendations', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
+body: JSON.stringify({ p_viewer_id: myUid, p_limit: 8 })
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+rows = (rows || []).filter(function(r){ return r.id !== excludeProfileId; }).slice(0, 6);
+el.list.innerHTML = '';
+if(!rows.length){ el.box.style.display = 'none'; return; }
+rows.forEach(function(u){
+var row = document.createElement('div');
+row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);';
+
+var link = document.createElement('a');
+link.href = '/collector/' + u.public_slug;
+link.style.cssText = 'display:flex;align-items:center;gap:9px;flex:1 1 auto;min-width:0;text-decoration:none;color:inherit;';
+
+var av = document.createElement('div');
+av.style.cssText = 'width:36px;height:36px;border-radius:50%;overflow:hidden;background:#1b1c26;flex:0 0 auto;';
+if(u.avatar_url){
+var img = document.createElement('img'); img.src = u.avatar_url; img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+av.appendChild(img);
+}
+link.appendChild(av);
+
+var col = document.createElement('div');
+col.style.cssText = 'min-width:0;';
+var nameLine = document.createElement('div');
+nameLine.textContent = u.display_name || 'Collector';
+nameLine.style.cssText = 'font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+col.appendChild(nameLine);
+var statsLine = document.createElement('div');
+statsLine.textContent = (u.collection_count || 0) + ' coin' + (u.collection_count === 1 ? '' : 's') + ' · ' + (u.likes_count || 0) + ' like' + (u.likes_count === 1 ? '' : 's');
+statsLine.style.cssText = 'font-size:10px;color:rgba(255,255,255,0.45);white-space:nowrap;';
+col.appendChild(statsLine);
+link.appendChild(col);
+row.appendChild(link);
+
+if(myUid){
+var followBtn = document.createElement('button');
+followBtn.type = 'button';
+followBtn.textContent = '…';
+followBtn.style.cssText = 'flex:0 0 auto;padding:5px 11px;border-radius:999px;font-size:10px;font-weight:700;cursor:pointer;border:none;background:linear-gradient(90deg,var(--cyan),var(--magenta));color:#05070d;';
+wireFollowButton(followBtn, myUid, u.id);
+row.appendChild(followBtn);
+}
+
+el.list.appendChild(row);
+});
+}).catch(function(){ el.box.style.display = 'none'; });
+}
+
+function ensureFollowSuggestionsSidebar(excludeProfileId){
+if(window.__msFollowSuggestLoadedFor === excludeProfileId){
+if(followSuggestSidebarEl) followSuggestSidebarEl.box.style.display = 'block';
+return;
+}
+window.__msFollowSuggestLoadedFor = excludeProfileId;
+loadFollowSuggestions(excludeProfileId);
+}
+
+function hideFollowSuggestionsIfOffProfile(){
+if(!followSuggestSidebarEl) return;
+var onCollectorPage = /^\/collector\/([A-Za-z0-9_]+)$/.test(window.location.pathname);
+if(!onCollectorPage){
+followSuggestSidebarEl.box.style.display = 'none';
+window.__msFollowSuggestLoadedFor = undefined;
+}
+}
+
 function patchCollectorProfilePage(){
 var m = /^\/collector\/([A-Za-z0-9_]+)$/.exec(window.location.pathname);
-if(!m) return;
+if(!m){ hideFollowSuggestionsIfOffProfile(); return; }
 var slug = m[1];
 
 if(window.__msCollectorSlug !== slug){
@@ -3812,6 +3922,7 @@ window.__msCollectorSlug = slug;
 window.__msCollectorProfile = null;
 window.__msCollectorClaims = null;
 window.__msCollectorActiveTab = 'posts';
+window.__msFollowSuggestLoadedFor = undefined;
 var oldMarker = document.getElementById('ms-collector-augment');
 if(oldMarker) oldMarker.remove();
 var label = Array.prototype.filter.call(document.querySelectorAll('main p'), function(p){
@@ -3824,6 +3935,7 @@ return;
 
 if(window.__msCollectorProfile){
 ensureCollectorHeader(window.__msCollectorProfile);
+ensureFollowSuggestionsSidebar(window.__msCollectorProfile.id);
 if(window.__msCollectorClaims){
 wireCollectorCards(window.__msCollectorProfile, window.__msCollectorClaims);
 }
