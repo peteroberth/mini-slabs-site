@@ -749,8 +749,9 @@ el.classList.add('ms-coin-price');
 });
 if(!card.dataset.msHoverBound){
 card.dataset.msHoverBound = '1';
-card.addEventListener('mouseenter', function(){ card.style.setProperty('background', '#eef9ff', 'important'); });
-card.addEventListener('mouseleave', function(){ card.style.setProperty('background', '#ffffff', 'important'); });
+card.style.setProperty('transition', 'transform 0.18s ease', 'important');
+card.addEventListener('mouseenter', function(){ card.style.setProperty('transform', 'scale(1.025)', 'important'); });
+card.addEventListener('mouseleave', function(){ card.style.setProperty('transform', 'scale(1)', 'important'); });
 }
 });
 }
@@ -5447,7 +5448,6 @@ var summaryRow = infoCol.children[1];
 if(summaryRow && summaryRow.tagName === 'DIV' && !summaryRow.dataset.msBulletsDone){
 var fields = [
 ['SKU', coin.sku],
-['Tier', coin.level],
 ['Year', coin.year],
 ['Mint', coin.mint],
 ['Country', coin.country],
@@ -5474,6 +5474,23 @@ li.innerHTML = '<span style="color:var(--text);opacity:0.6">&bull;</span><span><
 ul.appendChild(li);
 });
 summaryRow.replaceWith(ul);
+}
+var imgCol = infoCol.previousElementSibling;
+if(imgCol && coin.level && ICONS[coin.level] && !imgCol.dataset.msLevelIconDone){
+imgCol.dataset.msLevelIconDone = '1';
+var levelLink = document.createElement('a');
+levelLink.href = '/breakdowns';
+levelLink.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:16px;text-decoration:none;';
+var levelImg = document.createElement('img');
+levelImg.src = ICONS[coin.level];
+levelImg.alt = coin.level;
+levelImg.style.cssText = 'width:64px;height:64px;object-fit:contain;';
+var levelLabel = document.createElement('span');
+levelLabel.textContent = coin.level + ' Tier';
+levelLabel.style.cssText = "font-family:'Space Mono',monospace;font-size:0.85rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text);";
+levelLink.appendChild(levelImg);
+levelLink.appendChild(levelLabel);
+imgCol.appendChild(levelLink);
 }
 }
 
