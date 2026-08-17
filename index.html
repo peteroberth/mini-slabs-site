@@ -574,14 +574,10 @@ wrap.innerHTML =
 '<div class="ms29-inside-card"><div class="ms29-inside-icon">🎲</div><div><h3>True Randomness</h3><p>Boxes are packed blind. Every customer has the same odds at a jackpot pull — we don\'t cherry-pick.</p></div></div>' +
 '<div class="ms29-inside-card"><div class="ms29-inside-icon">📸</div><div><h3>Share-Worthy Unboxing</h3><p>The Mini Slab presentation is designed to look amazing on camera — and every box is a custom, uniquely designed package. Share your pulls with the community!</p></div></div>' +
 '</div></div></section>' +
-'<section class="ms29-whats-inside" id="ms29-breakdowns"><div class="ms29-whats-inner">' +
-'<div style="text-align:center;margin-bottom:1rem"><span class="ms29-section-label">Box Breakdowns</span><h2 class="ms29-section-heading">See exactly what\'s inside</h2></div>' +
-'<p class="ms29-section-desc" style="margin:0 auto;text-align:center">Full odds and value breakdowns for every box — coming soon.</p>' +
-'</div></section>' +
 '<section class="ms29-faq-section" id="ms29-faq"><div class="ms29-faq-inner">' +
 '<div style="text-align:center;margin-bottom:3rem"><span class="ms29-section-label">FAQ</span><h2 class="ms29-section-heading">Got questions?</h2></div>' +
 '<div class="ms29-faq-item"><div class="ms29-faq-q">Are the coins real? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>Every coin in a Mini Slabs box is a genuine, authenticated U.S. or World coin. We verify metal composition and seal each piece in a tamper-evident Mini Slab holder with a unique serial number.</p></div></div>' +
-'<div class="ms29-faq-item"><div class="ms29-faq-q">What\'s the minimum value of coins in each box? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>You can see all of the box breakdowns in the <a href="#ms29-breakdowns" style="color:var(--cyan);text-decoration:underline;font-weight:700;">Breakdowns section</a>.</p></div></div>' +
+'<div class="ms29-faq-item"><div class="ms29-faq-q">What\'s the minimum value of coins in each box? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>You can see all of the box breakdowns on our <a href="/breakdowns" style="color:var(--cyan);text-decoration:underline;font-weight:700;">Breakdowns page</a>.</p></div></div>' +
 '<div class="ms29-faq-item"><div class="ms29-faq-q">How are boxes packed? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>Boxes are packed blind from our inventory — we don\'t cherry-pick or sort. Every customer has an equal chance at pulling a high-value rarity. It\'s completely random.</p></div></div>' +
 '<div class="ms29-faq-item"><div class="ms29-faq-q">How fast do you ship? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>Orders ship within 4 Business Days, fully insured. You\'ll get a tracking number as soon as your box is on its way. If it is a pre-order, it will ship within 4 Business Days of release date.</p></div></div>' +
 '<div class="ms29-faq-item"><div class="ms29-faq-q">Can I return or exchange a box? <span class="ms29-toggle">+</span></div><div class="ms29-faq-a"><p>Due to the mystery nature of our boxes, we can\'t accept returns on opened boxes. Unopened and Untampered boxes can be returned within 14 days. If there\'s an issue with your order, our support team will make it right.</p></div></div>' +
@@ -1444,6 +1440,42 @@ var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 
 setter.call(input, code);
 input.dispatchEvent(new Event('input', { bubbles: true }));
 setTimeout(function(){ btn.click(); }, 60);
+}
+
+// Dedicated /breakdowns page. No native route exists for this path, but hard
+// navigation to unknown routes still loads this same index.html (Netlify SPA
+// catch-all) and the native app just renders its own "404 / Page not found"
+// into <main> without redirecting anywhere — so we just overwrite <main> with
+// our own placeholder content whenever we land on this path, same pattern as
+// the sell-back login gate above. The owner will fill this page in later.
+function patchBreakdownsPage(){
+if(window.location.pathname !== '/breakdowns') return;
+var main = document.querySelector('main');
+if(!main) return;
+if(main.dataset.msBreakdownsDone === '1') return;
+main.dataset.msBreakdownsDone = '1';
+main.innerHTML = '';
+var wrap = document.createElement('div');
+wrap.style.cssText = 'max-width:700px;margin:0 auto;padding:80px 20px;text-align:center;';
+var label = document.createElement('span');
+label.textContent = 'Box Breakdowns';
+label.style.cssText = "font-family:'Space Mono',monospace;font-size:0.68rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#FFD639;margin-bottom:0.75rem;display:block;";
+wrap.appendChild(label);
+var h1 = document.createElement('h1');
+h1.textContent = 'See exactly what\'s inside';
+h1.style.cssText = "font-family:'Eras Bold ITC','Syne',sans-serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-0.02em;margin-bottom:1rem;color:#FAFAFA;";
+wrap.appendChild(h1);
+var p = document.createElement('p');
+p.textContent = 'Full odds and value breakdowns for every box are coming soon.';
+p.style.cssText = 'color:var(--text-dim);font-size:1.05rem;margin-bottom:24px;';
+wrap.appendChild(p);
+var backLink = document.createElement('a');
+backLink.href = '/shop';
+backLink.className = 'btn-primary';
+backLink.textContent = 'Shop Mystery Boxes';
+backLink.style.cssText = 'display:inline-block;padding:12px 28px;font-size:15px;';
+wrap.appendChild(backLink);
+main.appendChild(wrap);
 }
 
 /* ---------- Resale marketplace: render live listings ---------- */
@@ -5740,6 +5772,7 @@ patchSellBackFont();
 patchShopPage();
 patchSellBackLoginGate();
 consumePendingSellbackCode();
+patchBreakdownsPage();
 patchResalePage();
 patchCollectorProfilePage();
 patchPublicProfilePage();
