@@ -169,26 +169,6 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 // Captured synchronously at parse time, before the native app mounts and before its
 // own (buggy) /admin auth-guard redirect can fire -- see patchTeaserGate() below.
 var INITIAL_PATH = window.location.pathname;
-
-// The bare "/admin" route freezes the tab for logged-in admins (confirmed independent of
-// everything else in this file -- reproduced in a clean Incognito session with a verified
-// admin account). "/admin/orders" is a real, working route, so if we're loading straight
-// into "/admin" with an existing session already in localStorage, silently retarget the URL
-// to "/admin/orders" before the compiled app's own script (a deferred module, so it runs
-// after this block) ever reads window.location and mounts its router on the broken route.
-if(INITIAL_PATH === '/admin'){
-var __msHasSessionAtBoot = false;
-try{
-for(var __msBi = 0; __msBi < localStorage.length; __msBi++){
-var __msBk = localStorage.key(__msBi);
-if(__msBk && /^sb-.*-auth-token$/.test(__msBk)){ __msHasSessionAtBoot = true; break; }
-}
-}catch(e){}
-if(__msHasSessionAtBoot){
-try{ window.history.replaceState(null, '', '/admin/orders'); INITIAL_PATH = '/admin/orders'; }catch(e){}
-}
-}
-
 if(/^\/admin(\/|$)/.test(INITIAL_PATH)){
 try{ sessionStorage.setItem('ms-teaser-admin-entry', '1'); }catch(e){}
 }
@@ -4795,22 +4775,6 @@ reportsPanelEl = { open: open, close: close, isOpen: isOpen };
 return reportsPanelEl;
 }
 
-// Clicking the header's real "Admin" link (a proper in-app client-side transition, not a
-// hard reload) still lands on the broken bare "/admin" route and freezes the tab -- confirmed
-// live in a clean Incognito session with a verified admin account. Intercept the click itself
-// (capture phase, so we run before the app's own router handles it) and send the browser to
-// "/admin/orders" instead, which is a real working route.
-function patchAdminLinkRedirect(){
-var link = document.querySelector('a[href="/admin"]');
-if(!link || link.dataset.msAdminRedirectBound) return;
-link.dataset.msAdminRedirectBound = '1';
-link.addEventListener('click', function(ev){
-ev.preventDefault();
-ev.stopPropagation();
-window.location.href = '/admin/orders';
-}, true);
-}
-
 function goToAdminReportsRoute(path){
 history.pushState({}, '', path);
 patchAdminReportsPage();
@@ -6114,7 +6078,6 @@ try{ removeTeaserOverlay(); }catch(e2){}
 __msTeaserBlocking = false;
 }
 if(__msTeaserBlocking) return;
-try{ patchAdminLinkRedirect(); }catch(e){}
 patchHomeHero();
 patchCoinDbLight();
 scanFlips(root);
