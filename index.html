@@ -5773,6 +5773,94 @@ setInterval(function(){ if(notifBellEl) notifBellEl.refresh(); refreshMessagesBa
 }
 }
 
+/* ---------- Admin: Site Status ON/OFF toggle (teaser mode) — Stage 1: toggle only, no visitor gating yet ---------- */
+
+var __msTeaserMode = null; // null = unknown, true/false once confirmed
+var __msTeaserLastFetch = 0;
+var __msTeaserFetchInFlight = false;
+
+function refreshTeaserMode(){
+var now = Date.now();
+if(__msTeaserFetchInFlight) return;
+if(now - __msTeaserLastFetch < 10000) return;
+__msTeaserFetchInFlight = true;
+fetch(SUPABASE_URL + '/rest/v1/site_settings?select=teaser_mode&id=eq.1', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+__msTeaserMode = !!(rows && rows[0] && rows[0].teaser_mode);
+__msTeaserLastFetch = Date.now();
+__msTeaserFetchInFlight = false;
+updateTeaserToggleUI();
+}).catch(function(){
+__msTeaserLastFetch = Date.now();
+__msTeaserFetchInFlight = false;
+});
+}
+
+function updateTeaserToggleUI(){
+var btn = document.getElementById('ms-teaser-toggle-btn');
+if(!btn) return;
+if(__msTeaserMode === true){
+btn.textContent = 'OFF — Teaser Mode Active (click to go LIVE)';
+btn.style.background = '#FF6B6B';
+} else if(__msTeaserMode === false){
+btn.textContent = 'ON — Site is LIVE (click to enable Teaser)';
+btn.style.background = '#34D399';
+} else {
+btn.textContent = 'Loading site status…';
+btn.style.background = '#8888A0';
+}
+}
+
+var __msTeaserToggleBusy = false;
+function patchTeaserAdminToggle(){
+if(!isAdminPage()) return;
+var ordersLink = document.querySelector('a[href="/admin/orders"]');
+if(!ordersLink) return;
+var nav = ordersLink.parentElement;
+if(!nav) return;
+refreshTeaserMode();
+if(nav.querySelector('#ms-teaser-toggle-wrap')){ updateTeaserToggleUI(); return; }
+
+var wrap = document.createElement('div');
+wrap.id = 'ms-teaser-toggle-wrap';
+wrap.style.cssText = 'margin:12px 0;padding-top:12px;border-top:1px solid rgba(255,255,255,0.12);';
+var label = document.createElement('div');
+label.textContent = 'SITE STATUS';
+label.style.cssText = 'font-size:11px;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px;';
+var btn = document.createElement('button');
+btn.type = 'button';
+btn.id = 'ms-teaser-toggle-btn';
+btn.style.cssText = 'width:100%;padding:10px;border-radius:8px;border:none;font-weight:700;font-size:12px;cursor:pointer;color:#000;';
+wrap.appendChild(label);
+wrap.appendChild(btn);
+nav.appendChild(wrap);
+
+btn.addEventListener('click', function(){
+if(__msTeaserToggleBusy) return;
+__msTeaserToggleBusy = true;
+btn.disabled = true;
+var token = getAdminAccessToken();
+var nextEnabled = !(__msTeaserMode === true);
+fetch(SUPABASE_URL + '/functions/v1/admin-teaser', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
+body: JSON.stringify({ enabled: nextEnabled })
+}).then(function(r){ return r.json(); }).then(function(data){
+if(data && typeof data.teaser_mode === 'boolean'){
+__msTeaserMode = data.teaser_mode;
+__msTeaserLastFetch = Date.now();
+}
+}).catch(function(){}).then(function(){
+__msTeaserToggleBusy = false;
+btn.disabled = false;
+updateTeaserToggleUI();
+});
+});
+
+updateTeaserToggleUI();
+}
+
 function runAll(root){
 patchHomeHero();
 patchCoinDbLight();
@@ -5811,6 +5899,7 @@ patchAdminSidebar();
 patchAdminListDeletes();
 patchAdminSyncLabel();
 patchAdminToolLinks();
+patchTeaserAdminToggle();
 patchAdminPaymentsPage();
 patchShopItemImageUpload();
 patchAdminReportsSidebar();
