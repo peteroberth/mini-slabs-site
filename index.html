@@ -172,6 +172,7 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 </style>
 </head>
 <body>
+<div id="ms-teaser-overlay" style="position:fixed;inset:0;z-index:999900;background:#07070C;display:flex;align-items:center;justify-content:center;overflow:hidden;"></div>
 <div id="root"></div>
 <script>
 (function(){
@@ -179,6 +180,14 @@ function onReady(fn){ if(document.readyState !== 'loading') fn(); else document.
 
 var SUPABASE_URL = 'https://xqeboeuukodkwankpmcl.supabase.co';
 var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxZWJvZXV1a29ka3dhbmtwbWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzE3MTgsImV4cCI6MjEwMDc0NzcxOH0.yGPWjdvVLNannb0PygD5B6zkAWAr9idQHKUBM3mh_dw';
+
+// Kick off the teaser-mode + admin-status checks as early as physically possible -- before
+// the native app's own bundle has even finished downloading -- so the static #ms-teaser-overlay
+// div already in the HTML (see <body>) either gets removed or built out the instant we know the
+// real answer, instead of waiting for the native app to mount and start mutating the DOM first.
+// patchTeaserVisitorGate/refreshTeaserMode/refreshAdminStatusForTeaser are declared further
+// below but are function declarations, so they're hoisted and safe to call from here.
+try{ patchTeaserVisitorGate(); }catch(e){}
 
 var ICONS = {
 'Elite': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-2-elite.png?v=2',
@@ -5988,6 +5997,7 @@ headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_K
 __msTeaserMode = !!(rows && rows[0] && rows[0].teaser_mode);
 __msTeaserLastFetch = Date.now();
 __msTeaserFetchInFlight = false;
+try{ patchTeaserVisitorGate(); }catch(e){}
 }).catch(function(){
 __msTeaserLastFetch = Date.now();
 __msTeaserFetchInFlight = false;
@@ -5999,6 +6009,7 @@ function refreshAdminStatusForTeaser(){
 var token = getAdminAccessToken();
 if(!token){
 __msTeaserAdminCheck = { token: null, isAdmin: false, lastFetch: Date.now(), inFlight: false };
+try{ patchTeaserVisitorGate(); }catch(e){}
 return;
 }
 if(__msTeaserAdminCheck.token === token && (Date.now() - __msTeaserAdminCheck.lastFetch) < 15000) return;
@@ -6009,6 +6020,7 @@ fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + uid, {
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
 }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 __msTeaserAdminCheck = { token: token, isAdmin: !!(rows && rows[0] && rows[0].is_admin), lastFetch: Date.now(), inFlight: false };
+try{ patchTeaserVisitorGate(); }catch(e){}
 }).catch(function(){
 __msTeaserAdminCheck.inFlight = false;
 __msTeaserAdminCheck.lastFetch = Date.now();
@@ -6080,8 +6092,10 @@ function patchTeaserVisitorGate(){
 if(window.location.pathname === '/site-status'){ removeTeaserOverlay(); return; }
 refreshTeaserMode();
 refreshAdminStatusForTeaser();
-if(__msTeaserMode !== true){ removeTeaserOverlay(); return; }
+if(__msTeaserMode === false){ removeTeaserOverlay(); return; }
+if(__msTeaserMode === null){ return; }
 if(__msTeaserAdminCheck.isAdmin === true){ removeTeaserOverlay(); return; }
+if(__msTeaserAdminCheck.isAdmin === null){ return; }
 var el = ensureTeaserOverlay();
 buildTeaserCinematicContent(el);
 }
