@@ -6071,7 +6071,13 @@ updateTeaserToggleUI();
 }
 
 function runAll(root){
-if(patchTeaserGate()) return;
+var __msTeaserBlocking = false;
+try{ __msTeaserBlocking = patchTeaserGate(); }catch(e){
+try{ console.error('[ms-teaser] patchTeaserGate threw, skipping gate this pass', e); }catch(e3){}
+try{ removeTeaserOverlay(); }catch(e2){}
+__msTeaserBlocking = false;
+}
+if(__msTeaserBlocking) return;
 patchHomeHero();
 patchCoinDbLight();
 scanFlips(root);
