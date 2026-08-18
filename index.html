@@ -1479,6 +1479,119 @@ wrap.appendChild(backLink);
 main.appendChild(wrap);
 }
 
+/* ---------- Site Status: standalone admin page, isolated from /admin entirely ---------- */
+
+function patchSiteStatusPage(){
+if(window.location.pathname !== '/site-status') return;
+var main = document.querySelector('main');
+if(!main) return;
+if(main.dataset.msSiteStatusDone === '1') return;
+main.dataset.msSiteStatusDone = '1';
+main.innerHTML = '';
+
+var wrap = document.createElement('div');
+wrap.style.cssText = 'max-width:480px;margin:0 auto;padding:80px 20px;text-align:center;';
+var label = document.createElement('div');
+label.textContent = 'Admin';
+label.style.cssText = "font-family:'Space Mono',monospace;font-size:0.68rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#FFD639;margin-bottom:0.75rem;";
+wrap.appendChild(label);
+var h1 = document.createElement('h1');
+h1.textContent = 'Site Status';
+h1.style.cssText = "font-family:'Eras Bold ITC','Syne',sans-serif;font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;color:#FAFAFA;margin-bottom:24px;";
+wrap.appendChild(h1);
+var body = document.createElement('div');
+body.id = 'ms-site-status-body';
+body.style.cssText = 'color:var(--text-dim);';
+body.textContent = 'Checking access…';
+wrap.appendChild(body);
+main.appendChild(wrap);
+
+var token = getAdminAccessToken();
+if(!token){
+body.innerHTML = 'You need to be signed in as an admin to view this page. <a href="/" style="color:#FFD639;">Return home</a>';
+return;
+}
+var uid = decodeJwtSub(token);
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + uid, {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var isAdmin = !!(rows && rows[0] && rows[0].is_admin);
+if(!isAdmin){ body.textContent = 'This account does not have admin access.'; return; }
+buildSiteStatusToggle(body, token);
+}).catch(function(){
+body.textContent = 'Could not verify admin access. Please refresh and try again.';
+});
+}
+
+function buildSiteStatusToggle(body, token){
+body.innerHTML = '';
+var status = document.createElement('div');
+status.id = 'ms-site-status-current';
+status.style.cssText = 'margin-bottom:20px;font-size:1rem;';
+status.textContent = 'Loading current status…';
+body.appendChild(status);
+var btn = document.createElement('button');
+btn.type = 'button';
+btn.id = 'ms-site-status-btn';
+btn.disabled = true;
+btn.textContent = 'Loading…';
+btn.style.cssText = 'padding:14px 28px;border-radius:10px;border:none;font-weight:700;font-size:14px;cursor:pointer;color:#000;background:#8888A0;';
+body.appendChild(btn);
+
+var currentMode = null;
+var busy = false;
+
+function render(){
+if(currentMode === true){
+status.textContent = 'Teaser mode is ON — the public site is hidden from visitors.';
+btn.textContent = 'Turn OFF — Go Live';
+btn.style.background = '#34D399';
+} else if(currentMode === false){
+status.textContent = 'Site is LIVE.';
+btn.textContent = 'Turn ON — Hide Site (Teaser)';
+btn.style.background = '#FF6B6B';
+} else {
+status.textContent = 'Could not load current status.';
+btn.textContent = 'Retry';
+btn.style.background = '#8888A0';
+}
+btn.disabled = false;
+}
+
+function refresh(){
+fetch(SUPABASE_URL + '/rest/v1/site_settings?select=teaser_mode&id=eq.1', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+currentMode = !!(rows && rows[0] && rows[0].teaser_mode);
+render();
+}).catch(function(){
+currentMode = null;
+render();
+});
+}
+
+btn.addEventListener('click', function(){
+if(busy) return;
+if(currentMode === null){ refresh(); return; }
+busy = true;
+btn.disabled = true;
+btn.textContent = 'Updating…';
+var nextEnabled = !(currentMode === true);
+fetch(SUPABASE_URL + '/functions/v1/admin-teaser', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+body: JSON.stringify({ enabled: nextEnabled })
+}).then(function(r){ return r.json(); }).then(function(data){
+if(data && typeof data.teaser_mode === 'boolean'){ currentMode = data.teaser_mode; }
+}).catch(function(){}).then(function(){
+busy = false;
+render();
+});
+});
+
+refresh();
+}
+
 /* ---------- Resale marketplace: render live listings ---------- */
 
 function patchResalePage(){
@@ -5790,6 +5903,7 @@ patchShopPage();
 patchSellBackLoginGate();
 consumePendingSellbackCode();
 patchBreakdownsPage();
+patchSiteStatusPage();
 patchResalePage();
 patchCollectorProfilePage();
 patchPublicProfilePage();
