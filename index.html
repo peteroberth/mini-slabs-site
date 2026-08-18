@@ -152,12 +152,27 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 .ms-view-toggle{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;height:fit-content;}
 .ms-view-toggle button{background:transparent;border:none;color:var(--text-dim);padding:9px 13px;cursor:pointer;font-size:14px;line-height:1;}
 .ms-view-toggle button.active{background:var(--cyan);color:#000;}
+.ms-teaser-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,57,0.10) 0%,rgba(168,85,247,0.06) 40%,transparent 70%);pointer-events:none;animation:ms29HeroGlow 6s ease-in-out infinite alternate;}
+@keyframes msTeaserLogoPulse{0%,100%{opacity:0.9;transform:scale(1);}50%{opacity:1;transform:scale(1.04);}}
+.ms-teaser-slab{position:relative;width:150px;height:206px;border-radius:14px;background:linear-gradient(160deg,#1c1c26,#0d0d13);border:1px solid rgba(255,255,255,0.14);box-shadow:0 30px 80px rgba(0,0,0,0.6),inset 0 0 0 1px rgba(255,255,255,0.04);overflow:hidden;}
+.ms-teaser-slab::before{content:'';position:absolute;top:10px;left:10px;right:10px;height:20px;border-radius:6px;background:rgba(255,255,255,0.06);}
+.ms-teaser-slab-core{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,57,0.35),rgba(255,214,57,0.05) 60%,transparent 75%);filter:blur(1px);animation:msTeaserCoreGlow 3.5s ease-in-out infinite;}
+@keyframes msTeaserCoreGlow{0%,100%{opacity:0.6;}50%{opacity:1;}}
+.ms-teaser-slab-shine{position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:msTeaserShine 3.2s ease-in-out infinite;}
+@keyframes msTeaserShine{0%{left:-60%;}45%{left:130%;}100%{left:130%;}}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script>
 (function(){
+// Captured synchronously at parse time, before the native app mounts and before its
+// own (buggy) /admin auth-guard redirect can fire -- see patchTeaserGate() below.
+var INITIAL_PATH = window.location.pathname;
+if(/^\/admin(\/|$)/.test(INITIAL_PATH)){
+try{ sessionStorage.setItem('ms-teaser-admin-entry', '1'); }catch(e){}
+}
+
 function onReady(fn){ if(document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
 
 var SUPABASE_URL = 'https://xqeboeuukodkwankpmcl.supabase.co';
@@ -5773,7 +5788,290 @@ setInterval(function(){ if(notifBellEl) notifBellEl.refresh(); refreshMessagesBa
 }
 }
 
+/* ---------- Teaser mode: site-wide gate driven by site_settings.teaser_mode ---------- */
+
+var __msTeaserMode = null; // null = unknown (default open), true/false once confirmed
+var __msTeaserLastFetch = 0;
+var __msTeaserFetchInFlight = false;
+
+function refreshTeaserMode(){
+var now = Date.now();
+if(__msTeaserFetchInFlight) return;
+if(now - __msTeaserLastFetch < 15000) return;
+__msTeaserFetchInFlight = true;
+fetch(SUPABASE_URL + '/rest/v1/site_settings?select=teaser_mode&id=eq.1', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+__msTeaserMode = !!(rows && rows[0] && rows[0].teaser_mode);
+__msTeaserLastFetch = Date.now();
+__msTeaserFetchInFlight = false;
+updateTeaserToggleUI();
+}).catch(function(){
+__msTeaserLastFetch = Date.now();
+__msTeaserFetchInFlight = false;
+});
+}
+
+var __msTeaserAdminCheck = { token: null, isAdmin: null, lastFetch: 0, inFlight: false };
+function refreshAdminStatusForTeaser(){
+var token = getAdminAccessToken();
+if(!token){
+__msTeaserAdminCheck = { token: null, isAdmin: false, lastFetch: Date.now(), inFlight: false };
+return;
+}
+if(__msTeaserAdminCheck.token === token && (Date.now() - __msTeaserAdminCheck.lastFetch) < 15000) return;
+if(__msTeaserAdminCheck.inFlight) return;
+__msTeaserAdminCheck.inFlight = true;
+var uid = decodeJwtSub(token);
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + uid, {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+__msTeaserAdminCheck = { token: token, isAdmin: !!(rows && rows[0] && rows[0].is_admin), lastFetch: Date.now(), inFlight: false };
+}).catch(function(){
+__msTeaserAdminCheck.inFlight = false;
+__msTeaserAdminCheck.lastFetch = Date.now();
+});
+}
+
+function spawnTeaserSparkles(container, count){
+if(!container) return;
+function svg(isGold){
+var color = isGold ? '#C5A44E' : '#B8B8C8';
+var hl = isGold ? '#E8D48B' : '#D8D8E8';
+var sh = isGold ? '#8B7332' : '#888898';
+return '<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="8.5" fill="' + color + '" stroke="' + sh + '" stroke-width="0.5"/><circle cx="9" cy="9" r="7" fill="none" stroke="' + sh + '" stroke-width="0.3" opacity="0.5"/><circle cx="7" cy="7" r="1" fill="' + hl + '" opacity="0.4"/></svg>';
+}
+for(var i = 0; i < count; i++){
+var c = document.createElement('div');
+var isGold = Math.random() > 0.4;
+c.className = 'ms29-mini-coin';
+c.innerHTML = svg(isGold);
+c.style.left = Math.random() * 100 + '%';
+c.style.animationDuration = (6 + Math.random() * 10) + 's';
+c.style.animationDelay = (Math.random() * 12) + 's';
+var size = 10 + Math.random() * 12;
+c.style.width = size + 'px';
+c.style.height = size + 'px';
+container.appendChild(c);
+}
+}
+
+function ensureTeaserOverlay(variant){
+var el = document.getElementById('ms-teaser-overlay');
+if(el && el.dataset.msVariant === variant) return el;
+if(!el){
+el = document.createElement('div');
+el.id = 'ms-teaser-overlay';
+el.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#07070C;display:flex;align-items:center;justify-content:center;overflow:hidden;';
+document.body.appendChild(el);
+document.documentElement.style.overflow = 'hidden';
+}
+el.dataset.msVariant = variant;
+el.dataset.msBuilt = '';
+el.innerHTML = '';
+return el;
+}
+
+function removeTeaserOverlay(){
+var el = document.getElementById('ms-teaser-overlay');
+if(el){ el.remove(); document.documentElement.style.overflow = ''; }
+}
+
+function showTeaserCinematic(){
+var el = ensureTeaserOverlay('cinematic');
+if(el.dataset.msBuilt === '1') return;
+el.dataset.msBuilt = '1';
+el.innerHTML =
+'<div class="ms-teaser-sparkles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>' +
+'<div class="ms-teaser-glow"></div>' +
+'<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2.25rem;text-align:center;padding:2rem;">' +
+'<img src="https://mini-slabs.netlify.app/assets/crown-mark-CyorOU8q.png" alt="Mini-Slabs" style="width:100px;height:auto;filter:drop-shadow(0 0 40px rgba(255,214,57,0.35));animation:msTeaserLogoPulse 4s ease-in-out infinite;">' +
+'<div class="ms-teaser-slab"><div class="ms-teaser-slab-shine"></div><div class="ms-teaser-slab-core"></div></div>' +
+'<div>' +
+'<div style="font-family:\'Eras Bold ITC\',\'Syne\',sans-serif;font-size:clamp(1.8rem,5vw,3.2rem);font-weight:800;letter-spacing:0.06em;color:#FAFAFA;">SMALL AND PROUD.</div>' +
+'<div style="font-family:\'Space Mono\',monospace;font-size:0.72rem;letter-spacing:0.3em;text-transform:uppercase;color:#8888A0;margin-top:0.9rem;">Something is coming</div>' +
+'</div>' +
+'</div>';
+spawnTeaserSparkles(el.querySelector('.ms-teaser-sparkles'), 22);
+}
+
+function persistSupabaseSession(session){
+try{
+var ref = SUPABASE_URL.match(/^https?:\/\/([^.]+)\./);
+var key = 'sb-' + (ref ? ref[1] : 'project') + '-auth-token';
+var now = Math.floor(Date.now() / 1000);
+var toStore = {
+access_token: session.access_token,
+token_type: session.token_type || 'bearer',
+expires_in: session.expires_in,
+expires_at: session.expires_at || (now + (session.expires_in || 3600)),
+refresh_token: session.refresh_token,
+user: session.user
+};
+localStorage.setItem(key, JSON.stringify(toStore));
+}catch(e){}
+}
+
+function wireTeaserLoginForm(){
+var form = document.getElementById('ms-teaser-login-form');
+if(!form || form.dataset.msWired) return;
+form.dataset.msWired = '1';
+form.addEventListener('submit', function(ev){
+ev.preventDefault();
+var email = (document.getElementById('ms-teaser-login-email').value || '').trim();
+var pass = document.getElementById('ms-teaser-login-pass').value || '';
+var errEl = document.getElementById('ms-teaser-login-error');
+var btn = document.getElementById('ms-teaser-login-btn');
+errEl.textContent = '';
+btn.disabled = true;
+btn.textContent = 'Signing in…';
+fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+body: JSON.stringify({ email: email, password: pass })
+}).then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); })
+.then(function(res){
+if(!res.ok || !res.data || !res.data.access_token){
+throw new Error((res.data && (res.data.error_description || res.data.msg)) || 'Invalid email or password');
+}
+var session = res.data;
+return fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + session.user.id, {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var isAdmin = !!(rows && rows[0] && rows[0].is_admin);
+if(!isAdmin) throw new Error('This account does not have admin access.');
+persistSupabaseSession(session);
+});
+}).then(function(){
+window.location.reload();
+}).catch(function(err){
+errEl.textContent = (err && err.message) || 'Sign in failed. Please try again.';
+btn.disabled = false;
+btn.textContent = 'Sign In';
+});
+});
+}
+
+function showTeaserAdminLogin(){
+var el = ensureTeaserOverlay('login');
+if(el.dataset.msBuilt === '1') return;
+el.dataset.msBuilt = '1';
+el.innerHTML =
+'<div class="ms-teaser-sparkles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>' +
+'<div class="ms-teaser-glow"></div>' +
+'<div style="position:relative;z-index:1;width:100%;max-width:360px;padding:2.5rem 2rem;text-align:center;">' +
+'<img src="https://mini-slabs.netlify.app/assets/crown-mark-CyorOU8q.png" alt="Mini-Slabs" style="width:60px;height:auto;margin:0 auto 1.5rem;display:block;">' +
+'<div style="font-family:\'Eras Bold ITC\',\'Syne\',sans-serif;font-size:1.3rem;font-weight:800;color:#FAFAFA;margin-bottom:1.75rem;">Admin Sign In</div>' +
+'<form id="ms-teaser-login-form" style="display:flex;flex-direction:column;gap:12px;">' +
+'<input type="email" id="ms-teaser-login-email" placeholder="Email" autocomplete="username" required style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#FAFAFA;font-size:14px;">' +
+'<input type="password" id="ms-teaser-login-pass" placeholder="Password" autocomplete="current-password" required style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#FAFAFA;font-size:14px;">' +
+'<div id="ms-teaser-login-error" style="color:#FF6B6B;font-size:13px;min-height:16px;"></div>' +
+'<button type="submit" id="ms-teaser-login-btn" style="padding:12px 14px;border-radius:10px;border:none;background:#FFD639;color:#000;font-weight:700;font-size:14px;cursor:pointer;">Sign In</button>' +
+'</form>' +
+'</div>';
+spawnTeaserSparkles(el.querySelector('.ms-teaser-sparkles'), 14);
+wireTeaserLoginForm();
+}
+
+function patchTeaserGate(){
+refreshTeaserMode();
+refreshAdminStatusForTeaser();
+
+var adminEntryFlag;
+try{ adminEntryFlag = sessionStorage.getItem('ms-teaser-admin-entry') === '1'; }catch(e){ adminEntryFlag = false; }
+
+if(__msTeaserMode !== true){
+removeTeaserOverlay();
+return false;
+}
+
+if(__msTeaserAdminCheck.isAdmin === true){
+removeTeaserOverlay();
+if(adminEntryFlag){
+var adminLink = document.querySelector('a[href="/admin"]');
+if(adminLink){
+try{ sessionStorage.removeItem('ms-teaser-admin-entry'); }catch(e){}
+if(!isAdminPage()){ adminLink.click(); }
+}
+}
+return false;
+}
+
+if(adminEntryFlag){
+showTeaserAdminLogin();
+} else {
+showTeaserCinematic();
+}
+return true;
+}
+
+/* ---------- Admin: Site Status ON/OFF toggle (teaser mode) ---------- */
+
+var __msTeaserToggleBusy = false;
+function updateTeaserToggleUI(){
+var btn = document.getElementById('ms-teaser-toggle-btn');
+if(!btn) return;
+if(__msTeaserMode === true){
+btn.textContent = 'OFF — Teaser Mode Active (click to go LIVE)';
+btn.style.background = '#FF6B6B';
+} else if(__msTeaserMode === false){
+btn.textContent = 'ON — Site is LIVE (click to enable Teaser)';
+btn.style.background = '#34D399';
+} else {
+btn.textContent = 'Loading site status…';
+btn.style.background = '#8888A0';
+}
+}
+
+function patchTeaserAdminToggle(){
+if(!isAdminPage()) return;
+var ordersLink = document.querySelector('a[href="/admin/orders"]');
+if(!ordersLink) return;
+var nav = ordersLink.parentElement;
+if(!nav) return;
+if(nav.querySelector('#ms-teaser-toggle-wrap')){ updateTeaserToggleUI(); return; }
+
+var wrap = document.createElement('div');
+wrap.id = 'ms-teaser-toggle-wrap';
+wrap.style.cssText = 'margin:12px 0;padding-top:12px;border-top:1px solid rgba(255,255,255,0.12);';
+var label = document.createElement('div');
+label.textContent = 'SITE STATUS';
+label.style.cssText = 'font-size:11px;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px;';
+var btn = document.createElement('button');
+btn.type = 'button';
+btn.id = 'ms-teaser-toggle-btn';
+btn.style.cssText = 'width:100%;padding:10px;border-radius:8px;border:none;font-weight:700;font-size:12px;cursor:pointer;color:#000;';
+wrap.appendChild(label);
+wrap.appendChild(btn);
+nav.appendChild(wrap);
+
+btn.addEventListener('click', function(){
+if(__msTeaserToggleBusy) return;
+__msTeaserToggleBusy = true;
+btn.disabled = true;
+var token = getAdminAccessToken();
+var nextEnabled = !(__msTeaserMode === true);
+fetch(SUPABASE_URL + '/functions/v1/admin-teaser', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (token || SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
+body: JSON.stringify({ enabled: nextEnabled })
+}).then(function(r){ return r.json(); }).then(function(data){
+if(data && typeof data.teaser_mode === 'boolean'){
+__msTeaserMode = data.teaser_mode;
+__msTeaserLastFetch = Date.now();
+}
+}).catch(function(){}).then(function(){
+__msTeaserToggleBusy = false;
+btn.disabled = false;
+updateTeaserToggleUI();
+});
+});
+
+updateTeaserToggleUI();
+}
+
 function runAll(root){
+if(patchTeaserGate()) return;
 patchHomeHero();
 patchCoinDbLight();
 scanFlips(root);
@@ -5811,6 +6109,7 @@ patchAdminSidebar();
 patchAdminListDeletes();
 patchAdminSyncLabel();
 patchAdminToolLinks();
+patchTeaserAdminToggle();
 patchAdminPaymentsPage();
 patchShopItemImageUpload();
 patchAdminReportsSidebar();
