@@ -152,6 +152,14 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 .ms-view-toggle{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;height:fit-content;}
 .ms-view-toggle button{background:transparent;border:none;color:var(--text-dim);padding:9px 13px;cursor:pointer;font-size:14px;line-height:1;}
 .ms-view-toggle button.active{background:var(--cyan);color:#000;}
+.ms-teaser-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,57,0.10) 0%,rgba(168,85,247,0.06) 40%,transparent 70%);pointer-events:none;animation:ms29HeroGlow 6s ease-in-out infinite alternate;}
+@keyframes msTeaserLogoPulse{0%,100%{opacity:0.9;transform:scale(1);}50%{opacity:1;transform:scale(1.04);}}
+.ms-teaser-slab{position:relative;width:150px;height:206px;border-radius:14px;background:linear-gradient(160deg,#1c1c26,#0d0d13);border:1px solid rgba(255,255,255,0.14);box-shadow:0 30px 80px rgba(0,0,0,0.6),inset 0 0 0 1px rgba(255,255,255,0.04);overflow:hidden;}
+.ms-teaser-slab::before{content:'';position:absolute;top:10px;left:10px;right:10px;height:20px;border-radius:6px;background:rgba(255,255,255,0.06);}
+.ms-teaser-slab-core{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,57,0.35),rgba(255,214,57,0.05) 60%,transparent 75%);filter:blur(1px);animation:msTeaserCoreGlow 3.5s ease-in-out infinite;}
+@keyframes msTeaserCoreGlow{0%,100%{opacity:0.6;}50%{opacity:1;}}
+.ms-teaser-slab-shine{position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:msTeaserShine 3.2s ease-in-out infinite;}
+@keyframes msTeaserShine{0%{left:-60%;}45%{left:130%;}100%{left:130%;}}
 </style>
 </head>
 <body>
@@ -1508,7 +1516,7 @@ main.appendChild(wrap);
 
 var token = getAdminAccessToken();
 if(!token){
-body.innerHTML = 'You need to be signed in as an admin to view this page. <a href="/" style="color:#FFD639;">Return home</a>';
+buildSiteStatusLogin(body);
 return;
 }
 var uid = decodeJwtSub(token);
@@ -1520,6 +1528,73 @@ if(!isAdmin){ body.textContent = 'This account does not have admin access.'; ret
 buildSiteStatusToggle(body, token);
 }).catch(function(){
 body.textContent = 'Could not verify admin access. Please refresh and try again.';
+});
+}
+
+function persistSupabaseSession(session){
+try{
+var ref = SUPABASE_URL.match(/^https?:\/\/([^.]+)\./);
+var key = 'sb-' + (ref ? ref[1] : 'project') + '-auth-token';
+var now = Math.floor(Date.now() / 1000);
+var toStore = {
+access_token: session.access_token,
+token_type: session.token_type || 'bearer',
+expires_in: session.expires_in,
+expires_at: session.expires_at || (now + (session.expires_in || 3600)),
+refresh_token: session.refresh_token,
+user: session.user
+};
+localStorage.setItem(key, JSON.stringify(toStore));
+}catch(e){}
+}
+
+function buildSiteStatusLogin(body){
+body.innerHTML = '';
+var p = document.createElement('p');
+p.textContent = 'Sign in with your admin account to manage site status.';
+p.style.cssText = 'margin-bottom:16px;';
+body.appendChild(p);
+var form = document.createElement('form');
+form.style.cssText = 'display:flex;flex-direction:column;gap:12px;text-align:left;';
+form.innerHTML =
+'<input type="email" id="ms-site-status-email" placeholder="Email" autocomplete="username" required style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#FAFAFA;font-size:14px;">' +
+'<input type="password" id="ms-site-status-pass" placeholder="Password" autocomplete="current-password" required style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#FAFAFA;font-size:14px;">' +
+'<div id="ms-site-status-login-err" style="color:#FF6B6B;font-size:13px;min-height:16px;"></div>' +
+'<button type="submit" style="padding:12px 14px;border-radius:10px;border:none;background:#FFD639;color:#000;font-weight:700;font-size:14px;cursor:pointer;">Sign In</button>';
+body.appendChild(form);
+form.addEventListener('submit', function(ev){
+ev.preventDefault();
+var email = (document.getElementById('ms-site-status-email').value || '').trim();
+var pass = document.getElementById('ms-site-status-pass').value || '';
+var errEl = document.getElementById('ms-site-status-login-err');
+var btn = form.querySelector('button[type="submit"]');
+errEl.textContent = '';
+btn.disabled = true;
+btn.textContent = 'Signing in…';
+fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+body: JSON.stringify({ email: email, password: pass })
+}).then(function(r){ return r.json().then(function(data){ return { ok: r.ok, data: data }; }); })
+.then(function(res){
+if(!res.ok || !res.data || !res.data.access_token){
+throw new Error((res.data && (res.data.error_description || res.data.msg)) || 'Invalid email or password');
+}
+var session = res.data;
+return fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + session.user.id, {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+var isAdmin = !!(rows && rows[0] && rows[0].is_admin);
+if(!isAdmin) throw new Error('This account does not have admin access.');
+persistSupabaseSession(session);
+});
+}).then(function(){
+window.location.reload();
+}).catch(function(err){
+errEl.textContent = (err && err.message) || 'Sign in failed. Please try again.';
+btn.disabled = false;
+btn.textContent = 'Sign In';
+});
 });
 }
 
@@ -5886,7 +5961,119 @@ setInterval(function(){ if(notifBellEl) notifBellEl.refresh(); refreshMessagesBa
 }
 }
 
+/* ---------- Teaser mode: full-screen overlay drawn on top of every route. Never touches
+   the underlying page's DOM, links, or routing -- it only adds/removes a fixed-position
+   layer above everything else, so it can never interfere with /admin's own rendering. ---------- */
+
+var __msTeaserMode = null;
+var __msTeaserLastFetch = 0;
+var __msTeaserFetchInFlight = false;
+function refreshTeaserMode(){
+var now = Date.now();
+if(__msTeaserFetchInFlight) return;
+if(now - __msTeaserLastFetch < 15000) return;
+__msTeaserFetchInFlight = true;
+fetch(SUPABASE_URL + '/rest/v1/site_settings?select=teaser_mode&id=eq.1', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+__msTeaserMode = !!(rows && rows[0] && rows[0].teaser_mode);
+__msTeaserLastFetch = Date.now();
+__msTeaserFetchInFlight = false;
+}).catch(function(){
+__msTeaserLastFetch = Date.now();
+__msTeaserFetchInFlight = false;
+});
+}
+
+var __msTeaserAdminCheck = { token: null, isAdmin: null, lastFetch: 0, inFlight: false };
+function refreshAdminStatusForTeaser(){
+var token = getAdminAccessToken();
+if(!token){
+__msTeaserAdminCheck = { token: null, isAdmin: false, lastFetch: Date.now(), inFlight: false };
+return;
+}
+if(__msTeaserAdminCheck.token === token && (Date.now() - __msTeaserAdminCheck.lastFetch) < 15000) return;
+if(__msTeaserAdminCheck.inFlight) return;
+__msTeaserAdminCheck.inFlight = true;
+var uid = decodeJwtSub(token);
+fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + uid, {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+__msTeaserAdminCheck = { token: token, isAdmin: !!(rows && rows[0] && rows[0].is_admin), lastFetch: Date.now(), inFlight: false };
+}).catch(function(){
+__msTeaserAdminCheck.inFlight = false;
+__msTeaserAdminCheck.lastFetch = Date.now();
+});
+}
+
+function spawnTeaserSparkles(container, count){
+if(!container) return;
+function svg(isGold){
+var color = isGold ? '#C5A44E' : '#B8B8C8';
+var hl = isGold ? '#E8D48B' : '#D8D8E8';
+var sh = isGold ? '#8B7332' : '#888898';
+return '<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="8.5" fill="' + color + '" stroke="' + sh + '" stroke-width="0.5"/><circle cx="9" cy="9" r="7" fill="none" stroke="' + sh + '" stroke-width="0.3" opacity="0.5"/><circle cx="7" cy="7" r="1" fill="' + hl + '" opacity="0.4"/></svg>';
+}
+for(var i = 0; i < count; i++){
+var c = document.createElement('div');
+var isGold = Math.random() > 0.4;
+c.className = 'ms29-mini-coin';
+c.innerHTML = svg(isGold);
+c.style.left = Math.random() * 100 + '%';
+c.style.animationDuration = (6 + Math.random() * 10) + 's';
+c.style.animationDelay = (Math.random() * 12) + 's';
+var size = 10 + Math.random() * 12;
+c.style.width = size + 'px';
+c.style.height = size + 'px';
+container.appendChild(c);
+}
+}
+
+function ensureTeaserOverlay(){
+var el = document.getElementById('ms-teaser-overlay');
+if(el) return el;
+el = document.createElement('div');
+el.id = 'ms-teaser-overlay';
+el.style.cssText = 'position:fixed;inset:0;z-index:999900;background:#07070C;display:flex;align-items:center;justify-content:center;overflow:hidden;';
+document.body.appendChild(el);
+document.documentElement.style.overflow = 'hidden';
+return el;
+}
+
+function removeTeaserOverlay(){
+var el = document.getElementById('ms-teaser-overlay');
+if(el){ el.remove(); document.documentElement.style.overflow = ''; }
+}
+
+function buildTeaserCinematicContent(el){
+if(el.dataset.msBuilt === '1') return;
+el.dataset.msBuilt = '1';
+el.innerHTML =
+'<div class="ms-teaser-sparkles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>' +
+'<div class="ms-teaser-glow"></div>' +
+'<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2.25rem;text-align:center;padding:2rem;">' +
+'<img src="https://mini-slabs.netlify.app/assets/crown-mark-CyorOU8q.png" alt="Mini-Slabs" style="width:100px;height:auto;filter:drop-shadow(0 0 40px rgba(255,214,57,0.35));animation:msTeaserLogoPulse 4s ease-in-out infinite;">' +
+'<div class="ms-teaser-slab"><div class="ms-teaser-slab-shine"></div><div class="ms-teaser-slab-core"></div></div>' +
+'<div>' +
+'<div style="font-family:\'Eras Bold ITC\',\'Syne\',sans-serif;font-size:clamp(1.8rem,5vw,3.2rem);font-weight:800;letter-spacing:0.06em;color:#FAFAFA;">SMALL AND PROUD.</div>' +
+'<div style="font-family:\'Space Mono\',monospace;font-size:0.72rem;letter-spacing:0.3em;text-transform:uppercase;color:#8888A0;margin-top:0.9rem;">Something is coming</div>' +
+'</div>' +
+'</div>';
+spawnTeaserSparkles(el.querySelector('.ms-teaser-sparkles'), 22);
+}
+
+function patchTeaserVisitorGate(){
+if(window.location.pathname === '/site-status'){ removeTeaserOverlay(); return; }
+refreshTeaserMode();
+refreshAdminStatusForTeaser();
+if(__msTeaserMode !== true){ removeTeaserOverlay(); return; }
+if(__msTeaserAdminCheck.isAdmin === true){ removeTeaserOverlay(); return; }
+var el = ensureTeaserOverlay();
+buildTeaserCinematicContent(el);
+}
+
 function runAll(root){
+try{ patchTeaserVisitorGate(); }catch(e){ try{ console.error('[ms-teaser] gate error', e); }catch(e2){} }
 patchHomeHero();
 patchCoinDbLight();
 scanFlips(root);
