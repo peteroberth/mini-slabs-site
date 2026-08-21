@@ -166,15 +166,15 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 @keyframes msTeaserCoreGlow{0%,100%{opacity:0.6;}50%{opacity:1;}}
 .ms-teaser-slab-shine{position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:msTeaserShine 3.2s ease-in-out infinite;}
 @keyframes msTeaserShine{0%{left:-60%;}45%{left:130%;}100%{left:130%;}}
-.ms-teaser-logo-3d{perspective:900px;width:130px;height:130px;margin:0 auto;position:relative;animation:msTeaserLogoFloat 4s ease-in-out infinite;filter:drop-shadow(0 0 20px rgba(110,225,255,0.45)) drop-shadow(0 0 38px rgba(255,214,57,0.35));}
+.ms-teaser-logo-3d{perspective:900px;width:130px;height:130px;margin:0 auto 2.5rem;position:relative;animation:msTeaserLogoFloat 4s ease-in-out infinite;filter:drop-shadow(0 0 20px rgba(110,225,255,0.45)) drop-shadow(0 0 38px rgba(255,214,57,0.35));}
 .ms-teaser-logo-cube{position:relative;width:100%;height:100%;transform-style:preserve-3d;will-change:transform;}
-.ms-teaser-logo-face{position:absolute;inset:0;width:130px;height:130px;backface-visibility:hidden;background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.18);box-sizing:border-box;filter:saturate(1.2) contrast(1.05);}
-.ms-teaser-logo-face-front{background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');transform:translateZ(65px);}
-.ms-teaser-logo-face-back{background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');transform:rotateY(180deg) translateZ(65px);}
-.ms-teaser-logo-face-right{background:linear-gradient(135deg,#e2e2e2,#8f8f8f);transform:rotateY(90deg) translateZ(65px);}
-.ms-teaser-logo-face-left{background:linear-gradient(135deg,#8f8f8f,#e2e2e2);transform:rotateY(-90deg) translateZ(65px);}
-.ms-teaser-logo-face-top{background:linear-gradient(135deg,#efefef,#b8b8b8);transform:rotateX(90deg) translateZ(65px);}
-.ms-teaser-logo-face-bottom{background:linear-gradient(135deg,#9a9a9a,#dcdcdc);transform:rotateX(-90deg) translateZ(65px);}
+.ms-teaser-logo-face{position:absolute;inset:0;width:130px;height:130px;backface-visibility:hidden;background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.18);box-sizing:border-box;filter:saturate(1.2) contrast(1.05);}
+.ms-teaser-logo-face-front{transform:translateZ(65px);}
+.ms-teaser-logo-face-back{transform:rotateY(180deg) translateZ(65px);}
+.ms-teaser-logo-face-right{transform:rotateY(90deg) translateZ(65px);}
+.ms-teaser-logo-face-left{transform:rotateY(-90deg) translateZ(65px);}
+.ms-teaser-logo-face-top{transform:rotateX(90deg) translateZ(65px);}
+.ms-teaser-logo-face-bottom{transform:rotateX(-90deg) translateZ(65px);}
 .ms-teaser-logo-holo-scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(130,230,255,0.22) 0px,rgba(130,230,255,0.22) 2px,transparent 2px,transparent 5px);mix-blend-mode:screen;opacity:0;}
 .ms-teaser-logo-holo-tint{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(120,225,255,0.16),rgba(255,110,220,0.08));mix-blend-mode:screen;opacity:0;}
 @keyframes msTeaserLogoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
@@ -6183,10 +6183,10 @@ velY *= 0.965;
 velX *= 0.965;
 spinY += velY;
 spinX += velX;
-if(spinX > 60) { spinX = 60; velX = 0; }
-if(spinX < -60) { spinX = -60; velX = 0; }
+/* Every face has the logo now, so there's no bad angle -- let it spin
+freely on both axes instead of clamping X. */
 cube.style.transform = 'rotateY(' + spinY.toFixed(2) + 'deg) rotateX(' + spinX.toFixed(2) + 'deg)';
-wrap.style.transform = 'translate(' + (mx * 16).toFixed(1) + 'px,' + (my * 12).toFixed(1) + 'px)';
+wrap.style.transform = 'translate(' + (mx * 34).toFixed(1) + 'px,' + (my * 28).toFixed(1) + 'px)';
 var speed = Math.abs(velY) + Math.abs(velX);
 var holoAmount = Math.min(1, speed / 2.5);
 var scan = wrap.querySelector('.ms-teaser-logo-holo-scan');
