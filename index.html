@@ -6324,9 +6324,20 @@ var scoreEl = el.querySelector('#ms-game-score-num');
 var missedEl = el.querySelector('#ms-game-missed-num');
 if(!box || !coinsLayer) return;
 
+/* Rests the "MS" box just above the coin-slab mockup (rather than at a
+fixed viewport fraction that can overlap it on some screen sizes). */
+function computeBoxRestY(){
+var slab = document.querySelector('.ms-teaser-slab');
+if(slab){
+var r = slab.getBoundingClientRect();
+if(r.height){ return Math.max(10, r.top - BOX_SIZE - 18); }
+}
+return window.innerHeight * 0.22;
+}
+
 if(!state.initedPos){
 state.boxX = window.innerWidth / 2 - BOX_SIZE / 2;
-state.boxY = window.innerHeight * 0.3;
+state.boxY = computeBoxRestY();
 state.initedPos = true;
 }
 box.style.transform = 'translate3d(' + state.boxX + 'px,' + state.boxY + 'px,0)';
@@ -6579,7 +6590,7 @@ st.coinsLayerEl = null;
 var box = document.querySelector('.ms-game-box');
 if(box){
 st.boxX = window.innerWidth / 2 - BOX_SIZE / 2;
-st.boxY = window.innerHeight * 0.3;
+st.boxY = computeBoxRestY();
 box.style.transform = 'translate3d(' + st.boxX + 'px,' + st.boxY + 'px,0)';
 }
 }
