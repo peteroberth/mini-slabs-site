@@ -223,6 +223,17 @@ driven entirely by JS (translate3d), not left/top, for smooth dragging. */
 .ms-game-flash.ms-show{display:flex;}
 .ms-game-flash-text{font-family:'Press Start 2P',monospace;font-size:clamp(1.5rem,6vw,3.4rem);letter-spacing:0.08em;color:#FFD24A;text-shadow:4px 4px 0 #7A1E00,-2px -2px 0 #000;animation:msFlashBlink 0.5s steps(2) infinite;text-align:center;}
 @keyframes msFlashBlink{0%{opacity:1;}50%{opacity:0.35;}100%{opacity:1;}}
+/* Mobile-only: gate active play behind landscape orientation. The box
+itself (z-index 30) still renders above this, so the "MS" logo stays
+visible the whole time -- only the play area behind it dims/pauses. */
+.ms-game-rotate-prompt{position:absolute;inset:0;z-index:22;display:none;align-items:center;justify-content:center;flex-direction:column;gap:1.1rem;text-align:center;padding:2rem;background:rgba(5,5,10,0.88);}
+.ms-game-rotate-prompt.ms-show{display:flex;}
+.ms-game-rotate-phone{width:36px;height:60px;border:3px solid #C5A44E;border-radius:8px;position:relative;animation:msRotatePhone 1.8s ease-in-out infinite;}
+.ms-game-rotate-phone::after{content:'';position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:9px;height:2px;background:#C5A44E;border-radius:2px;}
+@keyframes msRotatePhone{0%{transform:rotate(0deg);}30%{transform:rotate(-90deg);}70%{transform:rotate(-90deg);}100%{transform:rotate(0deg);}}
+.ms-game-rotate-text{font-family:'Space Mono',monospace;font-size:0.9rem;letter-spacing:0.08em;color:#FAFAFA;text-transform:uppercase;max-width:260px;}
+.ms-game-finger-hint{position:absolute;z-index:31;left:50%;top:78px;transform:translateX(-50%);font-family:'Space Mono',monospace;font-size:0.72rem;letter-spacing:0.06em;color:#07070C;background:#C5A44E;padding:0.55rem 0.9rem;border-radius:8px;max-width:220px;text-align:center;opacity:0;pointer-events:none;transition:opacity 0.4s ease;box-shadow:0 8px 20px rgba(0,0,0,0.4);}
+.ms-game-finger-hint.ms-show{opacity:1;}
 @keyframes msTeaserLogoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
 </style>
 </head>
@@ -6190,6 +6201,8 @@ el.innerHTML =
 '<div class="ms-game-fire-breath"></div>' +
 '<div class="ms-game-blackout"></div>' +
 '<div class="ms-game-flash"><div class="ms-game-flash-text" id="ms-game-flash-text">GAME OVER</div></div>' +
+'<div class="ms-game-rotate-prompt"><div class="ms-game-rotate-phone"></div><div class="ms-game-rotate-text">Turn your phone sideways to play!</div></div>' +
+'<div class="ms-game-finger-hint" id="ms-game-finger-hint">Drag the &quot;MS&quot; logo with your finger to catch the coins!</div>' +
 '<div class="ms-game-box"><div class="ms-game-box-img"></div></div>' +
 '<div class="ms-game-hud">' +
 '<div class="ms-game-score">Score: <span id="ms-game-score-num">0</span></div>' +
@@ -6247,6 +6260,13 @@ var MAX_MISSED = 5;
 var DRAGON_WIDTH = 120;
 var DRAGON_STAGES = [0.7, 0.9, 1.15, 1.4, 1.7, 1.7];
 
+/* Computed once -- a device's input type doesn't change mid-session.
+Used to gate the "turn your phone sideways" / finger-drag hint so
+none of it ever shows up for mouse/desktop visitors. */
+if(window.__msIsMobile === undefined){
+window.__msIsMobile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+}
+
 if(!window.__msGameState){
 window.__msGameState = {
 started: false,
@@ -6254,7 +6274,8 @@ score: 0, missed: 0, gameOver: false, startTime: Date.now(),
 boxX: 0, boxY: 0, dragging: false, dragOffX: 0, dragOffY: 0, initedPos: false,
 dragonX: window.innerWidth / 2 - DRAGON_WIDTH / 2, dragonLegPhase: 0,
 coins: [], coinsLayerEl: null,
-highScore: 0, leaderboard: [], leaderboardLoaded: false, leaderboardLastFetch: 0, leaderboardFetchInFlight: false
+highScore: 0, leaderboard: [], leaderboardLoaded: false, leaderboardLastFetch: 0, leaderboardFetchInFlight: false,
+fingerHintShown: false
 };
 document.addEventListener('pointerdown', function(e){
 var box = document.querySelector('.ms-game-box');
@@ -6267,6 +6288,10 @@ if(!st.started){
 if(window.__msBeginHiddenGame) window.__msBeginHiddenGame();
 return;
 }
+/* On phones/tablets in portrait, dragging is blocked until the visitor
+rotates to landscape (see the rotate-prompt) -- the box stays visible
+and grabbable-looking, it just won't actually start a drag yet. */
+if(window.__msIsMobile && window.innerHeight > window.innerWidth) return;
 st.dragging = true;
 box.classList.add('ms-dragging');
 st.dragOffX = e.clientX - st.boxX;
@@ -6653,6 +6678,10 @@ var blackout = document.querySelector('.ms-game-blackout');
 if(blackout) blackout.classList.remove('ms-show');
 var flash = document.querySelector('.ms-game-flash');
 if(flash) flash.classList.remove('ms-show');
+var rotatePrompt = document.querySelector('.ms-game-rotate-prompt');
+if(rotatePrompt) rotatePrompt.classList.remove('ms-show');
+var hint = document.querySelector('#ms-game-finger-hint');
+if(hint) hint.classList.remove('ms-show');
 var modal = document.querySelector('#ms-game-over-modal');
 if(modal) modal.style.display = 'none';
 setBoxInteractive(true);
@@ -6689,6 +6718,7 @@ for(var i = 0; i < COIN_COUNT; i++){ st.coins.push(makeCoin()); }
 st.startTime = Date.now();
 st.dragonX = window.innerWidth / 2 - DRAGON_WIDTH / 2;
 st.dragonLegPhase = 0;
+st.fingerHintShown = false;
 initTeaserLeaderboard();
 }
 window.__msBeginHiddenGame = beginHiddenGame;
@@ -6699,7 +6729,23 @@ function frame(){
 var st = window.__msGameState;
 var curBox = document.querySelector('.ms-game-box');
 var dragon = document.querySelector('.ms-game-dragon');
-if(dragon && !st.gameOver){
+/* Mobile-only: pause the actual game (coins/dragon) and show a "turn
+your phone sideways" prompt while a touch device is in portrait. The
+"MS" box itself is unaffected -- it stays visible and stays put, it
+just won't start a drag until they rotate (see the pointerdown guard
+above). Once landscape play begins, flash a one-time finger-drag tip. */
+var needsRotate = !!(window.__msIsMobile && window.innerHeight > window.innerWidth);
+var rotatePrompt = document.querySelector('.ms-game-rotate-prompt');
+if(rotatePrompt) rotatePrompt.classList.toggle('ms-show', st.started && needsRotate && !st.gameOver);
+if(window.__msIsMobile && st.started && !needsRotate && !st.gameOver && !st.fingerHintShown){
+st.fingerHintShown = true;
+var hint = document.querySelector('#ms-game-finger-hint');
+if(hint){
+hint.classList.add('ms-show');
+setTimeout(function(){ hint.classList.remove('ms-show'); }, 4000);
+}
+}
+if(dragon && !st.gameOver && !needsRotate){
 /* The dragon actively chases whichever falling coin is closest to
 hitting the ground, so it looks like it's racing to gobble up
 whatever's about to be missed, rather than just idly wandering. */
@@ -6728,7 +6774,7 @@ var rLift = Math.sin(st.dragonLegPhase + Math.PI) * 7;
 legR.style.transform = 'translateY(' + Math.min(0, rLift).toFixed(1) + 'px) rotate(' + (rLift * 1.4).toFixed(1) + 'deg)';
 }
 }
-if(curBox && st.coins.length && !st.gameOver){
+if(curBox && st.coins.length && !st.gameOver && !needsRotate){
 /* Shrink the hitbox a bit so it feels fair -- catch with the "well" of
 the box, not its outer glow/border. */
 var pad = 14;
