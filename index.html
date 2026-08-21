@@ -177,6 +177,29 @@ driven entirely by JS (translate3d), not left/top, for smooth dragging. */
 .ms-game-score{font-family:'Space Mono',monospace;font-size:0.8rem;letter-spacing:0.25em;text-transform:uppercase;color:#C5A44E;}
 @keyframes msGameCatchPop{0%{transform:scale(1);opacity:1;}100%{transform:scale(1.9);opacity:0;}}
 .ms-game-coin.ms-caught{animation:msGameCatchPop 0.35s ease-out forwards;}
+.ms-game-hud{position:absolute;top:18px;left:18px;z-index:6;display:flex;flex-direction:column;gap:4px;font-family:'Space Mono',monospace;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#E8E8F0;text-shadow:0 1px 3px rgba(0,0,0,0.6);text-align:left;}
+.ms-game-hud .ms-game-missed{color:#E07A7A;}
+.ms-game-hud .ms-game-highscore{color:#C5A44E;}
+.ms-game-leaderboard-link{color:#7FD8FF;text-decoration:underline;text-underline-offset:3px;margin-top:2px;pointer-events:auto;cursor:pointer;width:fit-content;}
+.ms-game-dragon{position:absolute;bottom:6px;left:0;width:100px;height:70px;z-index:4;transform-origin:bottom center;transition:transform 0.18s ease;pointer-events:none;}
+.ms-game-dragon-body{width:100%;height:100%;}
+.ms-game-dragon.ms-dragon-chomp .ms-game-dragon-body{animation:msDragonChomp 0.35s ease;}
+@keyframes msDragonChomp{0%{transform:scale(1);}40%{transform:scale(1.25,0.85);}100%{transform:scale(1);}}
+.ms-game-dragon.ms-dragon-swallow{transition:transform 0.85s cubic-bezier(.3,.6,.4,1),opacity 0.3s ease 0.6s;transform:scale(24) !important;opacity:0;z-index:16;}
+.ms-game-blackout{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 0.6s ease;z-index:15;}
+.ms-game-blackout.ms-show{opacity:1;pointer-events:auto;}
+.ms-game-modal{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(5,5,10,0.72);}
+.ms-game-modal-card{position:relative;background:linear-gradient(160deg,#1c1c26,#0d0d13);border:1px solid rgba(255,255,255,0.14);border-radius:16px;padding:2rem 2.25rem;text-align:center;max-width:340px;width:90%;box-shadow:0 30px 80px rgba(0,0,0,0.6);}
+.ms-game-modal-card h3{font-family:'Eras Bold ITC','Syne',sans-serif;color:#FAFAFA;font-size:1.3rem;letter-spacing:0.05em;margin:0 0 0.75rem;}
+.ms-game-modal-card p{font-family:'Space Mono',monospace;color:#C5A44E;font-size:0.85rem;letter-spacing:0.1em;margin:0.4rem 0;}
+.ms-game-initials-row{display:flex;gap:0.5rem;justify-content:center;margin:1rem 0;}
+.ms-game-initials-row input{width:44px;height:52px;text-align:center;font-size:1.6rem;font-family:'Space Mono',monospace;text-transform:uppercase;background:#07070C;border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:#FAFAFA;}
+.ms-game-btn{font-family:'Space Mono',monospace;letter-spacing:0.15em;text-transform:uppercase;font-size:0.8rem;background:#C5A44E;color:#07070C;border:none;border-radius:8px;padding:0.7rem 1.3rem;cursor:pointer;margin-top:0.75rem;}
+.ms-game-btn.ms-secondary{background:transparent;color:#C5A44E;border:1px solid rgba(197,164,78,0.5);}
+.ms-game-leaderboard-list{list-style:none;padding:0;margin:1rem 0;text-align:left;font-family:'Space Mono',monospace;font-size:0.85rem;color:#EDEDED;max-height:280px;overflow-y:auto;}
+.ms-game-leaderboard-list li{display:flex;justify-content:space-between;padding:0.35rem 0.15rem;border-bottom:1px solid rgba(255,255,255,0.08);}
+.ms-game-leaderboard-list li span:first-child{color:#C5A44E;letter-spacing:0.15em;}
+.ms-game-close-x{position:absolute;top:12px;right:16px;color:#C5A44E;cursor:pointer;font-size:1.2rem;line-height:1;}
 @keyframes msTeaserLogoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
 </style>
 </head>
@@ -6086,30 +6109,84 @@ el.dataset.msBuilt = '1';
 el.innerHTML =
 '<div class="ms-teaser-glow"></div>' +
 '<div class="ms-game-coins-layer"></div>' +
+'<div class="ms-game-dragon"><svg class="ms-game-dragon-body" viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">' +
+'<ellipse cx="45" cy="46" rx="34" ry="21" fill="#3FBF6F"/>' +
+'<path d="M12,44 Q-4,50 6,62" stroke="#3FBF6F" stroke-width="11" fill="none" stroke-linecap="round"/>' +
+'<ellipse cx="22" cy="60" rx="9" ry="7" fill="#2E9C58"/>' +
+'<ellipse cx="52" cy="63" rx="9" ry="7" fill="#2E9C58"/>' +
+'<polygon points="28,26 37,10 43,28" fill="#C5A44E"/>' +
+'<polygon points="42,23 50,8 56,25" fill="#C5A44E"/>' +
+'<circle cx="78" cy="32" r="19" fill="#3FBF6F"/>' +
+'<ellipse cx="70" cy="43" rx="10" ry="7" fill="#2E9C58"/>' +
+'<circle cx="85" cy="27" r="4.2" fill="#111"/>' +
+'<circle cx="86.5" cy="25.5" r="1.3" fill="#fff"/>' +
+'<path d="M90,36 Q97,39 92,44" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+'</svg></div>' +
+'<div class="ms-game-blackout"></div>' +
 '<div class="ms-game-box"><div class="ms-game-box-img"></div></div>' +
+'<div class="ms-game-hud">' +
+'<div class="ms-game-score">Score: <span id="ms-game-score-num">0</span></div>' +
+'<div class="ms-game-missed">Missed: <span id="ms-game-missed-num">0</span>/5</div>' +
+'<div class="ms-game-highscore">High Score: <span id="ms-game-highscore-num">0</span></div>' +
+'<div class="ms-game-leaderboard-link" id="ms-game-leaderboard-open">View Top 10 &rsaquo;</div>' +
+'</div>' +
 '<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:0.9rem;text-align:center;padding:2rem;pointer-events:none;">' +
-'<div class="ms-game-score">Coins caught: <span id="ms-game-score-num">0</span></div>' +
 '<div style="font-family:\'Eras Bold ITC\',\'Syne\',sans-serif;font-size:clamp(1.8rem,5vw,3.2rem);font-weight:800;letter-spacing:0.06em;color:#FAFAFA;">SMALL AND PROUD.</div>' +
 '<div style="font-family:\'Space Mono\',monospace;font-size:0.85rem;letter-spacing:0.3em;text-transform:uppercase;color:#C5A44E;margin-top:0.9rem;">Something <span style="text-decoration:line-through;opacity:0.55;">huge</span> tiny is coming</div>' +
+'</div>' +
+'<div id="ms-game-leaderboard-modal" class="ms-game-modal" style="display:none;">' +
+'<div class="ms-game-modal-card">' +
+'<div class="ms-game-close-x" id="ms-game-leaderboard-close">&times;</div>' +
+'<h3>Top 10</h3>' +
+'<ol class="ms-game-leaderboard-list" id="ms-game-leaderboard-list"><li><span>--</span><span>Loading&hellip;</span></li></ol>' +
+'</div>' +
+'</div>' +
+'<div id="ms-game-over-modal" class="ms-game-modal" style="display:none;">' +
+'<div class="ms-game-modal-card">' +
+'<h3>Game Over</h3>' +
+'<p>The dragon got hungry.</p>' +
+'<p id="ms-game-final-score">Score: 0</p>' +
+'<div id="ms-game-initials-section" style="display:none;">' +
+'<p>New top-10 score! Enter your initials:</p>' +
+'<div class="ms-game-initials-row">' +
+'<input maxlength="1" id="ms-game-initial-0" />' +
+'<input maxlength="1" id="ms-game-initial-1" />' +
+'<input maxlength="1" id="ms-game-initial-2" />' +
+'</div>' +
+'<button class="ms-game-btn" id="ms-game-save-score">Save Score</button>' +
+'</div>' +
+'<button class="ms-game-btn ms-secondary" id="ms-game-play-again">Play Again</button>' +
+'</div>' +
 '</div>';
 try{ startTeaserCollectGame(el); }catch(e){ try{ console.error('[ms-teaser] game init threw', e); }catch(e2){} }
 }
 
 /* Coin-catch mini-game: an "MS" box the visitor grabs and drags (mouse or
 touch, via Pointer Events) around the overlay to catch coins that fall
-continuously from the top. Catching a coin bumps the score counter and
-respawns that coin back at the top with a fresh random position/speed, so
-there's always a steady stream falling. Drag listeners are bound once on
-document and always look up the CURRENT .ms-game-box/.ms-game-coins-layer
+continuously from the top -- gold coins are worth 5, silver 1, and fall
+speed ramps up the longer a round runs. Any coin that reaches the ground
+uncaught gets "eaten" by a little dragon patrolling the bottom edge, who
+grows a size for each of 5 misses and then swallows the whole screen,
+ending the round. Final scores that make the top 10 can be saved with a
+3-letter initials entry to a shared Supabase leaderboard. Drag/click
+listeners are bound once on document and always look up the CURRENT DOM
 via querySelector, so this stays correct even if the overlay gets torn
 down and rebuilt later. State lives on window so it survives rebuilds. */
 function startTeaserCollectGame(el){
 var BOX_SIZE = 112;
 var COIN_COUNT = 10;
 var COIN_MIN = 26, COIN_MAX = 40;
+var MAX_MISSED = 5;
+var DRAGON_WIDTH = 100;
+var DRAGON_STAGES = [0.75, 1.0, 1.3, 1.65, 2.05, 2.05];
 
 if(!window.__msGameState){
-window.__msGameState = { score: 0, boxX: 0, boxY: 0, dragging: false, dragOffX: 0, dragOffY: 0, initedPos: false, coins: [], coinsLayerEl: null };
+window.__msGameState = {
+score: 0, missed: 0, gameOver: false, startTime: Date.now(),
+boxX: 0, boxY: 0, dragging: false, dragOffX: 0, dragOffY: 0, initedPos: false,
+coins: [], coinsLayerEl: null,
+highScore: 0, leaderboard: [], leaderboardLoaded: false, leaderboardLastFetch: 0, leaderboardFetchInFlight: false
+};
 document.addEventListener('pointerdown', function(e){
 var box = document.querySelector('.ms-game-box');
 if(!box || !(e.target === box || (box.contains && box.contains(e.target)))) return;
@@ -6141,10 +6218,34 @@ document.addEventListener('pointerup', endDrag);
 document.addEventListener('pointercancel', endDrag);
 }
 
+if(!window.__msGameButtonsBound){
+window.__msGameButtonsBound = true;
+document.addEventListener('click', function(e){
+var t = e.target;
+if(!t || !t.id) return;
+if(t.id === 'ms-game-leaderboard-open') openLeaderboardModal();
+else if(t.id === 'ms-game-leaderboard-close') closeLeaderboardModal();
+else if(t.id === 'ms-game-play-again') resetGame();
+else if(t.id === 'ms-game-save-score') submitScore();
+});
+document.addEventListener('input', function(e){
+var t = e.target;
+if(t && t.id && /^ms-game-initial-[0-2]$/.test(t.id)){
+t.value = t.value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 1);
+if(t.value){
+var idx = parseInt(t.id.slice(-1), 10);
+var next = document.querySelector('#ms-game-initial-' + (idx + 1));
+if(next) next.focus();
+}
+}
+});
+}
+
 var state = window.__msGameState;
 var box = el.querySelector('.ms-game-box');
 var coinsLayer = el.querySelector('.ms-game-coins-layer');
 var scoreEl = el.querySelector('#ms-game-score-num');
+var missedEl = el.querySelector('#ms-game-missed-num');
 if(!box || !coinsLayer) return;
 
 if(!state.initedPos){
@@ -6154,6 +6255,7 @@ state.initedPos = true;
 }
 box.style.transform = 'translate3d(' + state.boxX + 'px,' + state.boxY + 'px,0)';
 if(scoreEl) scoreEl.textContent = state.score;
+if(missedEl) missedEl.textContent = state.missed;
 
 function coinSvg(isGold){
 var color = isGold ? '#C5A44E' : '#B8B8C8';
@@ -6162,13 +6264,21 @@ var sh = isGold ? '#8B7332' : '#888898';
 return '<svg width="100%" height="100%" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="8.5" fill="' + color + '" stroke="' + sh + '" stroke-width="0.5"/><circle cx="9" cy="9" r="7" fill="none" stroke="' + sh + '" stroke-width="0.3" opacity="0.5"/><circle cx="7" cy="7" r="1.4" fill="' + hl + '" opacity="0.5"/></svg>';
 }
 
+function speedMultiplier(){
+var elapsed = (Date.now() - state.startTime) / 1000;
+return Math.min(1 + elapsed / 25, 3.2);
+}
+
 function resetCoin(c){
 c.size = COIN_MIN + Math.random() * (COIN_MAX - COIN_MIN);
 c.el.style.width = c.size + 'px';
 c.el.style.height = c.size + 'px';
 c.x = Math.random() * Math.max(1, window.innerWidth - c.size);
 c.y = -c.size - Math.random() * 60;
-c.vy = 1 + Math.random() * 1.8;
+c.isGold = Math.random() > 0.65;
+c.value = c.isGold ? 5 : 1;
+c.el.innerHTML = coinSvg(c.isGold);
+c.vy = (1 + Math.random() * 1.8) * speedMultiplier();
 c.rot = Math.random() * 360;
 c.vr = (Math.random() - 0.5) * 4;
 }
@@ -6177,22 +6287,167 @@ function makeCoin(){
 var elC = document.createElement('div');
 elC.className = 'ms-game-coin';
 coinsLayer.appendChild(elC);
-var c = { el: elC, size: COIN_MIN, x: 0, y: 0, vy: 1, rot: 0, vr: 0 };
+var c = { el: elC, size: COIN_MIN, x: 0, y: 0, vy: 1, rot: 0, vr: 0, isGold: false, value: 1 };
 resetCoin(c);
 c.y = -c.size - Math.random() * window.innerHeight;
-elC.innerHTML = coinSvg(Math.random() > 0.35);
 return c;
 }
 
-function spawnCatchPop(x, y, size){
+function spawnCatchPop(x, y, size, isGold){
 var pop = document.createElement('div');
 pop.className = 'ms-game-coin ms-caught';
 pop.style.width = size + 'px';
 pop.style.height = size + 'px';
 pop.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-pop.innerHTML = coinSvg(true);
+pop.innerHTML = coinSvg(isGold);
 coinsLayer.appendChild(pop);
 setTimeout(function(){ pop.remove(); }, 400);
+}
+
+function dragonScale(missed){
+return DRAGON_STAGES[Math.min(missed, DRAGON_STAGES.length - 1)];
+}
+
+function registerMiss(){
+var st = window.__msGameState;
+if(st.gameOver) return;
+st.missed += 1;
+var me = document.querySelector('#ms-game-missed-num');
+if(me) me.textContent = st.missed;
+var dragon = document.querySelector('.ms-game-dragon');
+if(dragon){
+dragon.classList.add('ms-dragon-chomp');
+setTimeout(function(){ dragon.classList.remove('ms-dragon-chomp'); }, 350);
+}
+if(st.missed >= MAX_MISSED){
+endGame();
+}
+}
+
+function endGame(){
+var st = window.__msGameState;
+st.gameOver = true;
+var dragon = document.querySelector('.ms-game-dragon');
+var blackout = document.querySelector('.ms-game-blackout');
+if(dragon) dragon.classList.add('ms-dragon-swallow');
+if(blackout) blackout.classList.add('ms-show');
+setTimeout(function(){ showGameOverModal(); }, 950);
+}
+
+function escHtml(s){
+return String(s).replace(/[&<>"']/g, function(ch){
+return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+});
+}
+
+function renderLeaderboard(){
+var st = window.__msGameState;
+var list = document.querySelector('#ms-game-leaderboard-list');
+if(!list) return;
+if(!st.leaderboard || !st.leaderboard.length){
+list.innerHTML = '<li><span>--</span><span>No scores yet</span></li>';
+return;
+}
+var html = '';
+for(var i = 0; i < st.leaderboard.length; i++){
+var row = st.leaderboard[i];
+html += '<li><span>' + (i + 1) + '. ' + escHtml(row.initials) + '</span><span>' + row.score + '</span></li>';
+}
+list.innerHTML = html;
+}
+
+function initTeaserLeaderboard(){
+var st = window.__msGameState;
+if(st.leaderboardFetchInFlight) return;
+if(st.leaderboardLoaded && (Date.now() - st.leaderboardLastFetch) < 15000) return;
+st.leaderboardFetchInFlight = true;
+fetch(SUPABASE_URL + '/rest/v1/teaser_game_scores?select=initials,score&order=score.desc&limit=10', {
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+}).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+st.leaderboard = rows || [];
+st.leaderboardLoaded = true;
+st.leaderboardLastFetch = Date.now();
+st.leaderboardFetchInFlight = false;
+st.highScore = (rows && rows[0] && rows[0].score) || 0;
+var hs = document.querySelector('#ms-game-highscore-num');
+if(hs) hs.textContent = st.highScore;
+renderLeaderboard();
+}).catch(function(e){
+st.leaderboardFetchInFlight = false;
+try{ console.error('[ms-teaser] leaderboard fetch failed', e); }catch(err){}
+});
+}
+
+function openLeaderboardModal(){
+initTeaserLeaderboard();
+renderLeaderboard();
+var modal = document.querySelector('#ms-game-leaderboard-modal');
+if(modal) modal.style.display = 'flex';
+}
+
+function closeLeaderboardModal(){
+var modal = document.querySelector('#ms-game-leaderboard-modal');
+if(modal) modal.style.display = 'none';
+}
+
+function showGameOverModal(){
+var st = window.__msGameState;
+var modal = document.querySelector('#ms-game-over-modal');
+var finalScoreEl = document.querySelector('#ms-game-final-score');
+var initialsSection = document.querySelector('#ms-game-initials-section');
+if(finalScoreEl) finalScoreEl.textContent = 'Score: ' + st.score;
+var qualifies = st.score > 0 && (!st.leaderboard || st.leaderboard.length < 10 || st.score > st.leaderboard[st.leaderboard.length - 1].score);
+if(initialsSection) initialsSection.style.display = qualifies ? '' : 'none';
+if(modal) modal.style.display = 'flex';
+if(qualifies){
+var i0 = document.querySelector('#ms-game-initial-0');
+if(i0){ i0.value = ''; setTimeout(function(){ i0.focus(); }, 50); }
+var i1 = document.querySelector('#ms-game-initial-1'); if(i1) i1.value = '';
+var i2 = document.querySelector('#ms-game-initial-2'); if(i2) i2.value = '';
+}
+}
+
+function submitScore(){
+var st = window.__msGameState;
+var i0 = document.querySelector('#ms-game-initial-0');
+var i1 = document.querySelector('#ms-game-initial-1');
+var i2 = document.querySelector('#ms-game-initial-2');
+var initials = ((i0 && i0.value) || '') + ((i1 && i1.value) || '') + ((i2 && i2.value) || '');
+initials = initials.toUpperCase().replace(/[^A-Z]/g, '');
+while(initials.length < 3){ initials += 'A'; }
+var saveBtn = document.querySelector('#ms-game-save-score');
+if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+fetch(SUPABASE_URL + '/rest/v1/teaser_game_scores', {
+method: 'POST',
+headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+body: JSON.stringify({ initials: initials, score: st.score })
+}).then(function(){
+st.leaderboardLoaded = false;
+initTeaserLeaderboard();
+var initialsSection = document.querySelector('#ms-game-initials-section');
+if(initialsSection) initialsSection.style.display = 'none';
+}).catch(function(e){
+try{ console.error('[ms-teaser] score submit failed', e); }catch(err){}
+}).then(function(){
+if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = 'Save Score'; }
+});
+}
+
+function resetGame(){
+var st = window.__msGameState;
+st.score = 0;
+st.missed = 0;
+st.gameOver = false;
+st.startTime = Date.now();
+var se = document.querySelector('#ms-game-score-num'); if(se) se.textContent = 0;
+var me = document.querySelector('#ms-game-missed-num'); if(me) me.textContent = 0;
+var dragon = document.querySelector('.ms-game-dragon');
+var blackout = document.querySelector('.ms-game-blackout');
+if(dragon){ dragon.classList.remove('ms-dragon-swallow'); dragon.style.transform = 'translate3d(0,0,0) scale(' + dragonScale(0) + ')'; }
+if(blackout) blackout.classList.remove('ms-show');
+var modal = document.querySelector('#ms-game-over-modal');
+if(modal) modal.style.display = 'none';
+for(var i = 0; i < st.coins.length; i++){ resetCoin(st.coins[i]); }
 }
 
 /* (Re)populate coins whenever this is a fresh coins layer (overlay rebuilt). */
@@ -6202,31 +6457,40 @@ state.coins = [];
 for(var i = 0; i < COIN_COUNT; i++){ state.coins.push(makeCoin()); }
 }
 
+initTeaserLeaderboard();
+
 if(window.__msGameLoopInit) return;
 window.__msGameLoopInit = true;
 function frame(){
 var st = window.__msGameState;
 var curBox = document.querySelector('.ms-game-box');
-if(curBox && st.coins.length){
+var dragon = document.querySelector('.ms-game-dragon');
+if(dragon && !st.gameOver){
+var now = Date.now();
+var dragonX = (Math.sin(now / 1700) * 0.5 + 0.5) * Math.max(0, window.innerWidth - DRAGON_WIDTH);
+dragon.style.transform = 'translate3d(' + dragonX.toFixed(1) + 'px,0,0) scale(' + dragonScale(st.missed) + ')';
+}
+if(curBox && st.coins.length && !st.gameOver){
 /* Shrink the hitbox a bit so it feels fair -- catch with the "well" of
 the box, not its outer glow/border. */
 var pad = 14;
 var hbx1 = st.boxX + pad, hby1 = st.boxY + pad, hbx2 = st.boxX + BOX_SIZE - pad, hby2 = st.boxY + BOX_SIZE - pad;
 var scoreChanged = false;
+var groundY = window.innerHeight - 20;
 for(var i = 0; i < st.coins.length; i++){
 var c = st.coins[i];
 c.y += c.vy;
 c.rot += c.vr;
-if(c.y > window.innerHeight + 40){
-resetCoin(c);
-} else {
 var overlap = c.x < hbx2 && (c.x + c.size) > hbx1 && c.y < hby2 && (c.y + c.size) > hby1;
 if(overlap){
-st.score += 1;
+st.score += c.value;
 scoreChanged = true;
-spawnCatchPop(c.x, c.y, c.size);
+spawnCatchPop(c.x, c.y, c.size, c.isGold);
 resetCoin(c);
-}
+} else if((c.y + c.size) >= groundY){
+registerMiss();
+resetCoin(c);
+if(window.__msGameState.gameOver) break;
 }
 c.el.style.transform = 'translate3d(' + c.x.toFixed(1) + 'px,' + c.y.toFixed(1) + 'px,0) rotate(' + c.rot.toFixed(1) + 'deg)';
 }
