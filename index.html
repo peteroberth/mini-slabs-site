@@ -166,7 +166,7 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 @keyframes msTeaserCoreGlow{0%,100%{opacity:0.6;}50%{opacity:1;}}
 .ms-teaser-slab-shine{position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:msTeaserShine 3.2s ease-in-out infinite;}
 @keyframes msTeaserShine{0%{left:-60%;}45%{left:130%;}100%{left:130%;}}
-.ms-teaser-logo-3d{perspective:900px;width:130px;height:130px;margin:0 auto 2.5rem;position:relative;animation:msTeaserLogoFloat 4s ease-in-out infinite;filter:drop-shadow(0 0 20px rgba(110,225,255,0.45)) drop-shadow(0 0 38px rgba(255,214,57,0.35));}
+.ms-teaser-logo-3d{perspective:900px;width:130px;height:130px;margin:0 auto 2.5rem;position:relative;filter:drop-shadow(0 0 20px rgba(110,225,255,0.45)) drop-shadow(0 0 38px rgba(255,214,57,0.35));}
 .ms-teaser-logo-cube{position:relative;width:100%;height:100%;transform-style:preserve-3d;will-change:transform;}
 .ms-teaser-logo-face{position:absolute;inset:0;width:130px;height:130px;backface-visibility:hidden;background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.18);box-sizing:border-box;filter:saturate(1.2) contrast(1.05);}
 .ms-teaser-logo-face-front{transform:translateZ(65px);}
@@ -6017,6 +6017,11 @@ var __msTeaserAdminCheck = { token: null, isAdmin: null, lastFetch: 0, inFlight:
 function refreshAdminStatusForTeaser(){
 var token = getAdminAccessToken();
 if(!token){
+/* Guard against re-entrant recursion: patchTeaserVisitorGate() calls this
+function, and this function (on state changes) calls patchTeaserVisitorGate()
+back. Without this throttle check that pair calls each other forever,
+synchronously, until the stack overflows. */
+if(__msTeaserAdminCheck.token === null && (Date.now() - __msTeaserAdminCheck.lastFetch) < 15000) return;
 __msTeaserAdminCheck = { token: null, isAdmin: false, lastFetch: Date.now(), inFlight: false };
 try{ patchTeaserVisitorGate(); }catch(e){ try{ console.error('[ms-teaser] gate threw', e); }catch(e2){} }
 return;
@@ -6164,7 +6169,7 @@ if(window.__msTeaserTiltLoopInit) return;
 window.__msTeaserTiltLoopInit = true;
 var spinY = 15, spinX = -8;
 var velY = 0.12, velX = 0.04;
-function frame(){
+function frame(t){
 var wrap = document.querySelector('.ms-teaser-logo-3d');
 var cube = document.querySelector('.ms-teaser-logo-cube');
 if(wrap && cube){
@@ -6186,7 +6191,12 @@ spinX += velX;
 /* Every face has the logo now, so there's no bad angle -- let it spin
 freely on both axes instead of clamping X. */
 cube.style.transform = 'rotateY(' + spinY.toFixed(2) + 'deg) rotateX(' + spinX.toFixed(2) + 'deg)';
-wrap.style.transform = 'translate(' + (mx * 34).toFixed(1) + 'px,' + (my * 28).toFixed(1) + 'px)';
+/* The gentle up/down bob used to be a CSS animation on this same element,
+but a running CSS animation overrides inline style.transform every frame
+-- it was silently cancelling the mouse-follow translate below. Folding
+the bob into this loop instead so both combine into one transform. */
+var bobY = Math.sin(t / 900) * 8;
+wrap.style.transform = 'translate(' + (mx * 34).toFixed(1) + 'px,' + (my * 28 + bobY).toFixed(1) + 'px)';
 var speed = Math.abs(velY) + Math.abs(velX);
 var holoAmount = Math.min(1, speed / 2.5);
 var scan = wrap.querySelector('.ms-teaser-logo-holo-scan');
