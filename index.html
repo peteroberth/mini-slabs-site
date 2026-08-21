@@ -6092,6 +6092,16 @@ el.innerHTML =
 '</div>' +
 '</div>';
 spawnTeaserSparkles(el.querySelector('.ms-teaser-sparkles'), 22);
+/* Safety net: on some initial-load timings the very first spawn can land on a
+sparkles container that gets swapped out from under it before it takes visible
+effect. Verify shortly after, and re-spawn into whatever container currently
+exists if it's still empty -- cheap and idempotent since count stays fixed. */
+setTimeout(function(){
+var sc = el.querySelector('.ms-teaser-sparkles');
+if(sc && sc.children.length === 0){
+spawnTeaserSparkles(sc, 22);
+}
+}, 400);
 }
 
 function patchTeaserVisitorGate(){
