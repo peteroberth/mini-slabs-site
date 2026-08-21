@@ -181,13 +181,27 @@ driven entirely by JS (translate3d), not left/top, for smooth dragging. */
 .ms-game-hud .ms-game-missed{color:#E07A7A;}
 .ms-game-hud .ms-game-highscore{color:#C5A44E;}
 .ms-game-leaderboard-link{color:#7FD8FF;text-decoration:underline;text-underline-offset:3px;margin-top:2px;pointer-events:auto;cursor:pointer;width:fit-content;}
-.ms-game-dragon{position:absolute;bottom:6px;left:0;width:100px;height:70px;z-index:4;transform-origin:bottom center;transition:transform 0.18s ease;pointer-events:none;}
-.ms-game-dragon-body{width:100%;height:100%;}
-.ms-game-dragon.ms-dragon-chomp .ms-game-dragon-body{animation:msDragonChomp 0.35s ease;}
-@keyframes msDragonChomp{0%{transform:scale(1);}40%{transform:scale(1.25,0.85);}100%{transform:scale(1);}}
-.ms-game-dragon.ms-dragon-swallow{transition:transform 0.85s cubic-bezier(.3,.6,.4,1),opacity 0.3s ease 0.6s;transform:scale(24) !important;opacity:0;z-index:16;}
-.ms-game-blackout{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 0.6s ease;z-index:15;}
-.ms-game-blackout.ms-show{opacity:1;pointer-events:auto;}
+.ms-game-dragon{position:absolute;bottom:2px;left:0;width:120px;height:110px;z-index:4;transform-origin:bottom center;transition:transform 0.16s linear;pointer-events:none;}
+.ms-game-dragon-body{width:100%;height:100%;overflow:visible;}
+.ms-game-dragon .ms-dragon-leg{transform-box:fill-box;}
+.ms-game-dragon.ms-dragon-chomp .ms-dragon-head{animation:msDragonChomp 0.35s ease;transform-box:fill-box;transform-origin:center;}
+@keyframes msDragonChomp{0%{transform:scale(1);}40%{transform:scale(1.22,0.82);}100%{transform:scale(1);}}
+.ms-game-dragon.ms-dragon-swallow{transition:transform 0.85s cubic-bezier(.3,.6,.4,1),opacity 0.3s ease 0.6s;transform:scale(26) !important;opacity:0;z-index:16;}
+/* Face states get progressively meaner as the dragon racks up misses. */
+.ms-game-dragon .ms-dragon-face-calm{display:block;}
+.ms-game-dragon .ms-dragon-face-mean,.ms-game-dragon .ms-dragon-face-furious{display:none;}
+.ms-game-dragon.ms-mean-1 .ms-dragon-face-calm{display:none;}
+.ms-game-dragon.ms-mean-1 .ms-dragon-face-mean{display:block;}
+.ms-game-dragon.ms-mean-2 .ms-dragon-face-calm,.ms-game-dragon.ms-mean-2 .ms-dragon-face-mean{display:none;}
+.ms-game-dragon.ms-mean-2 .ms-dragon-face-furious{display:block;}
+.ms-game-dragon.ms-mean-1 .ms-dragon-body-fill,.ms-game-dragon.ms-mean-1 .ms-dragon-head-fill{filter:saturate(1.15) brightness(0.97);}
+.ms-game-dragon.ms-mean-2 .ms-dragon-body-fill,.ms-game-dragon.ms-mean-2 .ms-dragon-head-fill{filter:saturate(1.3) brightness(0.9);}
+.ms-game-fire-breath{position:absolute;top:0;left:0;width:0;height:44px;transform:translate(-50%,-50%);background:linear-gradient(90deg,transparent,#FFDA6B 12%,#FF8A1E 45%,#FF3D00 75%,transparent);border-radius:50%;filter:blur(3px);opacity:0;z-index:17;pointer-events:none;}
+.ms-game-fire-breath.ms-breathing{opacity:0.95;animation:msFireBreathe 0.9s ease-out forwards;}
+@keyframes msFireBreathe{0%{width:0;opacity:0;}18%{opacity:1;}100%{width:var(--fire-length,260vw);opacity:0.9;}}
+.ms-game-blackout{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,#FFD24A 0%,#FF7A1A 30%,#B21E0F 58%,#1a0300 85%);opacity:0;pointer-events:none;transition:opacity 0.5s ease;z-index:15;}
+.ms-game-blackout.ms-show{opacity:1;pointer-events:auto;animation:msScreenFireFlicker 0.35s ease-in-out infinite alternate;}
+@keyframes msScreenFireFlicker{0%{filter:brightness(1) saturate(1);}100%{filter:brightness(1.18) saturate(1.3);}}
 .ms-game-modal{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(5,5,10,0.72);}
 .ms-game-modal-card{position:relative;background:linear-gradient(160deg,#1c1c26,#0d0d13);border:1px solid rgba(255,255,255,0.14);border-radius:16px;padding:2rem 2.25rem;text-align:center;max-width:340px;width:90%;box-shadow:0 30px 80px rgba(0,0,0,0.6);}
 .ms-game-modal-card h3{font-family:'Eras Bold ITC','Syne',sans-serif;color:#FAFAFA;font-size:1.3rem;letter-spacing:0.05em;margin:0 0 0.75rem;}
@@ -6109,19 +6123,62 @@ el.dataset.msBuilt = '1';
 el.innerHTML =
 '<div class="ms-teaser-glow"></div>' +
 '<div class="ms-game-coins-layer"></div>' +
-'<div class="ms-game-dragon"><svg class="ms-game-dragon-body" viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">' +
-'<ellipse cx="45" cy="46" rx="34" ry="21" fill="#3FBF6F"/>' +
-'<path d="M12,44 Q-4,50 6,62" stroke="#3FBF6F" stroke-width="11" fill="none" stroke-linecap="round"/>' +
-'<ellipse cx="22" cy="60" rx="9" ry="7" fill="#2E9C58"/>' +
-'<ellipse cx="52" cy="63" rx="9" ry="7" fill="#2E9C58"/>' +
-'<polygon points="28,26 37,10 43,28" fill="#C5A44E"/>' +
-'<polygon points="42,23 50,8 56,25" fill="#C5A44E"/>' +
-'<circle cx="78" cy="32" r="19" fill="#3FBF6F"/>' +
-'<ellipse cx="70" cy="43" rx="10" ry="7" fill="#2E9C58"/>' +
-'<circle cx="85" cy="27" r="4.2" fill="#111"/>' +
-'<circle cx="86.5" cy="25.5" r="1.3" fill="#fff"/>' +
-'<path d="M90,36 Q97,39 92,44" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+'<div class="ms-game-dragon"><svg class="ms-game-dragon-body" viewBox="0 0 140 130" xmlns="http://www.w3.org/2000/svg">' +
+'<path d="M34,68 Q4,54 2,26 Q20,40 34,44 Q30,36 36,26 Q42,42 40,58 Q40,64 34,68 Z" fill="#B23026"/>' +
+'<path d="M106,68 Q136,54 138,26 Q120,40 106,44 Q110,36 104,26 Q98,42 100,58 Q100,64 106,68 Z" fill="#B23026"/>' +
+'<path d="M100,96 Q126,100 128,78 Q136,92 122,108 Q110,112 98,102 Z" fill="#E8483C"/>' +
+'<polygon points="126,80 136,72 130,90" fill="#F5E6C8"/>' +
+'<ellipse cx="70" cy="82" rx="36" ry="32" class="ms-dragon-body-fill" fill="#E8483C"/>' +
+'<ellipse cx="70" cy="90" rx="20" ry="22" fill="#F5D9A8"/>' +
+'<g class="ms-dragon-leg ms-dragon-leg-left">' +
+'<ellipse cx="56" cy="104" rx="11" ry="16" fill="#C23A30"/>' +
+'<ellipse cx="56" cy="122" rx="13" ry="8" fill="#7A241C"/>' +
+'<polygon points="46,126 49,119 52,126" fill="#F5E6C8"/>' +
+'<polygon points="53,128 56,120 59,128" fill="#F5E6C8"/>' +
+'<polygon points="60,126 63,119 66,126" fill="#F5E6C8"/>' +
+'</g>' +
+'<g class="ms-dragon-leg ms-dragon-leg-right">' +
+'<ellipse cx="84" cy="104" rx="11" ry="16" fill="#C23A30"/>' +
+'<ellipse cx="84" cy="122" rx="13" ry="8" fill="#7A241C"/>' +
+'<polygon points="74,126 77,119 80,126" fill="#F5E6C8"/>' +
+'<polygon points="81,128 84,120 87,128" fill="#F5E6C8"/>' +
+'<polygon points="88,126 91,119 94,126" fill="#F5E6C8"/>' +
+'</g>' +
+'<ellipse cx="36" cy="80" rx="10" ry="14" fill="#C23A30" transform="rotate(-15 36 80)"/>' +
+'<ellipse cx="104" cy="80" rx="10" ry="14" fill="#C23A30" transform="rotate(15 104 80)"/>' +
+'<g class="ms-dragon-head">' +
+'<circle cx="70" cy="44" r="30" class="ms-dragon-head-fill" fill="#E8483C"/>' +
+'<ellipse cx="70" cy="58" rx="17" ry="12" fill="#C23A30"/>' +
+'<path d="M54,20 Q46,6 40,4 Q48,16 56,26 Z" fill="#F5E6C8"/>' +
+'<path d="M86,20 Q94,6 100,4 Q92,16 84,26 Z" fill="#F5E6C8"/>' +
+'<polygon points="66,14 70,2 74,14" fill="#F5E6C8"/>' +
+'<g class="ms-dragon-face-calm">' +
+'<path d="M50,32 Q58,28 66,32" stroke="#7A2018" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+'<path d="M90,32 Q82,28 74,32" stroke="#7A2018" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+'<circle cx="58" cy="42" r="6.5" fill="#fff"/><circle cx="59" cy="43" r="3.2" fill="#111"/><circle cx="60.5" cy="40.5" r="1" fill="#fff"/>' +
+'<circle cx="82" cy="42" r="6.5" fill="#fff"/><circle cx="81" cy="43" r="3.2" fill="#111"/><circle cx="82.5" cy="40.5" r="1" fill="#fff"/>' +
+'<path d="M62,58 Q70,64 78,58" stroke="#5A1810" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+'</g>' +
+'<g class="ms-dragon-face-mean">' +
+'<path d="M49,30 L67,34" stroke="#5A1810" stroke-width="2.5" stroke-linecap="round"/>' +
+'<path d="M91,30 L73,34" stroke="#5A1810" stroke-width="2.5" stroke-linecap="round"/>' +
+'<ellipse cx="58" cy="42" rx="6" ry="3.6" fill="#fff"/><circle cx="59" cy="42" r="2.6" fill="#111"/>' +
+'<ellipse cx="82" cy="42" rx="6" ry="3.6" fill="#fff"/><circle cx="81" cy="42" r="2.6" fill="#111"/>' +
+'<path d="M60,56 Q70,66 80,56 Q70,60 60,56 Z" fill="#3A0A05"/>' +
+'<polygon points="64,58 66,64 68,58" fill="#fff"/><polygon points="72,58 74,64 76,58" fill="#fff"/>' +
+'</g>' +
+'<g class="ms-dragon-face-furious">' +
+'<path d="M47,26 L68,36" stroke="#3A0A05" stroke-width="3" stroke-linecap="round"/>' +
+'<path d="M93,26 L72,36" stroke="#3A0A05" stroke-width="3" stroke-linecap="round"/>' +
+'<circle cx="58" cy="42" r="6" fill="#FF3B2E"/><ellipse cx="59" cy="42" rx="1.3" ry="5" fill="#2a0000"/>' +
+'<circle cx="82" cy="42" r="6" fill="#FF3B2E"/><ellipse cx="81" cy="42" rx="1.3" ry="5" fill="#2a0000"/>' +
+'<path d="M56,54 Q70,76 84,54 Q70,64 56,54 Z" fill="#2a0000"/>' +
+'<polygon points="62,55 64,63 66,55" fill="#fff"/><polygon points="74,55 76,63 78,55" fill="#fff"/>' +
+'<polygon points="63,71 65,64 67,71" fill="#fff"/><polygon points="73,71 75,64 77,71" fill="#fff"/>' +
+'</g>' +
+'</g>' +
 '</svg></div>' +
+'<div class="ms-game-fire-breath"></div>' +
 '<div class="ms-game-blackout"></div>' +
 '<div class="ms-game-box"><div class="ms-game-box-img"></div></div>' +
 '<div class="ms-game-hud">' +
@@ -6143,8 +6200,7 @@ el.innerHTML =
 '</div>' +
 '<div id="ms-game-over-modal" class="ms-game-modal" style="display:none;">' +
 '<div class="ms-game-modal-card">' +
-'<h3>Game Over</h3>' +
-'<p>The dragon got hungry.</p>' +
+'<h3>The Dragon Stole Your Stack!</h3>' +
 '<p id="ms-game-final-score">Score: 0</p>' +
 '<div id="ms-game-initials-section" style="display:none;">' +
 '<p>New top-10 score! Enter your initials:</p>' +
@@ -6177,13 +6233,14 @@ var BOX_SIZE = 112;
 var COIN_COUNT = 10;
 var COIN_MIN = 26, COIN_MAX = 40;
 var MAX_MISSED = 5;
-var DRAGON_WIDTH = 100;
-var DRAGON_STAGES = [0.75, 1.0, 1.3, 1.65, 2.05, 2.05];
+var DRAGON_WIDTH = 120;
+var DRAGON_STAGES = [0.7, 0.9, 1.15, 1.4, 1.7, 1.7];
 
 if(!window.__msGameState){
 window.__msGameState = {
 score: 0, missed: 0, gameOver: false, startTime: Date.now(),
 boxX: 0, boxY: 0, dragging: false, dragOffX: 0, dragOffY: 0, initedPos: false,
+dragonX: window.innerWidth / 2 - DRAGON_WIDTH / 2, dragonLegPhase: 0,
 coins: [], coinsLayerEl: null,
 highScore: 0, leaderboard: [], leaderboardLoaded: false, leaderboardLastFetch: 0, leaderboardFetchInFlight: false
 };
@@ -6318,6 +6375,12 @@ var dragon = document.querySelector('.ms-game-dragon');
 if(dragon){
 dragon.classList.add('ms-dragon-chomp');
 setTimeout(function(){ dragon.classList.remove('ms-dragon-chomp'); }, 350);
+/* Each catch makes the dragon look meaner: neutral for the first miss,
+snarling from miss 2, fully furious (glowing eyes, bared fangs) from
+miss 3 onward -- right up through the fire-breathing finale. */
+dragon.classList.remove('ms-mean-1', 'ms-mean-2');
+if(st.missed >= 3) dragon.classList.add('ms-mean-2');
+else if(st.missed >= 1) dragon.classList.add('ms-mean-1');
 }
 if(st.missed >= MAX_MISSED){
 endGame();
@@ -6329,9 +6392,19 @@ var st = window.__msGameState;
 st.gameOver = true;
 var dragon = document.querySelector('.ms-game-dragon');
 var blackout = document.querySelector('.ms-game-blackout');
-if(dragon) dragon.classList.add('ms-dragon-swallow');
-if(blackout) blackout.classList.add('ms-show');
-setTimeout(function(){ showGameOverModal(); }, 950);
+var fire = document.querySelector('.ms-game-fire-breath');
+if(dragon) dragon.classList.add('ms-mean-2');
+if(fire){
+fire.style.setProperty('--fire-length', (window.innerWidth * 2.6) + 'px');
+fire.style.left = (st.dragonX + DRAGON_WIDTH / 2) + 'px';
+fire.style.top = (window.innerHeight - 78) + 'px';
+fire.classList.add('ms-breathing');
+}
+/* Sequence: breathe fire first, then the screen catches, then the dragon
+grows to swallow the whole scene, then the game-over card appears. */
+setTimeout(function(){ if(blackout) blackout.classList.add('ms-show'); }, 350);
+setTimeout(function(){ if(dragon) dragon.classList.add('ms-dragon-swallow'); }, 550);
+setTimeout(function(){ showGameOverModal(); }, 1400);
 }
 
 function escHtml(s){
@@ -6443,7 +6516,12 @@ var se = document.querySelector('#ms-game-score-num'); if(se) se.textContent = 0
 var me = document.querySelector('#ms-game-missed-num'); if(me) me.textContent = 0;
 var dragon = document.querySelector('.ms-game-dragon');
 var blackout = document.querySelector('.ms-game-blackout');
-if(dragon){ dragon.classList.remove('ms-dragon-swallow'); dragon.style.transform = 'translate3d(0,0,0) scale(' + dragonScale(0) + ')'; }
+var fire = document.querySelector('.ms-game-fire-breath');
+if(dragon){
+dragon.classList.remove('ms-dragon-swallow', 'ms-mean-1', 'ms-mean-2');
+dragon.style.transform = 'translate3d(' + st.dragonX + 'px,0,0) scale(' + dragonScale(0) + ')';
+}
+if(fire) fire.classList.remove('ms-breathing');
 if(blackout) blackout.classList.remove('ms-show');
 var modal = document.querySelector('#ms-game-over-modal');
 if(modal) modal.style.display = 'none';
@@ -6466,9 +6544,33 @@ var st = window.__msGameState;
 var curBox = document.querySelector('.ms-game-box');
 var dragon = document.querySelector('.ms-game-dragon');
 if(dragon && !st.gameOver){
-var now = Date.now();
-var dragonX = (Math.sin(now / 1700) * 0.5 + 0.5) * Math.max(0, window.innerWidth - DRAGON_WIDTH);
-dragon.style.transform = 'translate3d(' + dragonX.toFixed(1) + 'px,0,0) scale(' + dragonScale(st.missed) + ')';
+/* The dragon actively chases whichever falling coin is closest to
+hitting the ground, so it looks like it's racing to gobble up
+whatever's about to be missed, rather than just idly wandering. */
+var target = null;
+for(var gi = 0; gi < st.coins.length; gi++){
+var gc = st.coins[gi];
+if(!target || gc.y > target.y) target = gc;
+}
+var targetX = target ? (target.x + target.size / 2 - DRAGON_WIDTH / 2) : st.dragonX;
+var maxDragonX = Math.max(0, window.innerWidth - DRAGON_WIDTH);
+targetX = Math.min(Math.max(targetX, 0), maxDragonX);
+var prevX = st.dragonX;
+st.dragonX += (targetX - st.dragonX) * 0.15;
+var moveSpeed = Math.abs(st.dragonX - prevX);
+st.dragonLegPhase += 0.16 + Math.min(1.1, moveSpeed * 0.09);
+var bob = Math.abs(Math.sin(st.dragonLegPhase)) * -3;
+dragon.style.transform = 'translate3d(' + st.dragonX.toFixed(1) + 'px,' + bob.toFixed(1) + 'px,0) scale(' + dragonScale(st.missed) + ')';
+var legL = dragon.querySelector('.ms-dragon-leg-left');
+var legR = dragon.querySelector('.ms-dragon-leg-right');
+if(legL){
+var lLift = Math.sin(st.dragonLegPhase) * 7;
+legL.style.transform = 'translateY(' + Math.min(0, lLift).toFixed(1) + 'px) rotate(' + (lLift * 1.4).toFixed(1) + 'deg)';
+}
+if(legR){
+var rLift = Math.sin(st.dragonLegPhase + Math.PI) * 7;
+legR.style.transform = 'translateY(' + Math.min(0, rLift).toFixed(1) + 'px) rotate(' + (rLift * 1.4).toFixed(1) + 'deg)';
+}
 }
 if(curBox && st.coins.length && !st.gameOver){
 /* Shrink the hitbox a bit so it feels fair -- catch with the "well" of
