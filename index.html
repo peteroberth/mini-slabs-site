@@ -168,7 +168,7 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 @keyframes msTeaserShine{0%{left:-60%;}45%{left:130%;}100%{left:130%;}}
 /* Draggable "MS" collector box for the coin-catch teaser game. Position is
 driven entirely by JS (translate3d), not left/top, for smooth dragging. */
-.ms-game-box{position:absolute;left:0;top:0;width:112px;height:112px;z-index:5;cursor:grab;touch-action:none;will-change:transform;filter:drop-shadow(0 0 16px rgba(255,214,57,0.35));}
+.ms-game-box{position:absolute;left:0;top:0;width:112px;height:112px;z-index:30;cursor:grab;touch-action:none;will-change:transform;filter:drop-shadow(0 0 16px rgba(255,214,57,0.35));}
 .ms-game-box.ms-dragging{cursor:grabbing;filter:drop-shadow(0 0 26px rgba(255,214,57,0.6));}
 .ms-game-box-img{position:absolute;inset:0;border-radius:16px;background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.25);box-shadow:0 18px 40px rgba(0,0,0,0.55);filter:saturate(1.2) contrast(1.05);transition:transform 0.15s ease;}
 .ms-game-box.ms-dragging .ms-game-box-img{transform:scale(1.07);}
@@ -6324,8 +6324,19 @@ var scoreEl = el.querySelector('#ms-game-score-num');
 var missedEl = el.querySelector('#ms-game-missed-num');
 if(!box || !coinsLayer) return;
 
-/* Rests the "MS" box just above the coin-slab mockup (rather than at a
-fixed viewport fraction that can overlap it on some screen sizes). */
+/* Rests the "MS" box centered directly above the coin-slab mockup, using
+the slab's own on-screen rect (not raw window.innerWidth/innerHeight,
+which can drift a few px off from the flex-centered slab/text column on
+some browsers due to scrollbar width). Falls back to viewport math if
+the slab isn't found for some reason. */
+function computeBoxRestX(){
+var slab = document.querySelector('.ms-teaser-slab');
+if(slab){
+var r = slab.getBoundingClientRect();
+if(r.width){ return r.left + r.width / 2 - BOX_SIZE / 2; }
+}
+return window.innerWidth / 2 - BOX_SIZE / 2;
+}
 function computeBoxRestY(){
 var slab = document.querySelector('.ms-teaser-slab');
 if(slab){
@@ -6335,8 +6346,17 @@ if(r.height){ return Math.max(10, r.top - BOX_SIZE - 18); }
 return window.innerHeight * 0.22;
 }
 
+/* The box always renders above every other game layer (fire, screen-catch,
+the retro flash text, modals) -- see its z-index. When a modal is open we
+still disable its pointer-events so it can't sit on top of and block the
+modal's own buttons/inputs while remaining visible above everything. */
+function setBoxInteractive(enabled){
+var box = document.querySelector('.ms-game-box');
+if(box) box.style.pointerEvents = enabled ? '' : 'none';
+}
+
 if(!state.initedPos){
-state.boxX = window.innerWidth / 2 - BOX_SIZE / 2;
+state.boxX = computeBoxRestX();
 state.boxY = computeBoxRestY();
 state.initedPos = true;
 }
@@ -6493,11 +6513,13 @@ initTeaserLeaderboard();
 renderLeaderboard();
 var modal = document.querySelector('#ms-game-leaderboard-modal');
 if(modal) modal.style.display = 'flex';
+setBoxInteractive(false);
 }
 
 function closeLeaderboardModal(){
 var modal = document.querySelector('#ms-game-leaderboard-modal');
 if(modal) modal.style.display = 'none';
+setBoxInteractive(true);
 }
 
 /* Retro arcade-style ending: flash "GAME OVER" (or "NICE JOB" for a
@@ -6522,6 +6544,7 @@ var modal = document.querySelector('#ms-game-over-modal');
 var finalScoreEl = document.querySelector('#ms-game-final-score');
 if(finalScoreEl) finalScoreEl.textContent = 'Score: ' + st.score;
 if(modal) modal.style.display = 'flex';
+setBoxInteractive(false);
 var i0 = document.querySelector('#ms-game-initial-0');
 var i1 = document.querySelector('#ms-game-initial-1');
 var i2 = document.querySelector('#ms-game-initial-2');
@@ -6584,12 +6607,13 @@ var flash = document.querySelector('.ms-game-flash');
 if(flash) flash.classList.remove('ms-show');
 var modal = document.querySelector('#ms-game-over-modal');
 if(modal) modal.style.display = 'none';
+setBoxInteractive(true);
 if(coinsLayer) coinsLayer.innerHTML = '';
 st.coins = [];
 st.coinsLayerEl = null;
 var box = document.querySelector('.ms-game-box');
 if(box){
-st.boxX = window.innerWidth / 2 - BOX_SIZE / 2;
+st.boxX = computeBoxRestX();
 st.boxY = computeBoxRestY();
 box.style.transform = 'translate3d(' + st.boxX + 'px,' + st.boxY + 'px,0)';
 }
