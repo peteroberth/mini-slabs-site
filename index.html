@@ -166,29 +166,17 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 @keyframes msTeaserCoreGlow{0%,100%{opacity:0.6;}50%{opacity:1;}}
 .ms-teaser-slab-shine{position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-20deg);animation:msTeaserShine 3.2s ease-in-out infinite;}
 @keyframes msTeaserShine{0%{left:-60%;}45%{left:130%;}100%{left:130%;}}
-.ms-teaser-logo-3d{perspective:900px;width:130px;height:130px;margin:0 auto 2.5rem;position:relative;filter:drop-shadow(0 0 20px rgba(110,225,255,0.45)) drop-shadow(0 0 38px rgba(255,214,57,0.35));}
-.ms-teaser-logo-cube{position:relative;width:100%;height:100%;transform-style:preserve-3d;will-change:transform;}
-.ms-teaser-logo-face{position:absolute;inset:0;width:130px;height:130px;backface-visibility:hidden;border:1px solid rgba(255,255,255,0.18);box-sizing:border-box;overflow:hidden;}
-.ms-teaser-logo-face-front{transform:translateZ(65px);}
-.ms-teaser-logo-face-back{transform:rotateY(180deg) translateZ(65px);}
-.ms-teaser-logo-face-right{transform:rotateY(90deg) translateZ(65px);}
-.ms-teaser-logo-face-left{transform:rotateY(-90deg) translateZ(65px);}
-.ms-teaser-logo-face-top{transform:rotateX(90deg) translateZ(65px);}
-.ms-teaser-logo-face-bottom{transform:rotateX(-90deg) translateZ(65px);}
-/* Each face's placement transform above (needed to fold it into cube shape)
-also reorients whatever is drawn on it. This inner layer holds the actual
-logo image and carries the exact opposite rotation, so the logo reads
-right-side-up (not mirrored or upside-down) on every face once the cube
-turns to present that face to the viewer. */
-.ms-teaser-logo-face-img{position:absolute;inset:0;background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');background-size:cover;background-position:center;filter:saturate(1.2) contrast(1.05);}
-.ms-teaser-logo-face-front .ms-teaser-logo-face-img{}
-.ms-teaser-logo-face-back .ms-teaser-logo-face-img{transform:rotateY(180deg);}
-.ms-teaser-logo-face-right .ms-teaser-logo-face-img{transform:rotateY(-90deg);}
-.ms-teaser-logo-face-left .ms-teaser-logo-face-img{transform:rotateY(90deg);}
-.ms-teaser-logo-face-top .ms-teaser-logo-face-img{transform:rotateX(-90deg);}
-.ms-teaser-logo-face-bottom .ms-teaser-logo-face-img{transform:rotateX(90deg);}
-.ms-teaser-logo-holo-scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(130,230,255,0.22) 0px,rgba(130,230,255,0.22) 2px,transparent 2px,transparent 5px);mix-blend-mode:screen;opacity:0;}
-.ms-teaser-logo-holo-tint{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(120,225,255,0.16),rgba(255,110,220,0.08));mix-blend-mode:screen;opacity:0;}
+/* Draggable "MS" collector box for the coin-catch teaser game. Position is
+driven entirely by JS (translate3d), not left/top, for smooth dragging. */
+.ms-game-box{position:absolute;left:0;top:0;width:112px;height:112px;z-index:5;cursor:grab;touch-action:none;will-change:transform;filter:drop-shadow(0 0 16px rgba(255,214,57,0.35));}
+.ms-game-box.ms-dragging{cursor:grabbing;filter:drop-shadow(0 0 26px rgba(255,214,57,0.6));}
+.ms-game-box-img{position:absolute;inset:0;border-radius:16px;background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.25);box-shadow:0 18px 40px rgba(0,0,0,0.55);filter:saturate(1.2) contrast(1.05);transition:transform 0.15s ease;}
+.ms-game-box.ms-dragging .ms-game-box-img{transform:scale(1.07);}
+.ms-game-coins-layer{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2;}
+.ms-game-coin{position:absolute;left:0;top:0;will-change:transform;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));}
+.ms-game-score{font-family:'Space Mono',monospace;font-size:0.8rem;letter-spacing:0.25em;text-transform:uppercase;color:#C5A44E;}
+@keyframes msGameCatchPop{0%{transform:scale(1);opacity:1;}100%{transform:scale(1.9);opacity:0;}}
+.ms-game-coin.ms-caught{animation:msGameCatchPop 0.35s ease-out forwards;}
 @keyframes msTeaserLogoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
 </style>
 </head>
@@ -6096,122 +6084,156 @@ function buildTeaserCinematicContent(el){
 if(el.dataset.msBuilt === '1') return;
 el.dataset.msBuilt = '1';
 el.innerHTML =
-'<div class="ms-teaser-sparkles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>' +
 '<div class="ms-teaser-glow"></div>' +
-'<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2.25rem;text-align:center;padding:2rem;">' +
-'<div class="ms-teaser-logo-3d"><div class="ms-teaser-logo-cube">' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-front"><div class="ms-teaser-logo-face-img"></div></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-back"><div class="ms-teaser-logo-face-img"></div></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-right"><div class="ms-teaser-logo-face-img"></div></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-left"><div class="ms-teaser-logo-face-img"></div></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-top"><div class="ms-teaser-logo-face-img"></div></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-bottom"><div class="ms-teaser-logo-face-img"></div></div>' +
-'</div>' +
-'<div class="ms-teaser-logo-holo-tint"></div>' +
-'<div class="ms-teaser-logo-holo-scan"></div>' +
-'</div>' +
-'<div class="ms-teaser-slab"><div class="ms-teaser-slab-shine"></div><div class="ms-teaser-slab-core"></div></div>' +
-'<div>' +
+'<div class="ms-game-coins-layer"></div>' +
+'<div class="ms-game-box"><div class="ms-game-box-img"></div></div>' +
+'<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:0.9rem;text-align:center;padding:2rem;pointer-events:none;">' +
+'<div class="ms-game-score">Coins caught: <span id="ms-game-score-num">0</span></div>' +
 '<div style="font-family:\'Eras Bold ITC\',\'Syne\',sans-serif;font-size:clamp(1.8rem,5vw,3.2rem);font-weight:800;letter-spacing:0.06em;color:#FAFAFA;">SMALL AND PROUD.</div>' +
 '<div style="font-family:\'Space Mono\',monospace;font-size:0.85rem;letter-spacing:0.3em;text-transform:uppercase;color:#C5A44E;margin-top:0.9rem;">Something <span style="text-decoration:line-through;opacity:0.55;">huge</span> tiny is coming</div>' +
-'</div>' +
 '</div>';
-try{
-spawnTeaserSparkles(el.querySelector('.ms-teaser-sparkles'), 22);
-}catch(e){
-try{ console.error('[ms-teaser] spawn error on first attempt', e); }catch(e2){}
-}
-/* Safety net: verify shortly after (and again a bit later, via rAF so it's tied
-to an actual paint rather than a guessed delay) that the sparkles container
-really has children, and re-spawn if not. Logs loudly on failure so this is
-diagnosable from the console instead of silently doing nothing. */
-function verifyAndRespawn(label){
-var sc = el.querySelector('.ms-teaser-sparkles');
-if(!sc){
-try{ console.error('[ms-teaser] ' + label + ': no .ms-teaser-sparkles container found'); }catch(e){}
-return;
-}
-if(sc.children.length === 0){
-try{ console.error('[ms-teaser] ' + label + ': container empty, respawning'); }catch(e){}
-try{
-spawnTeaserSparkles(sc, 22);
-}catch(e){
-try{ console.error('[ms-teaser] ' + label + ': respawn threw', e); }catch(e2){}
-}
-}
-}
-setTimeout(function(){ verifyAndRespawn('setTimeout-400ms'); }, 400);
-if(window.requestAnimationFrame){
-requestAnimationFrame(function(){ requestAnimationFrame(function(){ verifyAndRespawn('double-rAF'); }); });
-}
-setTimeout(function(){ verifyAndRespawn('setTimeout-2000ms'); }, 2000);
-try{ startTeaserLogoTilt(); }catch(e){}
+try{ startTeaserCollectGame(el); }catch(e){ try{ console.error('[ms-teaser] game init threw', e); }catch(e2){} }
 }
 
-/* It's now a real 6-faced cube (front/back show the logo, the other four
-faces are plain metal-colored edges), so unlike the old flat-layer trick
-there's no "wrong angle" that makes it vanish -- some face is always
-facing the camera. It free-spins slowly on its own, mouse movement adds
-extra spin momentum (drag the mouse and it keeps spinning that way, like a
-toy you flicked), and the whole cube also drifts a few pixels toward the
-cursor for a "moves around with the mouse" parallax feel. A scanline +
-color-tint overlay (sitting flat on top, unrotated) brightens the faster
-the cube is currently spinning, for a hologram-flicker look. Mouse
-tracking + the animation loop are both global/singleton -- safe to call
-every time the overlay is (re)built. */
-function startTeaserLogoTilt(){
-if(!window.__msTeaserTiltMouseInit){
-window.__msTeaserTiltMouseInit = true;
-window.__msTeaserMouseX = 0;
-window.__msTeaserMouseY = 0;
-window.__msTeaserMouseVX = 0;
-window.__msTeaserMouseVY = 0;
-var lastMx = 0, lastMy = 0;
-document.addEventListener('mousemove', function(e){
-var mx = (e.clientX / Math.max(1, window.innerWidth)) * 2 - 1;
-var my = (e.clientY / Math.max(1, window.innerHeight)) * 2 - 1;
-window.__msTeaserMouseVX = mx - lastMx;
-window.__msTeaserMouseVY = my - lastMy;
-lastMx = mx; lastMy = my;
-window.__msTeaserMouseX = mx;
-window.__msTeaserMouseY = my;
+/* Coin-catch mini-game: an "MS" box the visitor grabs and drags (mouse or
+touch, via Pointer Events) around the overlay to catch coins that fall
+continuously from the top. Catching a coin bumps the score counter and
+respawns that coin back at the top with a fresh random position/speed, so
+there's always a steady stream falling. Drag listeners are bound once on
+document and always look up the CURRENT .ms-game-box/.ms-game-coins-layer
+via querySelector, so this stays correct even if the overlay gets torn
+down and rebuilt later. State lives on window so it survives rebuilds. */
+function startTeaserCollectGame(el){
+var BOX_SIZE = 112;
+var COIN_COUNT = 10;
+var COIN_MIN = 26, COIN_MAX = 40;
+
+if(!window.__msGameState){
+window.__msGameState = { score: 0, boxX: 0, boxY: 0, dragging: false, dragOffX: 0, dragOffY: 0, initedPos: false, coins: [], coinsLayerEl: null };
+document.addEventListener('pointerdown', function(e){
+var box = document.querySelector('.ms-game-box');
+if(!box || !(e.target === box || (box.contains && box.contains(e.target)))) return;
+var st = window.__msGameState;
+st.dragging = true;
+box.classList.add('ms-dragging');
+st.dragOffX = e.clientX - st.boxX;
+st.dragOffY = e.clientY - st.boxY;
+if(box.setPointerCapture){ try{ box.setPointerCapture(e.pointerId); }catch(err){} }
 });
+document.addEventListener('pointermove', function(e){
+var st = window.__msGameState;
+if(!st.dragging) return;
+var box = document.querySelector('.ms-game-box');
+st.boxX = e.clientX - st.dragOffX;
+st.boxY = e.clientY - st.dragOffY;
+var maxX = Math.max(0, window.innerWidth - BOX_SIZE);
+var maxY = Math.max(0, window.innerHeight - BOX_SIZE);
+st.boxX = Math.min(Math.max(st.boxX, 0), maxX);
+st.boxY = Math.min(Math.max(st.boxY, 0), maxY);
+if(box) box.style.transform = 'translate3d(' + st.boxX + 'px,' + st.boxY + 'px,0)';
+});
+function endDrag(){
+window.__msGameState.dragging = false;
+var box = document.querySelector('.ms-game-box');
+if(box) box.classList.remove('ms-dragging');
 }
-if(window.__msTeaserTiltLoopInit) return;
-window.__msTeaserTiltLoopInit = true;
-var curY = 15, curX = -8;
-var autoSpin = 0;
-function frame(t){
-var wrap = document.querySelector('.ms-teaser-logo-3d');
-var cube = document.querySelector('.ms-teaser-logo-cube');
-if(wrap && cube){
-var mx = window.__msTeaserMouseX || 0;
-var my = window.__msTeaserMouseY || 0;
-/* Rotation now tracks the mouse's actual POSITION (not just its
-velocity), so moving the cursor left/right visibly turns the cube
-left/right, and up/down visibly tilts it up/down -- full freedom on
-both axes. A slow constant auto-spin is folded into the left/right
-target so it's never fully static when the mouse sits still. */
-autoSpin += 0.1;
-var targetY = autoSpin + (mx * 65);
-var targetX = my * -42;
-curY += (targetY - curY) * 0.055;
-curX += (targetX - curX) * 0.055;
-/* Every face has the logo now, so there's no bad angle -- fully free
-on both axes. */
-cube.style.transform = 'rotateY(' + curY.toFixed(2) + 'deg) rotateX(' + curX.toFixed(2) + 'deg)';
-/* The gentle up/down bob used to be a CSS animation on this same element,
-but a running CSS animation overrides inline style.transform every frame
--- it was silently cancelling the mouse-follow translate below. Folding
-the bob into this loop instead so both combine into one transform. */
-var bobY = Math.sin(t / 900) * 8;
-wrap.style.transform = 'translate(' + (mx * 34).toFixed(1) + 'px,' + (my * 28 + bobY).toFixed(1) + 'px)';
-var speed = Math.abs(targetY - curY) + Math.abs(targetX - curX);
-var holoAmount = Math.min(1, speed / 12);
-var scan = wrap.querySelector('.ms-teaser-logo-holo-scan');
-var tint = wrap.querySelector('.ms-teaser-logo-holo-tint');
-if(scan) scan.style.opacity = (0.15 + holoAmount * 0.65).toFixed(2);
-if(tint) tint.style.opacity = (0.1 + holoAmount * 0.55).toFixed(2);
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
+}
+
+var state = window.__msGameState;
+var box = el.querySelector('.ms-game-box');
+var coinsLayer = el.querySelector('.ms-game-coins-layer');
+var scoreEl = el.querySelector('#ms-game-score-num');
+if(!box || !coinsLayer) return;
+
+if(!state.initedPos){
+state.boxX = window.innerWidth / 2 - BOX_SIZE / 2;
+state.boxY = window.innerHeight * 0.3;
+state.initedPos = true;
+}
+box.style.transform = 'translate3d(' + state.boxX + 'px,' + state.boxY + 'px,0)';
+if(scoreEl) scoreEl.textContent = state.score;
+
+function coinSvg(isGold){
+var color = isGold ? '#C5A44E' : '#B8B8C8';
+var hl = isGold ? '#E8D48B' : '#D8D8E8';
+var sh = isGold ? '#8B7332' : '#888898';
+return '<svg width="100%" height="100%" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="8.5" fill="' + color + '" stroke="' + sh + '" stroke-width="0.5"/><circle cx="9" cy="9" r="7" fill="none" stroke="' + sh + '" stroke-width="0.3" opacity="0.5"/><circle cx="7" cy="7" r="1.4" fill="' + hl + '" opacity="0.5"/></svg>';
+}
+
+function resetCoin(c){
+c.size = COIN_MIN + Math.random() * (COIN_MAX - COIN_MIN);
+c.el.style.width = c.size + 'px';
+c.el.style.height = c.size + 'px';
+c.x = Math.random() * Math.max(1, window.innerWidth - c.size);
+c.y = -c.size - Math.random() * 60;
+c.vy = 1 + Math.random() * 1.8;
+c.rot = Math.random() * 360;
+c.vr = (Math.random() - 0.5) * 4;
+}
+
+function makeCoin(){
+var elC = document.createElement('div');
+elC.className = 'ms-game-coin';
+coinsLayer.appendChild(elC);
+var c = { el: elC, size: COIN_MIN, x: 0, y: 0, vy: 1, rot: 0, vr: 0 };
+resetCoin(c);
+c.y = -c.size - Math.random() * window.innerHeight;
+elC.innerHTML = coinSvg(Math.random() > 0.35);
+return c;
+}
+
+function spawnCatchPop(x, y, size){
+var pop = document.createElement('div');
+pop.className = 'ms-game-coin ms-caught';
+pop.style.width = size + 'px';
+pop.style.height = size + 'px';
+pop.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+pop.innerHTML = coinSvg(true);
+coinsLayer.appendChild(pop);
+setTimeout(function(){ pop.remove(); }, 400);
+}
+
+/* (Re)populate coins whenever this is a fresh coins layer (overlay rebuilt). */
+if(state.coinsLayerEl !== coinsLayer){
+state.coinsLayerEl = coinsLayer;
+state.coins = [];
+for(var i = 0; i < COIN_COUNT; i++){ state.coins.push(makeCoin()); }
+}
+
+if(window.__msGameLoopInit) return;
+window.__msGameLoopInit = true;
+function frame(){
+var st = window.__msGameState;
+var curBox = document.querySelector('.ms-game-box');
+if(curBox && st.coins.length){
+/* Shrink the hitbox a bit so it feels fair -- catch with the "well" of
+the box, not its outer glow/border. */
+var pad = 14;
+var hbx1 = st.boxX + pad, hby1 = st.boxY + pad, hbx2 = st.boxX + BOX_SIZE - pad, hby2 = st.boxY + BOX_SIZE - pad;
+var scoreChanged = false;
+for(var i = 0; i < st.coins.length; i++){
+var c = st.coins[i];
+c.y += c.vy;
+c.rot += c.vr;
+if(c.y > window.innerHeight + 40){
+resetCoin(c);
+} else {
+var overlap = c.x < hbx2 && (c.x + c.size) > hbx1 && c.y < hby2 && (c.y + c.size) > hby1;
+if(overlap){
+st.score += 1;
+scoreChanged = true;
+spawnCatchPop(c.x, c.y, c.size);
+resetCoin(c);
+}
+}
+c.el.style.transform = 'translate3d(' + c.x.toFixed(1) + 'px,' + c.y.toFixed(1) + 'px,0) rotate(' + c.rot.toFixed(1) + 'deg)';
+}
+if(scoreChanged){
+var se = document.querySelector('#ms-game-score-num');
+if(se) se.textContent = st.score;
+}
 }
 requestAnimationFrame(frame);
 }
