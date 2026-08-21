@@ -193,7 +193,7 @@ var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 // real answer, instead of waiting for the native app to mount and start mutating the DOM first.
 // patchTeaserVisitorGate/refreshTeaserMode/refreshAdminStatusForTeaser are declared further
 // below but are function declarations, so they're hoisted and safe to call from here.
-try{ patchTeaserVisitorGate(); }catch(e){}
+try{ patchTeaserVisitorGate(); }catch(e){ try{ console.error('[ms-teaser] gate threw', e); }catch(e2){} }
 
 var ICONS = {
 'Elite': 'https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/level-2-elite.png?v=2',
@@ -6003,7 +6003,7 @@ headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_K
 __msTeaserMode = !!(rows && rows[0] && rows[0].teaser_mode);
 __msTeaserLastFetch = Date.now();
 __msTeaserFetchInFlight = false;
-try{ patchTeaserVisitorGate(); }catch(e){}
+try{ patchTeaserVisitorGate(); }catch(e){ try{ console.error('[ms-teaser] gate threw', e); }catch(e2){} }
 }).catch(function(){
 __msTeaserLastFetch = Date.now();
 __msTeaserFetchInFlight = false;
@@ -6015,7 +6015,7 @@ function refreshAdminStatusForTeaser(){
 var token = getAdminAccessToken();
 if(!token){
 __msTeaserAdminCheck = { token: null, isAdmin: false, lastFetch: Date.now(), inFlight: false };
-try{ patchTeaserVisitorGate(); }catch(e){}
+try{ patchTeaserVisitorGate(); }catch(e){ try{ console.error('[ms-teaser] gate threw', e); }catch(e2){} }
 return;
 }
 if(__msTeaserAdminCheck.token === token && (Date.now() - __msTeaserAdminCheck.lastFetch) < 15000) return;
@@ -6026,7 +6026,7 @@ fetch(SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + uid, {
 headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token }
 }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
 __msTeaserAdminCheck = { token: token, isAdmin: !!(rows && rows[0] && rows[0].is_admin), lastFetch: Date.now(), inFlight: false };
-try{ patchTeaserVisitorGate(); }catch(e){}
+try{ patchTeaserVisitorGate(); }catch(e){ try{ console.error('[ms-teaser] gate threw', e); }catch(e2){} }
 }).catch(function(){
 __msTeaserAdminCheck.inFlight = false;
 __msTeaserAdminCheck.lastFetch = Date.now();
@@ -6091,17 +6091,35 @@ el.innerHTML =
 '<div style="font-family:\'Space Mono\',monospace;font-size:0.72rem;letter-spacing:0.3em;text-transform:uppercase;color:#8888A0;margin-top:0.9rem;">Something <span style="text-decoration:line-through;opacity:0.55;">huge</span> tiny is coming</div>' +
 '</div>' +
 '</div>';
+try{
 spawnTeaserSparkles(el.querySelector('.ms-teaser-sparkles'), 22);
-/* Safety net: on some initial-load timings the very first spawn can land on a
-sparkles container that gets swapped out from under it before it takes visible
-effect. Verify shortly after, and re-spawn into whatever container currently
-exists if it's still empty -- cheap and idempotent since count stays fixed. */
-setTimeout(function(){
-var sc = el.querySelector('.ms-teaser-sparkles');
-if(sc && sc.children.length === 0){
-spawnTeaserSparkles(sc, 22);
+}catch(e){
+try{ console.error('[ms-teaser] spawn error on first attempt', e); }catch(e2){}
 }
-}, 400);
+/* Safety net: verify shortly after (and again a bit later, via rAF so it's tied
+to an actual paint rather than a guessed delay) that the sparkles container
+really has children, and re-spawn if not. Logs loudly on failure so this is
+diagnosable from the console instead of silently doing nothing. */
+function verifyAndRespawn(label){
+var sc = el.querySelector('.ms-teaser-sparkles');
+if(!sc){
+try{ console.error('[ms-teaser] ' + label + ': no .ms-teaser-sparkles container found'); }catch(e){}
+return;
+}
+if(sc.children.length === 0){
+try{ console.error('[ms-teaser] ' + label + ': container empty, respawning'); }catch(e){}
+try{
+spawnTeaserSparkles(sc, 22);
+}catch(e){
+try{ console.error('[ms-teaser] ' + label + ': respawn threw', e); }catch(e2){}
+}
+}
+}
+setTimeout(function(){ verifyAndRespawn('setTimeout-400ms'); }, 400);
+if(window.requestAnimationFrame){
+requestAnimationFrame(function(){ requestAnimationFrame(function(){ verifyAndRespawn('double-rAF'); }); });
+}
+setTimeout(function(){ verifyAndRespawn('setTimeout-2000ms'); }, 2000);
 }
 
 function patchTeaserVisitorGate(){
