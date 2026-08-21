@@ -6355,6 +6355,32 @@ var box = document.querySelector('.ms-game-box');
 if(box) box.style.pointerEvents = enabled ? '' : 'none';
 }
 
+/* Given a modal card's rect, finds a spot for the box that sits clear of
+it -- directly above the card by default, or pinned near the top of the
+screen if the card is tall enough that "above it" would run off-screen. */
+function computeBoxAvoidRect(cardRect){
+var x = cardRect.left + cardRect.width / 2 - BOX_SIZE / 2;
+var y = cardRect.top - BOX_SIZE - 20;
+if(y < 12){ y = 12; }
+x = Math.min(Math.max(x, 12), window.innerWidth - BOX_SIZE - 12);
+return { x: x, y: y };
+}
+
+/* Animates the box to a new spot with a little springy "pop" instead of a
+flat instant snap. The transition is applied only for the duration of
+this move (and cleared right after) so it never interferes with the
+1:1, zero-lag feel of actually dragging the box by hand. */
+function popBoxTo(x, y){
+var box = document.querySelector('.ms-game-box');
+var st = window.__msGameState;
+st.boxX = x;
+st.boxY = y;
+if(!box) return;
+box.style.transition = 'transform 0.42s cubic-bezier(.34,1.56,.64,1)';
+box.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+setTimeout(function(){ if(box) box.style.transition = ''; }, 450);
+}
+
 if(!state.initedPos){
 state.boxX = computeBoxRestX();
 state.boxY = computeBoxRestY();
@@ -6514,12 +6540,27 @@ renderLeaderboard();
 var modal = document.querySelector('#ms-game-leaderboard-modal');
 if(modal) modal.style.display = 'flex';
 setBoxInteractive(false);
+/* The leaderboard can be opened mid-game (box dragged anywhere), so
+remember where it was and pop it back there on close rather than
+snapping it to the default rest spot. */
+var st = window.__msGameState;
+st.boxPreModalX = st.boxX;
+st.boxPreModalY = st.boxY;
+var card = modal ? modal.querySelector('.ms-game-modal-card') : null;
+if(card){
+var pos = computeBoxAvoidRect(card.getBoundingClientRect());
+popBoxTo(pos.x, pos.y);
+}
 }
 
 function closeLeaderboardModal(){
 var modal = document.querySelector('#ms-game-leaderboard-modal');
 if(modal) modal.style.display = 'none';
 setBoxInteractive(true);
+var st = window.__msGameState;
+var backX = (st.boxPreModalX !== undefined) ? st.boxPreModalX : computeBoxRestX();
+var backY = (st.boxPreModalY !== undefined) ? st.boxPreModalY : computeBoxRestY();
+popBoxTo(backX, backY);
 }
 
 /* Retro arcade-style ending: flash "GAME OVER" (or "NICE JOB" for a
@@ -6545,6 +6586,13 @@ var finalScoreEl = document.querySelector('#ms-game-final-score');
 if(finalScoreEl) finalScoreEl.textContent = 'Score: ' + st.score;
 if(modal) modal.style.display = 'flex';
 setBoxInteractive(false);
+/* Pop the box clear of the score-entry card so it never overlaps it --
+it'll pop back to its resting spot once revertToTeaser() runs. */
+var card = modal ? modal.querySelector('.ms-game-modal-card') : null;
+if(card){
+var pos = computeBoxAvoidRect(card.getBoundingClientRect());
+popBoxTo(pos.x, pos.y);
+}
 var i0 = document.querySelector('#ms-game-initial-0');
 var i1 = document.querySelector('#ms-game-initial-1');
 var i2 = document.querySelector('#ms-game-initial-2');
@@ -6611,12 +6659,8 @@ setBoxInteractive(true);
 if(coinsLayer) coinsLayer.innerHTML = '';
 st.coins = [];
 st.coinsLayerEl = null;
-var box = document.querySelector('.ms-game-box');
-if(box){
-st.boxX = computeBoxRestX();
-st.boxY = computeBoxRestY();
-box.style.transform = 'translate3d(' + st.boxX + 'px,' + st.boxY + 'px,0)';
-}
+/* Pop back into its resting spot above the slab with a little bounce. */
+popBoxTo(computeBoxRestX(), computeBoxRestY());
 }
 
 /* The whole mini-game stays hidden (no coins, no dragon, no HUD) until the
