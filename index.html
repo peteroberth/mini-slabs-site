@@ -186,7 +186,12 @@ driven entirely by JS (translate3d), not left/top, for smooth dragging. */
 .ms-game-dragon .ms-dragon-leg{transform-box:fill-box;}
 .ms-game-dragon.ms-dragon-chomp .ms-dragon-head{animation:msDragonChomp 0.35s ease;transform-box:fill-box;transform-origin:center;}
 @keyframes msDragonChomp{0%{transform:scale(1);}40%{transform:scale(1.22,0.82);}100%{transform:scale(1);}}
-.ms-game-dragon.ms-dragon-swallow{transition:transform 0.85s cubic-bezier(.3,.6,.4,1),opacity 0.3s ease 0.6s;transform:scale(26) !important;opacity:0;z-index:16;}
+.ms-game-dragon .ms-dragon-head{transform-box:fill-box;transform-origin:50% 100%;transition:transform 0.35s ease;}
+.ms-game-dragon.ms-fire-pose{transition:transform 0.4s ease;transform:translate3d(var(--dragon-final-x,0px),-6px,0) scale(var(--dragon-final-scale,1.4)) rotate(-8deg) !important;z-index:16;}
+.ms-game-dragon.ms-fire-pose .ms-dragon-head{transform:rotate(-32deg);}
+.ms-game-dragon,.ms-game-hud{display:none;}
+.ms-teaser-game-started .ms-game-dragon{display:block;}
+.ms-teaser-game-started .ms-game-hud{display:flex;}
 /* Face states get progressively meaner as the dragon racks up misses. */
 .ms-game-dragon .ms-dragon-face-calm{display:block;}
 .ms-game-dragon .ms-dragon-face-mean,.ms-game-dragon .ms-dragon-face-furious{display:none;}
@@ -6238,6 +6243,7 @@ var DRAGON_STAGES = [0.7, 0.9, 1.15, 1.4, 1.7, 1.7];
 
 if(!window.__msGameState){
 window.__msGameState = {
+started: false,
 score: 0, missed: 0, gameOver: false, startTime: Date.now(),
 boxX: 0, boxY: 0, dragging: false, dragOffX: 0, dragOffY: 0, initedPos: false,
 dragonX: window.innerWidth / 2 - DRAGON_WIDTH / 2, dragonLegPhase: 0,
@@ -6248,6 +6254,13 @@ document.addEventListener('pointerdown', function(e){
 var box = document.querySelector('.ms-game-box');
 if(!box || !(e.target === box || (box.contains && box.contains(e.target)))) return;
 var st = window.__msGameState;
+/* The whole game is hidden until the visitor clicks the "MS" logo --
+that first press just reveals it (coins/dragon/HUD start up); it does
+NOT also begin a drag, so the box doesn't jump around on that click. */
+if(!st.started){
+if(window.__msBeginHiddenGame) window.__msBeginHiddenGame();
+return;
+}
 st.dragging = true;
 box.classList.add('ms-dragging');
 st.dragOffX = e.clientX - st.boxX;
@@ -6393,18 +6406,25 @@ st.gameOver = true;
 var dragon = document.querySelector('.ms-game-dragon');
 var blackout = document.querySelector('.ms-game-blackout');
 var fire = document.querySelector('.ms-game-fire-breath');
-if(dragon) dragon.classList.add('ms-mean-2');
+/* No more growing huge and swallowing the scene -- instead the dragon
+freezes in place, tilts its head back, and breathes fire that sweeps
+out and engulfs the whole screen. */
+if(dragon){
+dragon.classList.add('ms-mean-2');
+dragon.style.setProperty('--dragon-final-x', st.dragonX + 'px');
+dragon.style.setProperty('--dragon-final-scale', dragonScale(st.missed));
+dragon.classList.add('ms-fire-pose');
+}
 if(fire){
 fire.style.setProperty('--fire-length', (window.innerWidth * 2.6) + 'px');
 fire.style.left = (st.dragonX + DRAGON_WIDTH / 2) + 'px';
-fire.style.top = (window.innerHeight - 78) + 'px';
-fire.classList.add('ms-breathing');
+fire.style.top = (window.innerHeight - 100) + 'px';
 }
-/* Sequence: breathe fire first, then the screen catches, then the dragon
-grows to swallow the whole scene, then the game-over card appears. */
-setTimeout(function(){ if(blackout) blackout.classList.add('ms-show'); }, 350);
-setTimeout(function(){ if(dragon) dragon.classList.add('ms-dragon-swallow'); }, 550);
-setTimeout(function(){ showGameOverModal(); }, 1400);
+/* Sequence: head tilts up immediately, fire breathes out a beat later,
+the screen catches as the fire spreads, then the game-over card. */
+setTimeout(function(){ if(fire) fire.classList.add('ms-breathing'); }, 300);
+setTimeout(function(){ if(blackout) blackout.classList.add('ms-show'); }, 550);
+setTimeout(function(){ showGameOverModal(); }, 1500);
 }
 
 function escHtml(s){
@@ -6518,7 +6538,9 @@ var dragon = document.querySelector('.ms-game-dragon');
 var blackout = document.querySelector('.ms-game-blackout');
 var fire = document.querySelector('.ms-game-fire-breath');
 if(dragon){
-dragon.classList.remove('ms-dragon-swallow', 'ms-mean-1', 'ms-mean-2');
+dragon.classList.remove('ms-fire-pose', 'ms-mean-1', 'ms-mean-2');
+dragon.style.removeProperty('--dragon-final-x');
+dragon.style.removeProperty('--dragon-final-scale');
 dragon.style.transform = 'translate3d(' + st.dragonX + 'px,0,0) scale(' + dragonScale(0) + ')';
 }
 if(fire) fire.classList.remove('ms-breathing');
@@ -6528,14 +6550,35 @@ if(modal) modal.style.display = 'none';
 for(var i = 0; i < st.coins.length; i++){ resetCoin(st.coins[i]); }
 }
 
-/* (Re)populate coins whenever this is a fresh coins layer (overlay rebuilt). */
+/* The whole mini-game stays hidden (no coins, no dragon, no HUD) until the
+visitor clicks the "MS" logo -- see the pointerdown handler above, which
+calls window.__msBeginHiddenGame(). If the game was already started in a
+previous build (a rare overlay rebuild mid-play), restore that revealed
+state immediately instead of re-hiding it behind another click. */
+if(state.started){
+el.classList.add('ms-teaser-game-started');
 if(state.coinsLayerEl !== coinsLayer){
 state.coinsLayerEl = coinsLayer;
 state.coins = [];
 for(var i = 0; i < COIN_COUNT; i++){ state.coins.push(makeCoin()); }
 }
-
 initTeaserLeaderboard();
+}
+
+function beginHiddenGame(){
+var st = window.__msGameState;
+if(st.started) return;
+st.started = true;
+el.classList.add('ms-teaser-game-started');
+st.coinsLayerEl = coinsLayer;
+st.coins = [];
+for(var i = 0; i < COIN_COUNT; i++){ st.coins.push(makeCoin()); }
+st.startTime = Date.now();
+st.dragonX = window.innerWidth / 2 - DRAGON_WIDTH / 2;
+st.dragonLegPhase = 0;
+initTeaserLeaderboard();
+}
+window.__msBeginHiddenGame = beginHiddenGame;
 
 if(window.__msGameLoopInit) return;
 window.__msGameLoopInit = true;
