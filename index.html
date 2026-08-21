@@ -168,13 +168,25 @@ h1,h2,h3,h4,h5,h6{ font-family:'Eras Bold ITC','Syne',sans-serif !important; let
 @keyframes msTeaserShine{0%{left:-60%;}45%{left:130%;}100%{left:130%;}}
 .ms-teaser-logo-3d{perspective:900px;width:130px;height:130px;margin:0 auto 2.5rem;position:relative;filter:drop-shadow(0 0 20px rgba(110,225,255,0.45)) drop-shadow(0 0 38px rgba(255,214,57,0.35));}
 .ms-teaser-logo-cube{position:relative;width:100%;height:100%;transform-style:preserve-3d;will-change:transform;}
-.ms-teaser-logo-face{position:absolute;inset:0;width:130px;height:130px;backface-visibility:hidden;background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');background-size:cover;background-position:center;border:1px solid rgba(255,255,255,0.18);box-sizing:border-box;filter:saturate(1.2) contrast(1.05);}
+.ms-teaser-logo-face{position:absolute;inset:0;width:130px;height:130px;backface-visibility:hidden;border:1px solid rgba(255,255,255,0.18);box-sizing:border-box;overflow:hidden;}
 .ms-teaser-logo-face-front{transform:translateZ(65px);}
 .ms-teaser-logo-face-back{transform:rotateY(180deg) translateZ(65px);}
 .ms-teaser-logo-face-right{transform:rotateY(90deg) translateZ(65px);}
 .ms-teaser-logo-face-left{transform:rotateY(-90deg) translateZ(65px);}
 .ms-teaser-logo-face-top{transform:rotateX(90deg) translateZ(65px);}
 .ms-teaser-logo-face-bottom{transform:rotateX(-90deg) translateZ(65px);}
+/* Each face's placement transform above (needed to fold it into cube shape)
+also reorients whatever is drawn on it. This inner layer holds the actual
+logo image and carries the exact opposite rotation, so the logo reads
+right-side-up (not mirrored or upside-down) on every face once the cube
+turns to present that face to the viewer. */
+.ms-teaser-logo-face-img{position:absolute;inset:0;background-image:url('https://xqeboeuukodkwankpmcl.supabase.co/storage/v1/object/public/site-assets/teaser/ms-logo-metal.jpg');background-size:cover;background-position:center;filter:saturate(1.2) contrast(1.05);}
+.ms-teaser-logo-face-front .ms-teaser-logo-face-img{}
+.ms-teaser-logo-face-back .ms-teaser-logo-face-img{transform:rotateY(180deg);}
+.ms-teaser-logo-face-right .ms-teaser-logo-face-img{transform:rotateY(-90deg);}
+.ms-teaser-logo-face-left .ms-teaser-logo-face-img{transform:rotateY(90deg);}
+.ms-teaser-logo-face-top .ms-teaser-logo-face-img{transform:rotateX(-90deg);}
+.ms-teaser-logo-face-bottom .ms-teaser-logo-face-img{transform:rotateX(90deg);}
 .ms-teaser-logo-holo-scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(130,230,255,0.22) 0px,rgba(130,230,255,0.22) 2px,transparent 2px,transparent 5px);mix-blend-mode:screen;opacity:0;}
 .ms-teaser-logo-holo-tint{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(120,225,255,0.16),rgba(255,110,220,0.08));mix-blend-mode:screen;opacity:0;}
 @keyframes msTeaserLogoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
@@ -6088,12 +6100,12 @@ el.innerHTML =
 '<div class="ms-teaser-glow"></div>' +
 '<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2.25rem;text-align:center;padding:2rem;">' +
 '<div class="ms-teaser-logo-3d"><div class="ms-teaser-logo-cube">' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-front"></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-back"></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-right"></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-left"></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-top"></div>' +
-'<div class="ms-teaser-logo-face ms-teaser-logo-face-bottom"></div>' +
+'<div class="ms-teaser-logo-face ms-teaser-logo-face-front"><div class="ms-teaser-logo-face-img"></div></div>' +
+'<div class="ms-teaser-logo-face ms-teaser-logo-face-back"><div class="ms-teaser-logo-face-img"></div></div>' +
+'<div class="ms-teaser-logo-face ms-teaser-logo-face-right"><div class="ms-teaser-logo-face-img"></div></div>' +
+'<div class="ms-teaser-logo-face ms-teaser-logo-face-left"><div class="ms-teaser-logo-face-img"></div></div>' +
+'<div class="ms-teaser-logo-face ms-teaser-logo-face-top"><div class="ms-teaser-logo-face-img"></div></div>' +
+'<div class="ms-teaser-logo-face ms-teaser-logo-face-bottom"><div class="ms-teaser-logo-face-img"></div></div>' +
 '</div>' +
 '<div class="ms-teaser-logo-holo-tint"></div>' +
 '<div class="ms-teaser-logo-holo-scan"></div>' +
@@ -6167,38 +6179,35 @@ window.__msTeaserMouseY = my;
 }
 if(window.__msTeaserTiltLoopInit) return;
 window.__msTeaserTiltLoopInit = true;
-var spinY = 15, spinX = -8;
-var velY = 0.12, velX = 0.04;
+var curY = 15, curX = -8;
+var autoSpin = 0;
 function frame(t){
 var wrap = document.querySelector('.ms-teaser-logo-3d');
 var cube = document.querySelector('.ms-teaser-logo-cube');
 if(wrap && cube){
 var mx = window.__msTeaserMouseX || 0;
 var my = window.__msTeaserMouseY || 0;
-var vx = window.__msTeaserMouseVX || 0;
-var vy = window.__msTeaserMouseVY || 0;
-window.__msTeaserMouseVX = vx * 0.9;
-window.__msTeaserMouseVY = vy * 0.9;
-/* mouse drag adds spin momentum; a small constant nudge keeps it
-turning gently even with the mouse still. */
-velY += vx * 6.5;
-velX += -vy * 6.5;
-velY += 0.05;
-velY *= 0.965;
-velX *= 0.965;
-spinY += velY;
-spinX += velX;
-/* Every face has the logo now, so there's no bad angle -- let it spin
-freely on both axes instead of clamping X. */
-cube.style.transform = 'rotateY(' + spinY.toFixed(2) + 'deg) rotateX(' + spinX.toFixed(2) + 'deg)';
+/* Rotation now tracks the mouse's actual POSITION (not just its
+velocity), so moving the cursor left/right visibly turns the cube
+left/right, and up/down visibly tilts it up/down -- full freedom on
+both axes. A slow constant auto-spin is folded into the left/right
+target so it's never fully static when the mouse sits still. */
+autoSpin += 0.1;
+var targetY = autoSpin + (mx * 65);
+var targetX = my * -42;
+curY += (targetY - curY) * 0.055;
+curX += (targetX - curX) * 0.055;
+/* Every face has the logo now, so there's no bad angle -- fully free
+on both axes. */
+cube.style.transform = 'rotateY(' + curY.toFixed(2) + 'deg) rotateX(' + curX.toFixed(2) + 'deg)';
 /* The gentle up/down bob used to be a CSS animation on this same element,
 but a running CSS animation overrides inline style.transform every frame
 -- it was silently cancelling the mouse-follow translate below. Folding
 the bob into this loop instead so both combine into one transform. */
 var bobY = Math.sin(t / 900) * 8;
 wrap.style.transform = 'translate(' + (mx * 34).toFixed(1) + 'px,' + (my * 28 + bobY).toFixed(1) + 'px)';
-var speed = Math.abs(velY) + Math.abs(velX);
-var holoAmount = Math.min(1, speed / 2.5);
+var speed = Math.abs(targetY - curY) + Math.abs(targetX - curX);
+var holoAmount = Math.min(1, speed / 12);
 var scan = wrap.querySelector('.ms-teaser-logo-holo-scan');
 var tint = wrap.querySelector('.ms-teaser-logo-holo-tint');
 if(scan) scan.style.opacity = (0.15 + holoAmount * 0.65).toFixed(2);
