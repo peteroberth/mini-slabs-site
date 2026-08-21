@@ -12,7 +12,7 @@
 <script type="module" crossorigin src="/assets/index-DvL4W1wH.js"></script>
 <link rel="stylesheet" crossorigin href="/assets/index-D90Nm3Qs.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Lato:wght@300;400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
 <link href="https://db.onlinewebfonts.com/c/401b3afcdd14cf76b92956ecc7f7d8e6?family=Eras+Bold+ITC" rel="stylesheet">
 <style>
 body.ms-sellback-page, body.ms-sellback-page *{ font-family:'Lato',sans-serif !important; }
@@ -219,6 +219,10 @@ driven entirely by JS (translate3d), not left/top, for smooth dragging. */
 .ms-game-leaderboard-list li{display:flex;justify-content:space-between;padding:0.35rem 0.15rem;border-bottom:1px solid rgba(255,255,255,0.08);}
 .ms-game-leaderboard-list li span:first-child{color:#C5A44E;letter-spacing:0.15em;}
 .ms-game-close-x{position:absolute;top:12px;right:16px;color:#C5A44E;cursor:pointer;font-size:1.2rem;line-height:1;}
+.ms-game-flash{position:absolute;inset:0;z-index:25;display:none;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,0.4);}
+.ms-game-flash.ms-show{display:flex;}
+.ms-game-flash-text{font-family:'Press Start 2P',monospace;font-size:clamp(1.5rem,6vw,3.4rem);letter-spacing:0.08em;color:#FFD24A;text-shadow:4px 4px 0 #7A1E00,-2px -2px 0 #000;animation:msFlashBlink 0.5s steps(2) infinite;text-align:center;}
+@keyframes msFlashBlink{0%{opacity:1;}50%{opacity:0.35;}100%{opacity:1;}}
 @keyframes msTeaserLogoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
 </style>
 </head>
@@ -6185,6 +6189,7 @@ el.innerHTML =
 '</svg></div>' +
 '<div class="ms-game-fire-breath"></div>' +
 '<div class="ms-game-blackout"></div>' +
+'<div class="ms-game-flash"><div class="ms-game-flash-text" id="ms-game-flash-text">GAME OVER</div></div>' +
 '<div class="ms-game-box"><div class="ms-game-box-img"></div></div>' +
 '<div class="ms-game-hud">' +
 '<div class="ms-game-score">Score: <span id="ms-game-score-num">0</span></div>' +
@@ -6192,9 +6197,12 @@ el.innerHTML =
 '<div class="ms-game-highscore">High Score: <span id="ms-game-highscore-num">0</span></div>' +
 '<div class="ms-game-leaderboard-link" id="ms-game-leaderboard-open">View Top 10 &rsaquo;</div>' +
 '</div>' +
-'<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:0.9rem;text-align:center;padding:2rem;pointer-events:none;">' +
+'<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:1.4rem;text-align:center;padding:2rem;pointer-events:none;">' +
+'<div class="ms-teaser-slab"><div class="ms-teaser-slab-shine"></div><div class="ms-teaser-slab-core"></div></div>' +
+'<div>' +
 '<div style="font-family:\'Eras Bold ITC\',\'Syne\',sans-serif;font-size:clamp(1.8rem,5vw,3.2rem);font-weight:800;letter-spacing:0.06em;color:#FAFAFA;">SMALL AND PROUD.</div>' +
 '<div style="font-family:\'Space Mono\',monospace;font-size:0.85rem;letter-spacing:0.3em;text-transform:uppercase;color:#C5A44E;margin-top:0.9rem;">Something <span style="text-decoration:line-through;opacity:0.55;">huge</span> tiny is coming</div>' +
+'</div>' +
 '</div>' +
 '<div id="ms-game-leaderboard-modal" class="ms-game-modal" style="display:none;">' +
 '<div class="ms-game-modal-card">' +
@@ -6205,18 +6213,16 @@ el.innerHTML =
 '</div>' +
 '<div id="ms-game-over-modal" class="ms-game-modal" style="display:none;">' +
 '<div class="ms-game-modal-card">' +
-'<h3>The Dragon Stole Your Stack!</h3>' +
+'<p style="font-family:\'Press Start 2P\',monospace;font-size:0.7rem;color:#C5A44E;letter-spacing:0.05em;line-height:1.6;">Top 10 score!</p>' +
 '<p id="ms-game-final-score">Score: 0</p>' +
-'<div id="ms-game-initials-section" style="display:none;">' +
-'<p>New top-10 score! Enter your initials:</p>' +
+'<p>Enter your initials:</p>' +
 '<div class="ms-game-initials-row">' +
 '<input maxlength="1" id="ms-game-initial-0" />' +
 '<input maxlength="1" id="ms-game-initial-1" />' +
 '<input maxlength="1" id="ms-game-initial-2" />' +
 '</div>' +
 '<button class="ms-game-btn" id="ms-game-save-score">Save Score</button>' +
-'</div>' +
-'<button class="ms-game-btn ms-secondary" id="ms-game-play-again">Play Again</button>' +
+'<button class="ms-game-btn ms-secondary" id="ms-game-skip-save">Skip</button>' +
 '</div>' +
 '</div>';
 try{ startTeaserCollectGame(el); }catch(e){ try{ console.error('[ms-teaser] game init threw', e); }catch(e2){} }
@@ -6295,7 +6301,7 @@ var t = e.target;
 if(!t || !t.id) return;
 if(t.id === 'ms-game-leaderboard-open') openLeaderboardModal();
 else if(t.id === 'ms-game-leaderboard-close') closeLeaderboardModal();
-else if(t.id === 'ms-game-play-again') resetGame();
+else if(t.id === 'ms-game-skip-save') revertToTeaser();
 else if(t.id === 'ms-game-save-score') submitScore();
 });
 document.addEventListener('input', function(e){
@@ -6424,7 +6430,7 @@ fire.style.top = (window.innerHeight - 100) + 'px';
 the screen catches as the fire spreads, then the game-over card. */
 setTimeout(function(){ if(fire) fire.classList.add('ms-breathing'); }, 300);
 setTimeout(function(){ if(blackout) blackout.classList.add('ms-show'); }, 550);
-setTimeout(function(){ showGameOverModal(); }, 1500);
+setTimeout(function(){ showGameOverFlash(); }, 1500);
 }
 
 function escHtml(s){
@@ -6483,21 +6489,34 @@ var modal = document.querySelector('#ms-game-leaderboard-modal');
 if(modal) modal.style.display = 'none';
 }
 
-function showGameOverModal(){
+/* Retro arcade-style ending: flash "GAME OVER" (or "NICE JOB" for a
+top-10 score) in 8-bit font, then either collect initials for the
+leaderboard or just revert straight back to the hidden teaser. */
+function showGameOverFlash(){
+var st = window.__msGameState;
+var qualifies = st.score > 0 && (!st.leaderboard || st.leaderboard.length < 10 || st.score > st.leaderboard[st.leaderboard.length - 1].score);
+var flash = document.querySelector('.ms-game-flash');
+var flashText = document.querySelector('#ms-game-flash-text');
+if(flashText) flashText.textContent = qualifies ? 'NICE JOB' : 'GAME OVER';
+if(flash) flash.classList.add('ms-show');
+setTimeout(function(){
+if(flash) flash.classList.remove('ms-show');
+if(qualifies){ showInitialsEntry(); } else { revertToTeaser(); }
+}, 1700);
+}
+
+function showInitialsEntry(){
 var st = window.__msGameState;
 var modal = document.querySelector('#ms-game-over-modal');
 var finalScoreEl = document.querySelector('#ms-game-final-score');
-var initialsSection = document.querySelector('#ms-game-initials-section');
 if(finalScoreEl) finalScoreEl.textContent = 'Score: ' + st.score;
-var qualifies = st.score > 0 && (!st.leaderboard || st.leaderboard.length < 10 || st.score > st.leaderboard[st.leaderboard.length - 1].score);
-if(initialsSection) initialsSection.style.display = qualifies ? '' : 'none';
 if(modal) modal.style.display = 'flex';
-if(qualifies){
 var i0 = document.querySelector('#ms-game-initial-0');
+var i1 = document.querySelector('#ms-game-initial-1');
+var i2 = document.querySelector('#ms-game-initial-2');
 if(i0){ i0.value = ''; setTimeout(function(){ i0.focus(); }, 50); }
-var i1 = document.querySelector('#ms-game-initial-1'); if(i1) i1.value = '';
-var i2 = document.querySelector('#ms-game-initial-2'); if(i2) i2.value = '';
-}
+if(i1) i1.value = '';
+if(i2) i2.value = '';
 }
 
 function submitScore(){
@@ -6517,37 +6536,52 @@ body: JSON.stringify({ initials: initials, score: st.score })
 }).then(function(){
 st.leaderboardLoaded = false;
 initTeaserLeaderboard();
-var initialsSection = document.querySelector('#ms-game-initials-section');
-if(initialsSection) initialsSection.style.display = 'none';
 }).catch(function(e){
 try{ console.error('[ms-teaser] score submit failed', e); }catch(err){}
 }).then(function(){
 if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = 'Save Score'; }
+revertToTeaser();
 });
 }
 
-function resetGame(){
+/* Fully un-reveals the hidden game: dragon, HUD, and fire/blackout effects
+all disappear again, coins are cleared out, and the "MS" box drops back
+into its plain static logo spot -- clicking it starts a fresh round. The
+box/logo itself is never hidden or removed, only the game trappings
+around it. */
+function revertToTeaser(){
 var st = window.__msGameState;
+st.started = false;
+st.gameOver = false;
 st.score = 0;
 st.missed = 0;
-st.gameOver = false;
-st.startTime = Date.now();
 var se = document.querySelector('#ms-game-score-num'); if(se) se.textContent = 0;
 var me = document.querySelector('#ms-game-missed-num'); if(me) me.textContent = 0;
+el.classList.remove('ms-teaser-game-started');
 var dragon = document.querySelector('.ms-game-dragon');
-var blackout = document.querySelector('.ms-game-blackout');
-var fire = document.querySelector('.ms-game-fire-breath');
 if(dragon){
 dragon.classList.remove('ms-fire-pose', 'ms-mean-1', 'ms-mean-2');
 dragon.style.removeProperty('--dragon-final-x');
 dragon.style.removeProperty('--dragon-final-scale');
-dragon.style.transform = 'translate3d(' + st.dragonX + 'px,0,0) scale(' + dragonScale(0) + ')';
+dragon.style.transform = '';
 }
+var fire = document.querySelector('.ms-game-fire-breath');
 if(fire) fire.classList.remove('ms-breathing');
+var blackout = document.querySelector('.ms-game-blackout');
 if(blackout) blackout.classList.remove('ms-show');
+var flash = document.querySelector('.ms-game-flash');
+if(flash) flash.classList.remove('ms-show');
 var modal = document.querySelector('#ms-game-over-modal');
 if(modal) modal.style.display = 'none';
-for(var i = 0; i < st.coins.length; i++){ resetCoin(st.coins[i]); }
+if(coinsLayer) coinsLayer.innerHTML = '';
+st.coins = [];
+st.coinsLayerEl = null;
+var box = document.querySelector('.ms-game-box');
+if(box){
+st.boxX = window.innerWidth / 2 - BOX_SIZE / 2;
+st.boxY = window.innerHeight * 0.3;
+box.style.transform = 'translate3d(' + st.boxX + 'px,' + st.boxY + 'px,0)';
+}
 }
 
 /* The whole mini-game stays hidden (no coins, no dragon, no HUD) until the
